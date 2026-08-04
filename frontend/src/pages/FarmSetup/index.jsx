@@ -1,5 +1,5 @@
 const FarmSetup = () => {
-  return null;
+  return <h1>FarmSetup</h1>;
 };
 
 export default FarmSetup;

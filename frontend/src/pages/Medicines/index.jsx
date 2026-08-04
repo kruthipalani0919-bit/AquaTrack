@@ -1,5 +1,5 @@
 const Medicines = () => {
-  return null;
+  return <h1>Medicines</h1>;
 };
 
 export default Medicines;

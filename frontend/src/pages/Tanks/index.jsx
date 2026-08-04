@@ -1,5 +1,5 @@
 const Tanks = () => {
-  return null;
+  return <h1>Tanks</h1>;
 };
 
 export default Tanks;
