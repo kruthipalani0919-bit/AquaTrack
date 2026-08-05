@@ -8,9 +8,9 @@ import { Droplets, User, Phone, Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lu
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
-import { authService } from '../../services/authService';
 
 // 1. Zod Validation Schema matching backend contract (fullName, mobile, email, password)
+// confirmPassword is used solely for frontend validation refinement.
 const registerSchema = z
   .object({
     fullName: z
@@ -70,6 +70,7 @@ export default function Register() {
   const onSubmit = async (formData) => {
     setIsSubmitting(true);
 
+    // Backend Request Model (confirmPassword excluded)
     const payload = {
       fullName: formData.fullName.trim(),
       mobile: formData.mobile.trim(),
@@ -77,17 +78,16 @@ export default function Register() {
       password: formData.password,
     };
 
-    // Requirement 8: Print backend payload object to console upon successful validation
+    // Print backend payload object to console locally
     console.log('Registration Payload:', payload);
 
     // Temporary frontend-only mock flow
-
     setTimeout(() => {
       setIsSubmitting(false);
       setSubmitSuccess(true);
 
       setTimeout(() => {
-        navigate("/login");
+        navigate('/login');
       }, 1200);
     }, 800);
   };
@@ -177,7 +177,7 @@ export default function Register() {
                 {...register('email')}
               />
 
-              {/* Password (Required) */}
+              {/* Password (Required - Min 8 characters) */}
               <div className="flex flex-col gap-1.5 w-full">
                 <label className="text-xs font-semibold text-text-primary tracking-wide flex items-center gap-1 select-none">
                   Password <span className="text-danger">*</span>
@@ -210,7 +210,7 @@ export default function Register() {
                 )}
               </div>
 
-              {/* Confirm Password (Required) */}
+              {/* Confirm Password (Required - Frontend validation only) */}
               <div className="flex flex-col gap-1.5 w-full">
                 <label className="text-xs font-semibold text-text-primary tracking-wide flex items-center gap-1 select-none">
                   Confirm Password <span className="text-danger">*</span>

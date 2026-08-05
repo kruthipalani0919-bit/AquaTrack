@@ -3,26 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Droplets, Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Droplets, Phone, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
-import { authService } from '../../services/authService';
 
-// 1. Zod Login Schema supporting Email or 10-digit Mobile Number
+// 1. Zod Login Schema supporting ONLY 10-digit Mobile Number and Password
 const loginSchema = z.object({
-  identifier: z
+  mobile: z
     .string()
-    .min(1, 'Email or Mobile Number is required')
-    .refine((val) => {
-      const cleanVal = val.trim();
-      if (/^\d+$/.test(cleanVal)) {
-        return /^\d{10}$/.test(cleanVal);
-      }
-      return z.string().email().safeParse(cleanVal).success;
-    }, {
-      message: 'Please enter a valid email address or 10-digit mobile number',
+    .min(1, 'Mobile number is required')
+    .transform((val) => val.trim())
+    .refine((val) => /^\d{10}$/.test(val), {
+      message: 'Mobile number must be exactly 10 digits',
     }),
   password: z
     .string()
@@ -44,7 +38,7 @@ export default function Login() {
   } = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      identifier: '',
+      mobile: '',
       password: '',
       rememberMe: false,
     },
@@ -54,19 +48,25 @@ export default function Login() {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
 
-    console.log("Login Payload:", data);
+    // Backend Payload Model: { mobile, password }
+    const payload = {
+      mobile: data.mobile.trim(),
+      password: data.password,
+    };
+
+    console.log('Login Payload:', payload);
 
     // Temporary frontend-only mock login
     setTimeout(() => {
       // Simulate successful login
-      localStorage.setItem("isAuthenticated", "true");
+      localStorage.setItem('isAuthenticated', 'true');
 
-      // Optional: store dummy user
+      // Store dummy user details
       localStorage.setItem(
-        "user",
+        'user',
         JSON.stringify({
-          name: "Demo Farmer",
-          mobile: data.identifier,
+          name: 'Demo Farmer',
+          mobile: payload.mobile,
         })
       );
 
@@ -74,10 +74,11 @@ export default function Login() {
       setSubmitSuccess(true);
 
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate('/dashboard');
       }, 800);
     }, 800);
   };
+
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Background Glow Effect */}
@@ -105,7 +106,7 @@ export default function Login() {
             Welcome Back
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary mt-2">
-            Login to continue managing your farm.
+            Login with your mobile number to continue managing your farm.
           </p>
         </div>
 
@@ -123,15 +124,15 @@ export default function Login() {
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-              {/* Email or Mobile Number */}
+              {/* Mobile Number Only */}
               <Input
-                label="Email or Mobile Number"
+                label="Mobile Number"
                 type="text"
-                placeholder="farmer@aquatrack.io or 9876543210"
-                required={false}
-                icon={<Mail className="w-4 h-4" />}
-                error={errors.identifier?.message}
-                {...register('identifier')}
+                placeholder="9876543210"
+                required={true}
+                icon={<Phone className="w-4 h-4" />}
+                error={errors.mobile?.message}
+                {...register('mobile')}
               />
 
               {/* Password */}
