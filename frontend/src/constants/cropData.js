@@ -1,0 +1,77 @@
+export const SEED_VARIETY_OPTIONS = [
+  { value: 'Penaeus vannamei (SPF)', label: 'Penaeus vannamei (SPF Shrimp)' },
+  { value: 'Penaeus monodon', label: 'Penaeus monodon (Black Tiger)' },
+  { value: 'Macrobrachium rosenbergii', label: 'Freshwater Prawn (Scampi)' },
+];
+
+export const CROP_STATUS_OPTIONS = [
+  { value: 'Active', label: 'Active Culture' },
+  { value: 'Harvested', label: 'Completed / Harvested' },
+  { value: 'Planned', label: 'Planned Stocking' },
+  { value: 'Terminated', label: 'Terminated Early' },
+];
+
+export const MOCK_CROPS = [
+  {
+    id: 'crop-1',
+    tankId: 'tank-1',
+    tankName: 'Pond P-1 (Vannamei Main)',
+    cropName: 'Vannamei Season 2026 Batch A',
+    seedVariety: 'Penaeus vannamei (SPF)',
+    plCount: 150000,
+    stockingDate: '2026-06-15',
+    expectedHarvestDate: '2026-10-15',
+    expectedProductionKg: 3800,
+    expectedSellingPricePerKg: 420,
+    status: 'Active',
+    notes: 'High survival rate observed during 40-day sampling. FCR targeted at 1.2.',
+    createdAt: '2026-06-15',
+  },
+  {
+    id: 'crop-2',
+    tankId: 'tank-2',
+    tankName: 'Pond P-2 (South Sector)',
+    cropName: 'Vannamei Summer Crop 2',
+    seedVariety: 'Penaeus vannamei (SPF)',
+    plCount: 120000,
+    stockingDate: '2026-07-01',
+    expectedHarvestDate: '2026-10-30',
+    expectedProductionKg: 3000,
+    expectedSellingPricePerKg: 440,
+    status: 'Active',
+    notes: 'Good natural plankton bloom. Weekly mineral dosing schedule active.',
+    createdAt: '2026-07-01',
+  },
+  {
+    id: 'crop-3',
+    tankId: 'tank-3',
+    tankName: 'Pond P-3 (North Field)',
+    cropName: 'Black Tiger Premium Cultivation',
+    seedVariety: 'Penaeus monodon',
+    plCount: 180000,
+    stockingDate: '2026-05-20',
+    expectedHarvestDate: '2026-09-20',
+    expectedProductionKg: 4500,
+    expectedSellingPricePerKg: 520,
+    status: 'Active',
+    notes: 'Targeting jumbo count 20-25 per kg for premium export export pricing.',
+    createdAt: '2026-05-20',
+  },
+  {
+    id: 'crop-4',
+    tankId: 'tank-5',
+    tankName: 'Nursery Tank N-1',
+    cropName: 'High Density Nursery Phase',
+    seedVariety: 'Penaeus vannamei (SPF)',
+    plCount: 200000,
+    stockingDate: '2026-07-20',
+    expectedHarvestDate: '2026-08-25',
+    expectedProductionKg: 1200,
+    expectedSellingPricePerKg: 380,
+    status: 'Active',
+    notes: 'Nursery phase transfer scheduled to Pond P-4 upon reaching 1.5g weight.',
+    createdAt: '2026-07-20',
+  },
+];
+
+export default MOCK_CROPS;
