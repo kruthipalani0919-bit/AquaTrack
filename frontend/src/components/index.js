@@ -29,3 +29,8 @@ export { FeedForm } from './FeedForm';
 export { FeedFilters } from './FeedFilters';
 export { FeedSchedule } from './FeedSchedule';
 export { FeedDetailsModal } from './FeedDetailsModal';
+export { WaterCard } from './WaterCard';
+export { WaterForm } from './WaterForm';
+export { WaterFilters } from './WaterFilters';
+export { WaterCharts } from './WaterCharts';
+export { WaterDetailsModal } from './WaterDetailsModal';

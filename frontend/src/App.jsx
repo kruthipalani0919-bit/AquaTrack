@@ -3,6 +3,7 @@ import AppRoutes from './routes/AppRoutes';
 import { TankProvider } from './context/TankContext';
 import { CropProvider } from './context/CropContext';
 import { FeedProvider } from './context/FeedContext';
+import { WaterQualityProvider } from './context/WaterQualityContext';
 
 export default function App() {
   return (
@@ -10,7 +11,9 @@ export default function App() {
       <TankProvider>
         <CropProvider>
           <FeedProvider>
-            <AppRoutes />
+            <WaterQualityProvider>
+              <AppRoutes />
+            </WaterQualityProvider>
           </FeedProvider>
         </CropProvider>
       </TankProvider>
