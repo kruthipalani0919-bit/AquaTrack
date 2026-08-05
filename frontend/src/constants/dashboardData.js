@@ -11,11 +11,86 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+/**
+ * Mock Dashboard Response structured strictly matching the backend contract: GET /api/dashboard
+ */
+export const MOCK_DASHBOARD_RESPONSE = {
+  // 1. Farm Details Section (POST /api/farms contract)
+  farmDetails: {
+    farmName: 'BlueWave Aqua Farm',
+    ownerName: 'Rajesh Kumar',
+    location: 'Coastal Road, Village X',
+    district: 'Nellore',
+    state: 'Andhra Pradesh',
+    totalAcres: 18.5,
+  },
+
+  // 2. Statistics Section
+  statistics: {
+    totalAcres: 18.5,
+    totalTanks: 8,
+    activeTanks: 6,
+    totalCrops: 6,
+    activeCrops: 4,
+    feedConsumedKg: 1450,
+    totalExpenses: 12480,
+    expectedHarvestTons: 14.2,
+    projectedRevenue: 71000,
+  },
+
+  // 3. Financial Summary Section
+  financialSummary: {
+    expenseTrend: [
+      { month: 'Jan', feed: 3200, power: 1100, meds: 600, total: 4900 },
+      { month: 'Feb', feed: 3800, power: 1250, meds: 750, total: 5800 },
+      { month: 'Mar', feed: 4200, power: 1400, meds: 900, total: 6500 },
+      { month: 'Apr', feed: 4600, power: 1350, meds: 800, total: 6750 },
+      { month: 'May', feed: 5100, power: 1500, meds: 1100, total: 7700 },
+      { month: 'Jun', feed: 5800, power: 1650, meds: 1200, total: 8650 },
+    ],
+    feedConsumption: [
+      { pond: 'Pond P-1', starterFeed: 180, growerFeed: 320, total: 500 },
+      { pond: 'Pond P-2', starterFeed: 220, growerFeed: 280, total: 500 },
+      { pond: 'Pond P-3', starterFeed: 150, growerFeed: 350, total: 500 },
+      { pond: 'Pond P-4', starterFeed: 190, growerFeed: 310, total: 500 },
+      { pond: 'Pond P-5', starterFeed: 140, growerFeed: 260, total: 400 },
+    ],
+  },
+
+  // 4. Entry Counts Section
+  entryCounts: {
+    tankCount: 8,
+    cropCount: 6,
+    feedLogCount: 5,
+    waterQualityLogCount: 1,
+    medicineLogCount: 1,
+  },
+
+  // 5. Current Active Crop Overview Section
+  activeCropOverview: {
+    activeCropCount: 4,
+    avgDocDays: 48,
+    activeCropsList: [
+      {
+        id: 'crop-1',
+        cropName: 'Vannamei Season 2026 Batch A',
+        tankName: 'Pond P-1 (Vannamei Main)',
+        docDays: 48,
+        progressPercent: 40,
+        plCount: 150000,
+        expectedProductionKg: 3500,
+        expectedSellingPricePerKg: 420,
+        estimatedRevenue: 1470000,
+      },
+    ],
+  },
+};
+
 export const DASHBOARD_STATS = [
   {
     id: 'acres',
     title: 'Total Acres',
-    value: '18.5 Acres',
+    value: `${MOCK_DASHBOARD_RESPONSE.statistics.totalAcres} Acres`,
     description: '+2.5 Acres expanded this quarter',
     icon: Layers,
     color: 'text-teal-600 bg-teal-50',
@@ -25,8 +100,8 @@ export const DASHBOARD_STATS = [
   {
     id: 'tanks',
     title: 'Total Tanks',
-    value: '8 Active Ponds',
-    description: '6 stocked, 2 in preparation',
+    value: `${MOCK_DASHBOARD_RESPONSE.statistics.totalTanks} Active Ponds`,
+    description: `${MOCK_DASHBOARD_RESPONSE.statistics.activeTanks} stocked, 2 in preparation`,
     icon: Container,
     color: 'text-cyan-600 bg-cyan-50',
     trend: '100% Operational',
@@ -35,8 +110,8 @@ export const DASHBOARD_STATS = [
   {
     id: 'crops',
     title: 'Active Crops',
-    value: '4 Batches',
-    description: 'Vannamei species (Avg DOC: 48d)',
+    value: `${MOCK_DASHBOARD_RESPONSE.statistics.activeCrops} Batches`,
+    description: `Vannamei species (Avg DOC: ${MOCK_DASHBOARD_RESPONSE.activeCropOverview.avgDocDays}d)`,
     icon: Sprout,
     color: 'text-emerald-600 bg-emerald-50',
     trend: 'Optimal Growth',
@@ -45,7 +120,7 @@ export const DASHBOARD_STATS = [
   {
     id: 'feed',
     title: 'Feed Consumed',
-    value: '1,450 kg',
+    value: `${MOCK_DASHBOARD_RESPONSE.statistics.feedConsumedKg.toLocaleString()} kg`,
     description: 'Average FCR: 1.24 ratio',
     icon: UtensilsCrossed,
     color: 'text-blue-600 bg-blue-50',
@@ -55,7 +130,7 @@ export const DASHBOARD_STATS = [
   {
     id: 'expenses',
     title: 'Total Expenses',
-    value: '$12,480',
+    value: `$${MOCK_DASHBOARD_RESPONSE.statistics.totalExpenses.toLocaleString()}`,
     description: 'Feed 62%, Power 20%, Meds 18%',
     icon: Receipt,
     color: 'text-indigo-600 bg-indigo-50',
@@ -65,8 +140,8 @@ export const DASHBOARD_STATS = [
   {
     id: 'harvest',
     title: 'Expected Harvest',
-    value: '14.2 Tons',
-    description: 'Projected Revenue: $71,000',
+    value: `${MOCK_DASHBOARD_RESPONSE.statistics.expectedHarvestTons} Tons`,
+    description: `Projected Revenue: $${MOCK_DASHBOARD_RESPONSE.statistics.projectedRevenue.toLocaleString()}`,
     icon: Wheat,
     color: 'text-amber-600 bg-amber-50',
     trend: '+8% vs last harvest',
@@ -74,22 +149,8 @@ export const DASHBOARD_STATS = [
   },
 ];
 
-export const EXPENSE_TREND_DATA = [
-  { month: 'Jan', feed: 3200, power: 1100, meds: 600, total: 4900 },
-  { month: 'Feb', feed: 3800, power: 1250, meds: 750, total: 5800 },
-  { month: 'Mar', feed: 4200, power: 1400, meds: 900, total: 6500 },
-  { month: 'Apr', feed: 4600, power: 1350, meds: 800, total: 6750 },
-  { month: 'May', feed: 5100, power: 1500, meds: 1100, total: 7700 },
-  { month: 'Jun', feed: 5800, power: 1650, meds: 1200, total: 8650 },
-];
-
-export const FEED_CONSUMPTION_DATA = [
-  { pond: 'Pond P-1', starterFeed: 180, growerFeed: 320, total: 500 },
-  { pond: 'Pond P-2', starterFeed: 220, growerFeed: 280, total: 500 },
-  { pond: 'Pond P-3', starterFeed: 150, growerFeed: 350, total: 500 },
-  { pond: 'Pond P-4', starterFeed: 190, growerFeed: 310, total: 500 },
-  { pond: 'Pond P-5', starterFeed: 140, growerFeed: 260, total: 400 },
-];
+export const EXPENSE_TREND_DATA = MOCK_DASHBOARD_RESPONSE.financialSummary.expenseTrend;
+export const FEED_CONSUMPTION_DATA = MOCK_DASHBOARD_RESPONSE.financialSummary.feedConsumption;
 
 export const RECENT_ACTIVITIES = [
   {
@@ -177,3 +238,5 @@ export const UPCOMING_REMINDERS = [
     icon: UtensilsCrossed,
   },
 ];
+
+export default MOCK_DASHBOARD_RESPONSE;
