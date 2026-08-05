@@ -8,13 +8,22 @@ import { Droplets, Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
+import { authService } from '../../services/authService';
 
-// 1. Zod Login Schema
+// 1. Zod Login Schema supporting Email or 10-digit Mobile Number
 const loginSchema = z.object({
-  email: z
+  identifier: z
     .string()
-    .min(1, 'Email address is required')
-    .email('Please enter a valid email address'),
+    .min(1, 'Email or Mobile Number is required')
+    .refine((val) => {
+      const cleanVal = val.trim();
+      if (/^\d+$/.test(cleanVal)) {
+        return /^\d{10}$/.test(cleanVal);
+      }
+      return z.string().email().safeParse(cleanVal).success;
+    }, {
+      message: 'Please enter a valid email address or 10-digit mobile number',
+    }),
   password: z
     .string()
     .min(1, 'Password is required')
@@ -35,25 +44,29 @@ export default function Login() {
   } = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
+      identifier: '',
+      password: '',
       rememberMe: false,
     },
     mode: 'onTouched',
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     setIsSubmitting(true);
 
-    // Simulated async login action
-    setTimeout(() => {
-      console.log('Login Form Submitted Successfully:', data);
+    try {
+      // 5. LOGIN PAGE: Call authService login which sets localStorage.setItem("isAuthenticated", "true")
+      await authService.login(data);
       setIsSubmitting(false);
       setSubmitSuccess(true);
 
-      // Auto redirect to dashboard
       setTimeout(() => {
         navigate('/dashboard');
-      }, 1500);
-    }, 800);
+      }, 800);
+    } catch (err) {
+      console.error('Login error:', err);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -96,20 +109,20 @@ export default function Login() {
               </div>
               <h2 className="text-lg font-bold text-text-primary">Login Successful!</h2>
               <p className="text-xs text-text-secondary max-w-xs">
-                Check the developer console for logged values. Redirecting to your dashboard...
+                Redirecting to your dashboard...
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-              {/* Email Address */}
+              {/* Email or Mobile Number */}
               <Input
-                label="Email Address"
-                type="email"
-                placeholder="farmer@aquatrack.io"
-                required
+                label="Email or Mobile Number"
+                type="text"
+                placeholder="farmer@aquatrack.io or 9876543210"
+                required={false}
                 icon={<Mail className="w-4 h-4" />}
-                error={errors.email?.message}
-                {...register('email')}
+                error={errors.identifier?.message}
+                {...register('identifier')}
               />
 
               {/* Password */}

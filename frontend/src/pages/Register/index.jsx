@@ -3,28 +3,53 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Droplets, User, Phone, Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Droplets, User, Phone, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
+import { authService } from '../../services/authService';
 
-// 1. Zod Validation Schema
+// 1. Zod Validation Schema with unified Contact Information field (10-digit mobile or valid email)
 const registerSchema = z.object({
   fullName: z
     .string()
     .min(1, 'Full name is required')
     .trim(),
-  mobileNumber: z
+  contact: z
     .string()
-    .min(1, 'Mobile number is required')
-    .regex(/^[0-9]{10}$/, 'Mobile number must contain exactly 10 digits'),
-  email: z
-    .string()
-    .min(1, 'Email address is required')
-    .email('Please enter a valid email address'),
+    .min(1, 'Contact Information is required.')
+    .superRefine((val, ctx) => {
+      const cleanVal = val.trim();
+      if (!cleanVal) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Contact Information is required.',
+        });
+        return;
+      }
+      // If user enters only numeric digits
+      if (/^\d+$/.test(cleanVal)) {
+        if (!/^\d{10}$/.test(cleanVal)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Enter a valid 10-digit mobile number.',
+          });
+        }
+      } else {
+        // If user enters alphabetic characters or '@', validate as email address
+        const isEmail = z.string().email().safeParse(cleanVal).success;
+        if (!isEmail) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Enter a valid email address.',
+          });
+        }
+      }
+    }),
   password: z
     .string()
+    .min(1, 'Password is required')
     .min(8, 'Password must contain at least 8 characters'),
   confirmPassword: z
     .string()
@@ -47,23 +72,31 @@ export default function Register() {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: '',
+      contact: '',
+      password: '',
+      confirmPassword: '',
+    },
     mode: 'onTouched',
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     setIsSubmitting(true);
 
-    // Simulated async registration action
-    setTimeout(() => {
-      console.log('Registration Form Submitted Successfully:', data);
+    try {
+      // Call mock authService register and navigate to /login
+      await authService.register(data);
       setIsSubmitting(false);
       setSubmitSuccess(true);
 
-      // Auto redirect to login page after 2 seconds
       setTimeout(() => {
         navigate('/login');
-      }, 2000);
-    }, 800);
+      }, 1200);
+    } catch (err) {
+      console.error('Registration error:', err);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -106,7 +139,7 @@ export default function Register() {
               </div>
               <h2 className="text-lg font-bold text-text-primary">Account Created Successfully!</h2>
               <p className="text-xs text-text-secondary max-w-xs">
-                Check the developer console for logged form output. Redirecting you to the login page...
+                Redirecting you to the login page...
               </p>
               <Button
                 variant="primary"
@@ -123,33 +156,21 @@ export default function Register() {
               <Input
                 label="Full Name"
                 placeholder="John Doe"
-                required
+                required={true}
                 icon={<User className="w-4 h-4" />}
                 error={errors.fullName?.message}
                 {...register('fullName')}
               />
 
-              {/* Mobile Number */}
+              {/* Contact Information */}
               <Input
-                label="Mobile Number"
-                type="tel"
-                placeholder="9876543210"
-                maxLength={10}
-                required
+                label="Contact Information"
+                type="text"
+                placeholder="Enter your mobile number or email address"
+                required={true}
                 icon={<Phone className="w-4 h-4" />}
-                error={errors.mobileNumber?.message}
-                {...register('mobileNumber')}
-              />
-
-              {/* Email Address */}
-              <Input
-                label="Email Address"
-                type="email"
-                placeholder="farmer@aquatrack.io"
-                required
-                icon={<Mail className="w-4 h-4" />}
-                error={errors.email?.message}
-                {...register('email')}
+                error={errors.contact?.message}
+                {...register('contact')}
               />
 
               {/* Password */}
