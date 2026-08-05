@@ -1,11 +1,10 @@
 export const DEFAULT_FARM_INFO = {
   farmName: 'BlueWave Aqua Farm',
   ownerName: 'Rajesh Kumar',
-  location: 'Nellore, Andhra Pradesh',
-  totalAreaAcres: 12.5,
-  activePondsCount: 8,
-  primaryCrop: 'Vannamei Shrimp',
-  season: 'Active Culture Season 2026',
+  location: 'Coastal Road, Village X',
+  district: 'Nellore',
+  state: 'Andhra Pradesh',
+  totalAcres: 12.5,
 };
 
 export const WATER_SOURCE_OPTIONS = [
@@ -27,3 +26,5 @@ export const FEED_BRAND_OPTIONS = [
   { value: 'Grobest', label: 'Grobest Shrimp Feed' },
   { value: 'Godrej Agrovet', label: 'Godrej Aqua Feed' },
 ];
+
+export default DEFAULT_FARM_INFO;

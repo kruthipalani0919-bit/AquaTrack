@@ -1,67 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Building2,
-  MapPin,
-  Container,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
   Droplets,
   Layers,
-  Sparkles,
-  ClipboardList,
-  Plus,
-  Trash2
+  ClipboardList
 } from 'lucide-react';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { Select } from '../../components/Select';
 import { Card } from '../../components/Card';
 import { PageHeader } from '../../components/PageHeader';
 import { Badge } from '../../components/Badge';
 
-// 1. Zod Validation Schemas
-const tankSchema = z.object({
-  name: z.string().min(1, 'Tank name is required'),
-  area: z.coerce.number({ invalid_type_error: 'Area must be a number' }).positive('Area must be greater than 0'),
-  depth: z.coerce.number({ invalid_type_error: 'Depth must be a number' }).positive('Depth must be greater than 0'),
-  waterSource: z.string().min(1, 'Please select a water source'),
-  remarks: z.string().optional(),
-});
-
+// Zod Validation Schema strictly matching backend contract (POST /api/farms)
 const farmSetupSchema = z.object({
-  // Step 1: Farm Details
   farmName: z.string().min(1, 'Farm name is required').trim(),
   ownerName: z.string().min(1, 'Owner name is required').trim(),
-  mobileNumber: z.string().regex(/^[0-9]{10}$/, 'Mobile number must contain exactly 10 digits'),
-  email: z.string().min(1, 'Email address is required').email('Please enter a valid email address'),
-  location: z.string().min(1, 'Farm location is required'),
-  district: z.string().min(1, 'District is required'),
-  state: z.string().min(1, 'State is required'),
-
-  // Step 2: Land Details
-  totalArea: z.coerce.number({ invalid_type_error: 'Total farm area must be a number' }).positive('Area must be greater than 0'),
-  numberOfTanks: z.coerce
-    .number({ invalid_type_error: 'Number of tanks must be a number' })
-    .min(1, 'At least 1 tank is required')
-    .max(50, 'Maximum 50 tanks allowed'),
-
-  // Step 3: Tank Configuration
-  tanks: z.array(tankSchema).min(1, 'At least 1 tank configuration is required'),
+  location: z.string().min(1, 'Farm location is required').trim(),
+  district: z.string().min(1, 'District is required').trim(),
+  state: z.string().min(1, 'State is required').trim(),
+  totalAcres: z.coerce
+    .number({ invalid_type_error: 'Total farm area must be a number' })
+    .positive('Area must be greater than 0'),
 });
-
-const WATER_SOURCES = [
-  { value: 'Borewell', label: 'Borewell' },
-  { value: 'Canal', label: 'Canal' },
-  { value: 'River', label: 'River' },
-  { value: 'Rain Water', label: 'Rain Water' },
-  { value: 'Other', label: 'Other' },
-];
 
 export default function FarmSetup() {
   const navigate = useNavigate();
@@ -73,9 +41,6 @@ export default function FarmSetup() {
     register,
     handleSubmit,
     trigger,
-    control,
-    watch,
-    setValue,
     getValues,
     formState: { errors },
   } = useForm({
@@ -83,60 +48,28 @@ export default function FarmSetup() {
     defaultValues: {
       farmName: '',
       ownerName: '',
-      mobileNumber: '',
-      email: '',
       location: '',
       district: '',
       state: '',
-      totalArea: '',
-      numberOfTanks: 2,
-      tanks: [],
+      totalAcres: '',
     },
     mode: 'onTouched',
   });
-
-  const { fields, replace, append, remove } = useFieldArray({
-    control,
-    name: 'tanks',
-  });
-
-  const numberOfTanksValue = watch('numberOfTanks');
 
   // Step Navigation Validation
   const handleNext = async () => {
     let fieldsToValidate = [];
 
     if (currentStep === 1) {
-      fieldsToValidate = ['farmName', 'ownerName', 'mobileNumber', 'email', 'location', 'district', 'state'];
+      fieldsToValidate = ['farmName', 'ownerName', 'location', 'district', 'state'];
     } else if (currentStep === 2) {
-      fieldsToValidate = ['totalArea', 'numberOfTanks'];
-    } else if (currentStep === 3) {
-      fieldsToValidate = ['tanks'];
+      fieldsToValidate = ['totalAcres'];
     }
 
     const isStepValid = await trigger(fieldsToValidate);
 
     if (isStepValid) {
-      // When moving from Step 2 to Step 3, generate tanks dynamically if needed
-      if (currentStep === 2) {
-        const count = parseInt(numberOfTanksValue, 10) || 1;
-        const currentTanks = getValues('tanks') || [];
-
-        if (currentTanks.length !== count) {
-          const newTanks = Array.from({ length: count }, (_, idx) => {
-            return currentTanks[idx] || {
-              name: `Tank P-${idx + 1}`,
-              area: 1.5,
-              depth: 1.8,
-              waterSource: 'Borewell',
-              remarks: '',
-            };
-          });
-          replace(newTanks);
-        }
-      }
-
-      setCurrentStep((prev) => Math.min(prev + 1, 4));
+      setCurrentStep((prev) => Math.min(prev + 1, 3));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -148,7 +81,18 @@ export default function FarmSetup() {
 
   const onSubmit = (data) => {
     setIsSubmitting(true);
-    console.log('Complete Farm Setup Data:', data);
+
+    // Backend Request Model: { farmName, ownerName, location, district, state, totalAcres }
+    const farmPayload = {
+      farmName: data.farmName.trim(),
+      ownerName: data.ownerName.trim(),
+      location: data.location.trim(),
+      district: data.district.trim(),
+      state: data.state.trim(),
+      totalAcres: parseFloat(data.totalAcres),
+    };
+
+    console.log('Farm Payload:', farmPayload);
 
     setTimeout(() => {
       setIsSubmitting(false);
@@ -156,15 +100,14 @@ export default function FarmSetup() {
 
       setTimeout(() => {
         navigate('/dashboard');
-      }, 2000);
-    }, 1000);
+      }, 1500);
+    }, 800);
   };
 
   const steps = [
     { number: 1, title: 'Farm Details', icon: Building2 },
     { number: 2, title: 'Land Details', icon: Layers },
-    { number: 3, title: 'Tank Configuration', icon: Container },
-    { number: 4, title: 'Review & Submit', icon: ClipboardList },
+    { number: 3, title: 'Review & Submit', icon: ClipboardList },
   ];
 
   return (
@@ -186,7 +129,7 @@ export default function FarmSetup() {
         </div>
 
         <Badge variant="primary" size="sm" className="hidden sm:inline-flex">
-          Step {currentStep} of 4
+          Step {currentStep} of 3
         </Badge>
       </header>
 
@@ -194,12 +137,12 @@ export default function FarmSetup() {
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 sm:py-12">
         <PageHeader
           title="Farm Onboarding Wizard"
-          subtitle="Configure your farm profile and tank setup to initialize tracking metrics."
+          subtitle="Configure your farm profile to initialize tracking metrics."
         />
 
         {/* Stepper Progress Bar */}
         <div className="mb-10">
-          <div className="grid grid-cols-4 gap-2 sm:gap-4 relative">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 relative">
             {steps.map((step) => {
               const Icon = step.icon;
               const isCurrent = currentStep === step.number;
@@ -250,7 +193,7 @@ export default function FarmSetup() {
               </div>
               <h2 className="text-2xl font-bold text-text-primary">Farm Setup Complete!</h2>
               <p className="text-sm text-text-secondary max-w-md">
-                Your farm details and tank configurations have been initialized. Form data printed to developer console. Redirecting to your dashboard...
+                Your farm details have been initialized. Backend farm payload printed to developer console. Redirecting to your dashboard...
               </p>
               <Button variant="primary" size="md" onClick={() => navigate('/dashboard')} className="mt-2">
                 Go to Dashboard
@@ -285,25 +228,6 @@ export default function FarmSetup() {
                       required
                       error={errors.ownerName?.message}
                       {...register('ownerName')}
-                    />
-
-                    <Input
-                      label="Mobile Number"
-                      type="tel"
-                      placeholder="e.g. 9876543210"
-                      maxLength={10}
-                      required
-                      error={errors.mobileNumber?.message}
-                      {...register('mobileNumber')}
-                    />
-
-                    <Input
-                      label="Email Address"
-                      type="email"
-                      placeholder="e.g. owner@bluewave.com"
-                      required
-                      error={errors.email?.message}
-                      {...register('email')}
                     />
 
                     <div className="md:col-span-2">
@@ -343,7 +267,7 @@ export default function FarmSetup() {
                       <Layers className="w-5 h-5 text-primary" /> Step 2: Land Details
                     </h2>
                     <p className="text-xs text-text-secondary mt-0.5">
-                      Specify the land footprint and number of active culture tanks/ponds.
+                      Specify the total land footprint of your farm in acres.
                     </p>
                   </div>
 
@@ -355,148 +279,22 @@ export default function FarmSetup() {
                       placeholder="e.g. 12.5"
                       required
                       helperText="Specify total land area including embankments"
-                      error={errors.totalArea?.message}
-                      {...register('totalArea')}
-                    />
-
-                    <Input
-                      label="Number of Tanks / Ponds"
-                      type="number"
-                      min={1}
-                      max={50}
-                      placeholder="e.g. 4"
-                      required
-                      helperText="Tank setup forms will generate dynamically in Step 3"
-                      error={errors.numberOfTanks?.message}
-                      {...register('numberOfTanks')}
+                      error={errors.totalAcres?.message}
+                      {...register('totalAcres')}
                     />
                   </div>
                 </div>
               )}
 
-              {/* STEP 3: TANK CONFIGURATION */}
+              {/* STEP 3: REVIEW & SUBMIT */}
               {currentStep === 3 && (
-                <div className="flex flex-col gap-6 animate-in fade-in duration-200">
-                  <div className="border-b border-border pb-3 flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                        <Container className="w-5 h-5 text-primary" /> Step 3: Tank Configuration
-                      </h2>
-                      <p className="text-xs text-text-secondary mt-0.5">
-                        Configure dimensions and water source for each individual tank.
-                      </p>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      icon={<Plus className="w-4 h-4" />}
-                      onClick={() => {
-                        append({
-                          name: `Tank P-${fields.length + 1}`,
-                          area: 1.5,
-                          depth: 1.8,
-                          waterSource: 'Borewell',
-                          remarks: '',
-                        });
-                        setValue('numberOfTanks', fields.length + 1);
-                      }}
-                    >
-                      Add Tank
-                    </Button>
-                  </div>
-
-                  <div className="flex flex-col gap-6">
-                    {fields.map((field, index) => (
-                      <div
-                        key={field.id}
-                        className="bg-background/60 border border-border/80 rounded-xl p-5 relative transition-all hover:border-primary/30"
-                      >
-                        <div className="flex items-center justify-between mb-4 border-b border-border/60 pb-2">
-                          <span className="font-bold text-sm text-primary flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-primary-light text-primary text-xs flex items-center justify-center font-bold">
-                              {index + 1}
-                            </span>
-                            Tank #{index + 1} Configuration
-                          </span>
-
-                          {fields.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                remove(index);
-                                setValue('numberOfTanks', fields.length - 1);
-                              }}
-                              className="text-text-secondary hover:text-danger p-1 rounded-md transition-colors"
-                              title="Remove tank"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <Input
-                            label="Tank Name"
-                            placeholder="e.g. Pond A1"
-                            required
-                            error={errors.tanks?.[index]?.name?.message}
-                            {...register(`tanks.${index}.name`)}
-                          />
-
-                          <Input
-                            label="Tank Area (Acres)"
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 1.5"
-                            required
-                            error={errors.tanks?.[index]?.area?.message}
-                            {...register(`tanks.${index}.area`)}
-                          />
-
-                          <Input
-                            label="Tank Depth (Meters)"
-                            type="number"
-                            step="0.1"
-                            placeholder="e.g. 1.8"
-                            required
-                            error={errors.tanks?.[index]?.depth?.message}
-                            {...register(`tanks.${index}.depth`)}
-                          />
-
-                          <Select
-                            label="Water Source"
-                            options={WATER_SOURCES}
-                            required
-                            error={errors.tanks?.[index]?.waterSource?.message}
-                            {...register(`tanks.${index}.waterSource`)}
-                          />
-
-                          <div className="md:col-span-2">
-                            <Input
-                              label="Remarks / Notes"
-                              placeholder="e.g. High salinity aerated pond"
-                              error={errors.tanks?.[index]?.remarks?.message}
-                              {...register(`tanks.${index}.remarks`)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 4: REVIEW & SUBMIT */}
-              {currentStep === 4 && (
                 <div className="flex flex-col gap-6 animate-in fade-in duration-200">
                   <div className="border-b border-border pb-3">
                     <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                      <ClipboardList className="w-5 h-5 text-primary" /> Step 4: Review & Submit
+                      <ClipboardList className="w-5 h-5 text-primary" /> Step 3: Review & Submit
                     </h2>
                     <p className="text-xs text-text-secondary mt-0.5">
-                      Verify your farm information before finalizing onboarding setup.
+                      Verify your farm information before finalizing setup.
                     </p>
                   </div>
 
@@ -515,7 +313,7 @@ export default function FarmSetup() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
                       <div>
                         <span className="text-text-secondary block">Farm Name</span>
                         <span className="font-semibold text-text-primary">{getValues('farmName')}</span>
@@ -525,14 +323,6 @@ export default function FarmSetup() {
                         <span className="font-semibold text-text-primary">{getValues('ownerName')}</span>
                       </div>
                       <div>
-                        <span className="text-text-secondary block">Mobile</span>
-                        <span className="font-semibold text-text-primary">{getValues('mobileNumber')}</span>
-                      </div>
-                      <div>
-                        <span className="text-text-secondary block">Email</span>
-                        <span className="font-semibold text-text-primary">{getValues('email')}</span>
-                      </div>
-                      <div className="col-span-2">
                         <span className="text-text-secondary block">Location</span>
                         <span className="font-semibold text-text-primary">{getValues('location')}</span>
                       </div>
@@ -565,46 +355,8 @@ export default function FarmSetup() {
                     <div className="grid grid-cols-2 gap-4 text-xs">
                       <div>
                         <span className="text-text-secondary block">Total Farm Area</span>
-                        <span className="font-semibold text-text-primary">{getValues('totalArea')} Acres</span>
+                        <span className="font-semibold text-text-primary">{getValues('totalAcres')} Acres</span>
                       </div>
-                      <div>
-                        <span className="text-text-secondary block">Configured Tanks</span>
-                        <span className="font-semibold text-text-primary">{getValues('tanks')?.length || 0} Tanks</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Summary Box 3: Tank List */}
-                  <div className="bg-background border border-border rounded-xl p-5">
-                    <div className="flex items-center justify-between mb-3 border-b border-border/60 pb-2">
-                      <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
-                        <Container className="w-4 h-4 text-primary" /> Tank Configurations
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(3)}
-                        className="text-xs font-semibold text-primary hover:underline"
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      {getValues('tanks')?.map((tank, idx) => (
-                        <div key={idx} className="p-3 bg-surface border border-border rounded-lg flex flex-col gap-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-primary">{tank.name}</span>
-                            <Badge variant="secondary" size="sm">{tank.waterSource}</Badge>
-                          </div>
-                          <div className="flex items-center gap-4 text-[11px] text-text-secondary">
-                            <span>Area: <strong className="text-text-primary">{tank.area} Acres</strong></span>
-                            <span>Depth: <strong className="text-text-primary">{tank.depth} m</strong></span>
-                          </div>
-                          {tank.remarks && (
-                            <p className="text-[10px] text-text-secondary italic mt-1">"{tank.remarks}"</p>
-                          )}
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
@@ -623,7 +375,7 @@ export default function FarmSetup() {
                   </Button>
                 ) : <div />}
 
-                {currentStep < 4 ? (
+                {currentStep < 3 ? (
                   <Button
                     type="button"
                     variant="primary"

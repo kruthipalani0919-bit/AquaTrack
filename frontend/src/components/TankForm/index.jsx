@@ -2,17 +2,17 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Container, Maximize2, Layers, Waves, FileText } from 'lucide-react';
+import { Container, Maximize2, Layers } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
 import { Button } from '../Button';
-import { WATER_SOURCE_OPTIONS, TANK_STATUS_OPTIONS } from '../../constants/tankData';
+import { WATER_SOURCE_OPTIONS } from '../../constants/tankData';
 
-// Zod Validation Schema
+// Zod Validation Schema matching backend contract (POST /api/tanks)
 const tankSchema = z.object({
-  name: z
+  tankName: z
     .string()
     .min(1, 'Tank Name is required')
     .trim(),
@@ -27,9 +27,6 @@ const tankSchema = z.object({
   waterSource: z
     .string()
     .min(1, 'Please select a Water Source'),
-  status: z
-    .string()
-    .default('Active'),
   remarks: z
     .string()
     .optional(),
@@ -37,6 +34,7 @@ const tankSchema = z.object({
 
 /**
  * Reusable TankForm component for Add & Edit tank operations.
+ * Contains ONLY backend-supported fields: tankName, area, depth, waterSource, remarks.
  */
 export const TankForm = ({
   initialData = null,
@@ -54,11 +52,10 @@ export const TankForm = ({
   } = useForm({
     resolver: zodResolver(tankSchema),
     defaultValues: {
-      name: '',
+      tankName: '',
       area: '',
       depth: '',
       waterSource: '',
-      status: 'Active',
       remarks: '',
     },
     mode: 'onTouched',
@@ -67,28 +64,40 @@ export const TankForm = ({
   useEffect(() => {
     if (initialData) {
       reset({
-        name: initialData.name || '',
+        tankName: initialData.tankName || initialData.name || '',
         area: initialData.area || '',
         depth: initialData.depth || '',
         waterSource: initialData.waterSource || '',
-        status: initialData.status || 'Active',
         remarks: initialData.remarks || '',
       });
     } else {
       reset({
-        name: '',
+        tankName: '',
         area: '',
         depth: '',
         waterSource: '',
-        status: 'Active',
         remarks: '',
       });
     }
   }, [initialData, reset]);
 
   const handleFormSubmit = (data) => {
+    // Backend Tank Request Model: { tankName, area, depth, waterSource, remarks }
+    const tankPayload = {
+      tankName: data.tankName.trim(),
+      area: parseFloat(data.area),
+      depth: parseFloat(data.depth),
+      waterSource: data.waterSource,
+      remarks: data.remarks ? data.remarks.trim() : '',
+    };
+
+    console.log('Tank Payload:', tankPayload);
+
     if (onSubmit) {
-      onSubmit(data);
+      onSubmit({
+        ...tankPayload,
+        name: tankPayload.tankName,
+      });
     }
   };
 
@@ -101,8 +110,8 @@ export const TankForm = ({
         placeholder="e.g. Pond P-1 (Vannamei Main)"
         required={true}
         icon={<Container className="w-4 h-4" />}
-        error={errors.name?.message}
-        {...register('name')}
+        error={errors.tankName?.message}
+        {...register('tankName')}
       />
 
       {/* Area & Depth Row */}
@@ -132,25 +141,15 @@ export const TankForm = ({
         />
       </div>
 
-      {/* Water Source & Status Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Water Source"
-          required={true}
-          placeholder="Select water source"
-          options={WATER_SOURCE_OPTIONS}
-          error={errors.waterSource?.message}
-          {...register('waterSource')}
-        />
-
-        <Select
-          label="Tank Status"
-          required={false}
-          options={TANK_STATUS_OPTIONS}
-          error={errors.status?.message}
-          {...register('status')}
-        />
-      </div>
+      {/* Water Source */}
+      <Select
+        label="Water Source"
+        required={true}
+        placeholder="Select water source"
+        options={WATER_SOURCE_OPTIONS}
+        error={errors.waterSource?.message}
+        {...register('waterSource')}
+      />
 
       {/* Remarks */}
       <Textarea
