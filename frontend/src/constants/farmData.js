@@ -1,10 +1,10 @@
 export const DEFAULT_FARM_INFO = {
-  farmName: 'BlueWave Aqua Farm',
-  ownerName: 'Rajesh Kumar',
-  location: 'Coastal Road, Village X',
-  district: 'Nellore',
-  state: 'Andhra Pradesh',
-  totalAcres: 12.5,
+  farmName: 'Farm',
+  ownerName: 'Owner',
+  location: 'Location',
+  district: 'District',
+  state: 'State',
+  totalAcres: 0,
 };
 
 export const WATER_SOURCE_OPTIONS = [

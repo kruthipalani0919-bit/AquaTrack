@@ -55,9 +55,9 @@ export const isAuthenticated = () => {
 export const getCurrentUser = () => {
   try {
     const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : { name: 'Rajesh Kumar', role: 'BlueWave Aqua Farm' };
+    return user ? JSON.parse(user) : { name: 'Farmer', farm: 'Farm', role: 'Farm' };
   } catch {
-    return { name: 'Rajesh Kumar', role: 'BlueWave Aqua Farm' };
+    return { name: 'Farmer', farm: 'Farm', role: 'Farm' };
   }
 };
 

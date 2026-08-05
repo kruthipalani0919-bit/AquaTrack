@@ -98,7 +98,7 @@ export const DashboardLayout = () => {
             <div className="hidden sm:flex items-center gap-2 bg-primary-light/60 px-3 py-1.5 rounded-lg border border-primary/20">
               <Building2 className="w-4 h-4 text-primary shrink-0" />
               <span className="text-xs font-bold text-primary truncate max-w-[140px]">
-                {currentUser.farm || 'BlueWave Aqua Farm'}
+                {currentUser.farm || 'Farm'}
               </span>
             </div>
           }

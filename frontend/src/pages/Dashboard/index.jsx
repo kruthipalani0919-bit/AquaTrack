@@ -62,7 +62,7 @@ export default function Dashboard() {
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome Back, Rajesh!
+              Welcome Back!
             </h1>
             <p className="text-xs sm:text-sm text-teal-100 mt-1 max-w-xl">
               Here's an overview of today's farm activities, water parameters, and yield projections.
