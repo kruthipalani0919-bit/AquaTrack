@@ -2,18 +2,17 @@ import React, { useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Sprout, Container, Calendar, IndianRupee, Weight, Sparkles } from 'lucide-react';
+import { Sprout, Calendar, IndianRupee, Weight, Sparkles } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
 import { Button } from '../Button';
-import { Badge } from '../Badge';
 
-import { SEED_VARIETY_OPTIONS, CROP_STATUS_OPTIONS } from '../../constants/cropData';
+import { SEED_VARIETY_OPTIONS } from '../../constants/cropData';
 import { useTanks } from '../../context/TankContext';
 
-// Zod Validation Schema
+// Zod Validation Schema matching backend contract (POST /api/crops)
 const cropSchema = z.object({
   tankId: z
     .string()
@@ -35,17 +34,14 @@ const cropSchema = z.object({
   expectedHarvestDate: z
     .string()
     .min(1, 'Expected Harvest Date is required'),
-  expectedProductionKg: z
+  expectedProduction: z
     .coerce
     .number({ invalid_type_error: 'Expected Production must be a number' })
     .positive('Expected Production must be greater than 0'),
-  expectedSellingPricePerKg: z
+  expectedSellingPrice: z
     .coerce
     .number({ invalid_type_error: 'Selling Price must be a number' })
     .positive('Selling Price must be greater than 0'),
-  status: z
-    .string()
-    .default('Active'),
   notes: z
     .string()
     .optional(),
@@ -61,6 +57,8 @@ const cropSchema = z.object({
 
 /**
  * Reusable CropForm component for Registering and Editing crops.
+ * Contains ONLY backend-supported fields: tankId, cropName, seedVariety, plCount, stockingDate,
+ * expectedHarvestDate, cropDuration, expectedProduction, expectedSellingPrice, notes.
  */
 export const CropForm = ({
   initialData = null,
@@ -91,9 +89,8 @@ export const CropForm = ({
       plCount: '',
       stockingDate: new Date().toISOString().split('T')[0],
       expectedHarvestDate: '',
-      expectedProductionKg: '',
-      expectedSellingPricePerKg: '',
-      status: 'Active',
+      expectedProduction: '',
+      expectedSellingPrice: '',
       notes: '',
     },
     mode: 'onTouched',
@@ -125,24 +122,40 @@ export const CropForm = ({
         plCount: initialData.plCount || '',
         stockingDate: initialData.stockingDate || '',
         expectedHarvestDate: initialData.expectedHarvestDate || '',
-        expectedProductionKg: initialData.expectedProductionKg || '',
-        expectedSellingPricePerKg: initialData.expectedSellingPricePerKg || '',
-        status: initialData.status || 'Active',
+        expectedProduction: initialData.expectedProduction || initialData.expectedProductionKg || '',
+        expectedSellingPrice: initialData.expectedSellingPrice || initialData.expectedSellingPricePerKg || '',
         notes: initialData.notes || '',
       });
     }
   }, [initialData, reset]);
 
   const handleFormSubmit = (data) => {
-    // Attach tank name for display lookup
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
-    const payload = {
-      ...data,
-      tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
+
+    // Backend Request Model: { tankId, cropName, seedVariety, plCount, stockingDate, expectedHarvestDate, cropDuration, expectedProduction, expectedSellingPrice, notes }
+    const cropPayload = {
+      tankId: data.tankId,
+      cropName: data.cropName.trim(),
+      seedVariety: data.seedVariety,
+      plCount: parseFloat(data.plCount),
+      stockingDate: data.stockingDate,
+      expectedHarvestDate: data.expectedHarvestDate,
+      cropDuration: calculatedDurationDays,
+      expectedProduction: parseFloat(data.expectedProduction),
+      expectedSellingPrice: parseFloat(data.expectedSellingPrice),
+      notes: data.notes ? data.notes.trim() : '',
     };
 
+    console.log('Backend Crop Payload:', cropPayload);
+
     if (onSubmit) {
-      onSubmit(payload);
+      onSubmit({
+        ...cropPayload,
+        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
+        expectedProductionKg: cropPayload.expectedProduction,
+        expectedSellingPricePerKg: cropPayload.expectedSellingPrice,
+        status: initialData?.status || 'Active',
+      });
     }
   };
 
@@ -228,8 +241,8 @@ export const CropForm = ({
           placeholder="e.g. 3500"
           required={true}
           icon={<Weight className="w-4 h-4" />}
-          error={errors.expectedProductionKg?.message}
-          {...register('expectedProductionKg')}
+          error={errors.expectedProduction?.message}
+          {...register('expectedProduction')}
         />
 
         <Input
@@ -238,22 +251,12 @@ export const CropForm = ({
           placeholder="e.g. 420"
           required={true}
           icon={<IndianRupee className="w-4 h-4" />}
-          error={errors.expectedSellingPricePerKg?.message}
-          {...register('expectedSellingPricePerKg')}
+          error={errors.expectedSellingPrice?.message}
+          {...register('expectedSellingPrice')}
         />
       </div>
 
-      {/* Status & Notes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Culture Status"
-          required={false}
-          options={CROP_STATUS_OPTIONS}
-          error={errors.status?.message}
-          {...register('status')}
-        />
-      </div>
-
+      {/* Notes */}
       <Textarea
         label="Notes & Observations (Optional)"
         placeholder="Add details on nursery phase, feed protocol, target ABW, etc."
