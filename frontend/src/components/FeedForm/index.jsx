@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UtensilsCrossed, Container, Calendar, Clock, IndianRupee, Package, Sparkles } from 'lucide-react';
+import { UtensilsCrossed, Container, Calendar, IndianRupee, Package, Layers } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -12,51 +12,44 @@ import { Button } from '../Button';
 import {
   FEED_BRAND_OPTIONS,
   FEED_TYPE_OPTIONS,
-  FEEDING_TIME_OPTIONS,
-  FEED_STATUS_OPTIONS
+  FEED_SIZE_OPTIONS
 } from '../../constants/feedData';
-import { useCrops } from '../../context/CropContext';
+import { useTanks } from '../../context/TankContext';
 
-// Zod Validation Schema
+// Zod Validation Schema matching backend contract (POST /api/feed)
 const feedSchema = z.object({
-  cropId: z
+  tankId: z
     .string()
-    .min(1, 'Please select a Crop Batch'),
-  feedBrand: z
+    .min(1, 'Please select a Tank / Pond'),
+  date: z
     .string()
-    .min(1, 'Please select a Feed Brand'),
+    .min(1, 'Date is required'),
   feedType: z
     .string()
     .min(1, 'Please select a Feed Type'),
-  quantityKg: z
+  feedBrand: z
+    .string()
+    .min(1, 'Please select a Feed Brand'),
+  feedSize: z
+    .string()
+    .min(1, 'Please select a Feed Size'),
+  quantity: z
     .coerce
     .number({ invalid_type_error: 'Quantity must be a number' })
     .positive('Quantity must be greater than 0'),
-  feedingDate: z
-    .string()
-    .min(1, 'Feeding Date is required'),
-  feedingTime: z
-    .string()
-    .min(1, 'Please select a Feeding Time'),
-  feedCost: z
+  costPerKg: z
     .coerce
-    .number({ invalid_type_error: 'Feed Cost must be a number' })
-    .positive('Feed Cost must be greater than 0'),
-  remainingStockKg: z
-    .coerce
-    .number({ invalid_type_error: 'Remaining Stock must be a number' })
-    .min(0, 'Remaining Stock cannot be negative'),
-  status: z
-    .string()
-    .default('Completed'),
+    .number({ invalid_type_error: 'Cost per kg must be a number' })
+    .positive('Cost per kg must be greater than 0'),
   notes: z
     .string()
     .optional(),
 });
 
 /**
- * Reusable FeedForm component with dynamic Crop dropdown from CropContext
- * and auto-filled Tank information.
+ * Reusable FeedForm component with dynamic Tank dropdown from TankContext.
+ * Contains ONLY backend-supported fields: tankId, date, feedType, feedBrand, feedSize, quantity, costPerKg, notes.
+ * Note: totalCost is NOT calculated or submitted in the backend payload.
  */
 export const FeedForm = ({
   initialData = null,
@@ -64,105 +57,101 @@ export const FeedForm = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const { crops } = useCrops();
+  const { tanks } = useTanks();
   const isEditing = Boolean(initialData?.id);
 
-  const cropSelectOptions = crops.map((crop) => ({
-    value: crop.id,
-    label: `${crop.cropName} (${crop.tankName})`,
+  const tankSelectOptions = tanks.map((tank) => ({
+    value: tank.id,
+    label: `${tank.name} (${tank.area} Acres - ${tank.waterSource})`,
   }));
 
   const {
     register,
     handleSubmit,
     reset,
-    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(feedSchema),
     defaultValues: {
-      cropId: '',
-      feedBrand: '',
+      tankId: '',
+      date: new Date().toISOString().split('T')[0],
       feedType: '',
-      quantityKg: '',
-      feedingDate: new Date().toISOString().split('T')[0],
-      feedingTime: '06:00 AM',
-      feedCost: '',
-      remainingStockKg: '',
-      status: 'Completed',
+      feedBrand: '',
+      feedSize: '',
+      quantity: '',
+      costPerKg: '',
       notes: '',
     },
     mode: 'onTouched',
   });
 
-  // Watch selected cropId to auto-fill Tank details
-  const selectedCropId = useWatch({ control, name: 'cropId' });
-
-  const autoFilledTank = React.useMemo(() => {
-    if (!selectedCropId) return null;
-    const matchedCrop = crops.find((c) => c.id === selectedCropId);
-    return matchedCrop ? { tankId: matchedCrop.tankId, tankName: matchedCrop.tankName, cropName: matchedCrop.cropName } : null;
-  }, [selectedCropId, crops]);
-
   useEffect(() => {
     if (initialData) {
       reset({
-        cropId: initialData.cropId || '',
-        feedBrand: initialData.feedBrand || '',
+        tankId: initialData.tankId || '',
+        date: initialData.date || initialData.feedingDate || '',
         feedType: initialData.feedType || '',
-        quantityKg: initialData.quantityKg || '',
-        feedingDate: initialData.feedingDate || '',
-        feedingTime: initialData.feedingTime || '06:00 AM',
-        feedCost: initialData.feedCost || '',
-        remainingStockKg: initialData.remainingStockKg || '',
-        status: initialData.status || 'Completed',
+        feedBrand: initialData.feedBrand || '',
+        feedSize: initialData.feedSize || '1.2mm',
+        quantity: initialData.quantity || initialData.quantityKg || '',
+        costPerKg: initialData.costPerKg || (initialData.feedCost && initialData.quantityKg ? initialData.feedCost / initialData.quantityKg : ''),
         notes: initialData.notes || '',
       });
     }
   }, [initialData, reset]);
 
   const handleFormSubmit = (data) => {
-    const matchedCrop = crops.find((c) => c.id === data.cropId);
-    const payload = {
-      ...data,
-      cropName: matchedCrop ? matchedCrop.cropName : 'Selected Crop',
-      tankId: matchedCrop ? matchedCrop.tankId : 'tank-1',
-      tankName: matchedCrop ? matchedCrop.tankName : 'Auto-Filled Pond',
+    const selectedTankObj = tanks.find((t) => t.id === data.tankId);
+
+    // Backend Request Model: { tankId, date, feedType, feedBrand, feedSize, quantity, costPerKg, notes }
+    // Rule: The frontend must NOT calculate totalCost in the backend payload.
+    const feedPayload = {
+      tankId: data.tankId,
+      date: data.date,
+      feedType: data.feedType,
+      feedBrand: data.feedBrand,
+      feedSize: data.feedSize,
+      quantity: parseFloat(data.quantity),
+      costPerKg: parseFloat(data.costPerKg),
+      notes: data.notes ? data.notes.trim() : '',
     };
 
+    console.log('Backend Feed Payload:', feedPayload);
+
     if (onSubmit) {
-      onSubmit(payload);
+      onSubmit({
+        ...feedPayload,
+        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
+        // Display helpers for local mock list
+        quantityKg: feedPayload.quantity,
+        feedingDate: feedPayload.date,
+        feedCost: feedPayload.quantity * feedPayload.costPerKg,
+        status: initialData?.status || 'Completed',
+      });
     }
   };
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
-      {/* Crop Selection & Auto-Filled Tank */}
+      {/* Tank Select & Date */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Select
-          label="Select Active Crop Batch"
+          label="Select Pond / Tank"
           required={true}
-          placeholder="Choose crop..."
-          options={cropSelectOptions}
-          error={errors.cropId?.message}
-          {...register('cropId')}
+          placeholder="Choose pond..."
+          options={tankSelectOptions}
+          error={errors.tankId?.message}
+          {...register('tankId')}
         />
 
-        <div>
-          <Input
-            label="Tank / Pond (Auto-Filled)"
-            type="text"
-            value={autoFilledTank ? autoFilledTank.tankName : 'Select a crop to auto-fill tank'}
-            disabled={true}
-            icon={<Container className="w-4 h-4 text-primary" />}
-            className="bg-background text-primary font-semibold"
-          />
-          {autoFilledTank && (
-            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-1">
-              <Sparkles className="w-3 h-3 text-emerald-600" /> Linked to {autoFilledTank.tankName}
-            </span>
-          )}
-        </div>
+        <Input
+          label="Feeding Date"
+          type="date"
+          required={true}
+          icon={<Calendar className="w-4 h-4" />}
+          error={errors.date?.message}
+          {...register('date')}
+        />
       </div>
 
       {/* Feed Brand & Feed Type */}
@@ -177,7 +166,7 @@ export const FeedForm = ({
         />
 
         <Select
-          label="Feed Type / Pellet Size"
+          label="Feed Type"
           required={true}
           placeholder="Select type..."
           options={FEED_TYPE_OPTIONS}
@@ -186,68 +175,37 @@ export const FeedForm = ({
         />
       </div>
 
-      {/* Ration Quantity & Feed Cost */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Feed Size, Quantity & Cost Per Kg */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Select
+          label="Feed Size / Pellet Size"
+          required={true}
+          placeholder="Select size..."
+          options={FEED_SIZE_OPTIONS}
+          error={errors.feedSize?.message}
+          {...register('feedSize')}
+        />
+
         <Input
-          label="Feed Ration Quantity (Kg)"
+          label="Quantity (Kg)"
           type="number"
           step="0.5"
           placeholder="e.g. 45"
           required={true}
           icon={<UtensilsCrossed className="w-4 h-4" />}
-          error={errors.quantityKg?.message}
-          {...register('quantityKg')}
+          error={errors.quantity?.message}
+          {...register('quantity')}
         />
 
         <Input
-          label="Feed Cost (₹)"
+          label="Cost Per Kg (₹)"
           type="number"
-          placeholder="e.g. 3150"
+          step="1"
+          placeholder="e.g. 70"
           required={true}
           icon={<IndianRupee className="w-4 h-4" />}
-          error={errors.feedCost?.message}
-          {...register('feedCost')}
-        />
-      </div>
-
-      {/* Date & Time */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label="Feeding Date"
-          type="date"
-          required={true}
-          icon={<Calendar className="w-4 h-4" />}
-          error={errors.feedingDate?.message}
-          {...register('feedingDate')}
-        />
-
-        <Select
-          label="Feeding Time Slot"
-          required={true}
-          options={FEEDING_TIME_OPTIONS}
-          error={errors.feedingTime?.message}
-          {...register('feedingTime')}
-        />
-      </div>
-
-      {/* Remaining Stock & Status */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label="Remaining Stock Inventory (Kg)"
-          type="number"
-          placeholder="e.g. 450"
-          required={true}
-          icon={<Package className="w-4 h-4" />}
-          error={errors.remainingStockKg?.message}
-          {...register('remainingStockKg')}
-        />
-
-        <Select
-          label="Feeding Status"
-          required={false}
-          options={FEED_STATUS_OPTIONS}
-          error={errors.status?.message}
-          {...register('status')}
+          error={errors.costPerKg?.message}
+          {...register('costPerKg')}
         />
       </div>
 
