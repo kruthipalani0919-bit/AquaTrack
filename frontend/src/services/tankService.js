@@ -1,38 +1,61 @@
+import api from './api';
+
 /**
- * Tank Service (Mock Promises)
+ * Tank Management Service
+ * Backend automatically links tanks to the logged-in user's farm.
+ * Do NOT send farmId in requests.
  */
+export const createTank = async (data) => {
+  try {
+    const response = await api.post('/tanks', data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create tank');
+  }
+};
+
+export const getTanks = async () => {
+  try {
+    const response = await api.get('/tanks');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch tanks list');
+  }
+};
+
+export const getTank = async (id) => {
+  try {
+    const response = await api.get(`/tanks/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to fetch tank #${id}`);
+  }
+};
+
+export const updateTank = async (id, data) => {
+  try {
+    const response = await api.put(`/tanks/${id}`, data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to update tank #${id}`);
+  }
+};
+
+export const deleteTank = async (id) => {
+  try {
+    const response = await api.delete(`/tanks/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to delete tank #${id}`);
+  }
+};
+
 export const tankService = {
-  async getTanks() {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          data: [
-            { id: 1, name: 'Pond P-1', area: 2.5, depth: 1.8, status: 'Stocked', waterSource: 'Borewell' },
-            { id: 2, name: 'Pond P-2', area: 2.0, depth: 1.5, status: 'Stocked', waterSource: 'Creek' },
-            { id: 3, name: 'Pond P-3', area: 3.0, depth: 2.0, status: 'Stocked', waterSource: 'Canal' },
-            { id: 4, name: 'Pond P-4', area: 2.5, depth: 1.8, status: 'Preparation', waterSource: 'Borewell' },
-          ],
-        });
-      }, 300);
-    });
-  },
-
-  async addTank(tankData) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: 'Tank added successfully', data: tankData });
-      }, 400);
-    });
-  },
-
-  async updateTank(id, tankData) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: `Tank ${id} updated`, data: tankData });
-      }, 400);
-    });
-  },
+  createTank,
+  getTanks,
+  getTank,
+  updateTank,
+  deleteTank,
 };
 
 export default tankService;

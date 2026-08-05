@@ -3,61 +3,46 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Droplets, User, Phone, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Droplets, User, Phone, Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
 import { authService } from '../../services/authService';
 
-// 1. Zod Validation Schema with unified Contact Information field (10-digit mobile or valid email)
-const registerSchema = z.object({
-  fullName: z
-    .string()
-    .min(1, 'Full name is required')
-    .trim(),
-  contact: z
-    .string()
-    .min(1, 'Contact Information is required.')
-    .superRefine((val, ctx) => {
-      const cleanVal = val.trim();
-      if (!cleanVal) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Contact Information is required.',
-        });
-        return;
-      }
-      // If user enters only numeric digits
-      if (/^\d+$/.test(cleanVal)) {
-        if (!/^\d{10}$/.test(cleanVal)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Enter a valid 10-digit mobile number.',
-          });
-        }
-      } else {
-        // If user enters alphabetic characters or '@', validate as email address
-        const isEmail = z.string().email().safeParse(cleanVal).success;
-        if (!isEmail) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Enter a valid email address.',
-          });
-        }
-      }
-    }),
-  password: z
-    .string()
-    .min(1, 'Password is required')
-    .min(8, 'Password must contain at least 8 characters'),
-  confirmPassword: z
-    .string()
-    .min(1, 'Please confirm your password'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
+// 1. Zod Validation Schema matching backend contract (fullName, mobile, email, password)
+const registerSchema = z
+  .object({
+    fullName: z
+      .string()
+      .min(1, 'Full name is required')
+      .trim(),
+    mobile: z
+      .string()
+      .min(1, 'Mobile number is required')
+      .transform((val) => val.trim())
+      .refine((val) => /^\d{10}$/.test(val), {
+        message: 'Mobile number must be exactly 10 digits',
+      }),
+    email: z
+      .string()
+      .transform((val) => val.trim())
+      .refine((val) => val === '' || z.string().email().safeParse(val).success, {
+        message: 'Please enter a valid email address',
+      })
+      .optional(),
+    password: z
+      .string()
+      .min(1, 'Password is required')
+      .min(8, 'Password must contain at least 8 characters'),
+    confirmPassword: z
+      .string()
+      .min(1, 'Please confirm your password'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
 
 export default function Register() {
   const navigate = useNavigate();
@@ -74,29 +59,37 @@ export default function Register() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: '',
-      contact: '',
+      mobile: '',
+      email: '',
       password: '',
       confirmPassword: '',
     },
     mode: 'onTouched',
   });
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
     setIsSubmitting(true);
 
-    try {
-      // Call mock authService register and navigate to /login
-      await authService.register(data);
+    const payload = {
+      fullName: formData.fullName.trim(),
+      mobile: formData.mobile.trim(),
+      email: formData.email ? formData.email.trim() : '',
+      password: formData.password,
+    };
+
+    // Requirement 8: Print backend payload object to console upon successful validation
+    console.log('Registration Payload:', payload);
+
+    // Temporary frontend-only mock flow
+
+    setTimeout(() => {
       setIsSubmitting(false);
       setSubmitSuccess(true);
 
       setTimeout(() => {
-        navigate('/login');
+        navigate("/login");
       }, 1200);
-    } catch (err) {
-      console.error('Registration error:', err);
-      setIsSubmitting(false);
-    }
+    }, 800);
   };
 
   return (
@@ -152,7 +145,7 @@ export default function Register() {
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-              {/* Full Name */}
+              {/* Full Name (Required) */}
               <Input
                 label="Full Name"
                 placeholder="John Doe"
@@ -162,18 +155,29 @@ export default function Register() {
                 {...register('fullName')}
               />
 
-              {/* Contact Information */}
+              {/* Mobile Number (Required - Exactly 10 digits) */}
               <Input
-                label="Contact Information"
+                label="Mobile Number"
                 type="text"
-                placeholder="Enter your mobile number or email address"
+                placeholder="9876543210"
                 required={true}
                 icon={<Phone className="w-4 h-4" />}
-                error={errors.contact?.message}
-                {...register('contact')}
+                error={errors.mobile?.message}
+                {...register('mobile')}
               />
 
-              {/* Password */}
+              {/* Email Address (Optional) */}
+              <Input
+                label="Email Address"
+                type="email"
+                placeholder="farmer@aquatrack.io (optional)"
+                required={false}
+                icon={<Mail className="w-4 h-4" />}
+                error={errors.email?.message}
+                {...register('email')}
+              />
+
+              {/* Password (Required) */}
               <div className="flex flex-col gap-1.5 w-full">
                 <label className="text-xs font-semibold text-text-primary tracking-wide flex items-center gap-1 select-none">
                   Password <span className="text-danger">*</span>
@@ -206,7 +210,7 @@ export default function Register() {
                 )}
               </div>
 
-              {/* Confirm Password */}
+              {/* Confirm Password (Required) */}
               <div className="flex flex-col gap-1.5 w-full">
                 <label className="text-xs font-semibold text-text-primary tracking-wide flex items-center gap-1 select-none">
                   Confirm Password <span className="text-danger">*</span>

@@ -16,3 +16,6 @@ export { Sidebar } from './Sidebar';
 export { Breadcrumb } from './Breadcrumb';
 export { SearchBar } from './SearchBar';
 export { ProtectedRoute } from './ProtectedRoute';
+export { TankCard } from './TankCard';
+export { TankForm } from './TankForm';
+export { TankFilters } from './TankFilters';

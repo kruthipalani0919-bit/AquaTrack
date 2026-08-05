@@ -54,21 +54,30 @@ export default function Login() {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
 
-    try {
-      // 5. LOGIN PAGE: Call authService login which sets localStorage.setItem("isAuthenticated", "true")
-      await authService.login(data);
+    console.log("Login Payload:", data);
+
+    // Temporary frontend-only mock login
+    setTimeout(() => {
+      // Simulate successful login
+      localStorage.setItem("isAuthenticated", "true");
+
+      // Optional: store dummy user
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          name: "Demo Farmer",
+          mobile: data.identifier,
+        })
+      );
+
       setIsSubmitting(false);
       setSubmitSuccess(true);
 
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate("/dashboard");
       }, 800);
-    } catch (err) {
-      console.error('Login error:', err);
-      setIsSubmitting(false);
-    }
+    }, 800);
   };
-
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Background Glow Effect */}

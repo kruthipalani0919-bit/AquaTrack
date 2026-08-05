@@ -1,33 +1,41 @@
-import { DEFAULT_FARM_INFO } from '../constants/farmData';
-import { DASHBOARD_STATS } from '../constants/dashboardData';
+import api from './api';
 
 /**
- * Farm Service (Mock Promises)
+ * Farm Management Service
+ * Backend automatically links farm data to the authenticated user.
+ * Do NOT send userId or farmId in requests.
  */
+export const createFarm = async (data) => {
+  try {
+    const response = await api.post('/farms', data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create farm');
+  }
+};
+
+export const getFarm = async () => {
+  try {
+    const response = await api.get('/farms');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch farm details');
+  }
+};
+
+export const updateFarm = async (data) => {
+  try {
+    const response = await api.put('/farms', data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update farm details');
+  }
+};
+
 export const farmService = {
-  async getFarmDetails() {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, data: DEFAULT_FARM_INFO });
-      }, 300);
-    });
-  },
-
-  async saveFarmSetup(farmData) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: 'Farm setup saved successfully', data: farmData });
-      }, 500);
-    });
-  },
-
-  async getDashboard() {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, stats: DASHBOARD_STATS });
-      }, 300);
-    });
-  },
+  createFarm,
+  getFarm,
+  updateFarm,
 };
 
 export default farmService;

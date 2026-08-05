@@ -1,50 +1,73 @@
+import api from './api';
+
 /**
- * Authentication Service (Mock Promises)
+ * Authentication Service
  */
-export const authService = {
-  async login(credentials) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('user', JSON.stringify({
-          name: 'Rajesh Kumar',
-          email: credentials.identifier || 'rajesh@aquatrack.io',
-          role: 'Farm Manager',
-          farm: 'BlueWave Aqua Farm',
-        }));
-        resolve({ success: true, message: 'Login successful' });
-      }, 500);
-    });
-  },
+export const register = async (data) => {
+  try {
+    const response = await api.post('/auth/register', data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Registration failed');
+  }
+};
 
-  async register(userData) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: 'Registration successful', data: userData });
-      }, 500);
-    });
-  },
+export const login = async (data) => {
+  try {
+    const response = await api.post('/auth/login', data);
+    const { token, user } = response.data;
 
-  async logout() {
-    return new Promise((resolve) => {
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('user');
-      resolve({ success: true, message: 'Logged out successfully' });
-    });
-  },
-
-  isAuthenticated() {
-    return localStorage.getItem('isAuthenticated') === 'true';
-  },
-
-  getCurrentUser() {
-    try {
-      const user = localStorage.getItem('user');
-      return user ? JSON.parse(user) : { name: 'Rajesh Kumar', role: 'BlueWave Aqua Farm' };
-    } catch {
-      return { name: 'Rajesh Kumar', role: 'BlueWave Aqua Farm' };
+    if (token) {
+      localStorage.setItem('token', token);
+      localStorage.setItem('isAuthenticated', 'true');
     }
-  },
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Login failed');
+  }
+};
+
+export const logout = async () => {
+  try {
+    localStorage.removeItem('token');
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('user');
+    return { success: true, message: 'Logged out successfully' };
+  } catch (error) {
+    throw new Error(error.message || 'Logout failed');
+  }
+};
+
+export const getToken = () => {
+  return localStorage.getItem('token');
+};
+
+export const isAuthenticated = () => {
+  const token = localStorage.getItem('token');
+  const isAuthFlag = localStorage.getItem('isAuthenticated') === 'true';
+  return Boolean(token) || isAuthFlag;
+};
+
+export const getCurrentUser = () => {
+  try {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : { name: 'Rajesh Kumar', role: 'BlueWave Aqua Farm' };
+  } catch {
+    return { name: 'Rajesh Kumar', role: 'BlueWave Aqua Farm' };
+  }
+};
+
+export const authService = {
+  register,
+  login,
+  logout,
+  getToken,
+  isAuthenticated,
+  getCurrentUser,
 };
 
 export default authService;
