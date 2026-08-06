@@ -45,7 +45,6 @@ export const DashboardLayout = () => {
       '/tanks': 'Tanks',
       '/crops': 'Crop Management',
       '/feed': 'Feed Management',
-      '/water-quality': 'Water Quality',
       '/medicines': 'Medicines',
       '/expenses': 'Expenses',
       '/harvest': 'Harvest',

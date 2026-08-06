@@ -44,7 +44,6 @@ export default function Dashboard() {
   const quickActions = [
     { label: 'Add Crop', path: '/crops', icon: Sprout, variant: 'primary' },
     { label: 'Add Feed', path: '/feed', icon: UtensilsCrossed, variant: 'secondary' },
-    { label: 'Record Water Quality', path: '/water-quality', icon: Waves, variant: 'accent' },
     { label: 'Add Expense', path: '/expenses', icon: Receipt, variant: 'outline' },
     { label: 'Harvest', path: '/harvest', icon: Wheat, variant: 'outline' },
   ];
@@ -65,20 +64,11 @@ export default function Dashboard() {
               Welcome Back!
             </h1>
             <p className="text-xs sm:text-sm text-teal-100 mt-1 max-w-xl">
-              Here's an overview of today's farm activities, water parameters, and yield projections.
+              Here's an overview of today's farm activities, feed usage, and yield projections.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => navigate('/water-quality')}
-              icon={<Waves className="w-4 h-4 text-primary" />}
-              className="bg-white text-primary hover:bg-teal-50 font-semibold"
-            >
-              Water Check
-            </Button>
             <Button
               variant="primary"
               size="sm"

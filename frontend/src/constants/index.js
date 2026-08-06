@@ -5,5 +5,4 @@ export * from './dashboardData';
 export * from './tankData';
 export * from './cropData';
 export * from './feedData';
-export * from './waterQualityData';
 export * from './medicineData';
