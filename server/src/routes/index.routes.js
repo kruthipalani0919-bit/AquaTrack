@@ -10,6 +10,7 @@ import expenseRoutes from "./expense.routes.js";
 import medicineRoutes from "./medicine.routes.js";
 import harvestRoutes from "./harvest.routes.js";
 import dashboardRoutes from "./dashboard.routes.js";
+import reportRoutes from "./report.routes.js";
 const router = Router();
 
 router.get("/health", healthCheck);
@@ -31,4 +32,6 @@ router.use("/medicines", medicineRoutes);
 router.use("/harvests", harvestRoutes);
 
 router.use("/dashboard", dashboardRoutes);
+
+router.use("/reports", reportRoutes);
 export default router;

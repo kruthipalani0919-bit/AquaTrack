@@ -190,8 +190,8 @@ export default function FarmSetup() {
                     ${isCurrent
                       ? 'bg-surface border-primary shadow-sm ring-2 ring-primary/20'
                       : isDone
-                      ? 'bg-primary-light/40 border-primary/30 text-primary'
-                      : 'bg-surface/50 border-border opacity-70'
+                        ? 'bg-primary-light/40 border-primary/30 text-primary'
+                        : 'bg-surface/50 border-border opacity-70'
                     }
                   `}
                 >
@@ -201,8 +201,8 @@ export default function FarmSetup() {
                       ${isDone
                         ? 'bg-primary text-white'
                         : isCurrent
-                        ? 'bg-primary text-white'
-                        : 'bg-background text-text-secondary border border-border'
+                          ? 'bg-primary text-white'
+                          : 'bg-background text-text-secondary border border-border'
                       }
                     `}
                   >
