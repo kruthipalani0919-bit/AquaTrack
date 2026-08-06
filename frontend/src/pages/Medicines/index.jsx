@@ -1,0 +1,314 @@
+import React, { useState, useMemo } from 'react';
+import {
+  Plus,
+  Stethoscope,
+  CheckCircle2,
+  Calendar,
+  IndianRupee,
+  Clock
+} from 'lucide-react';
+
+import { PageHeader } from '../../components/PageHeader';
+import { Card } from '../../components/Card';
+import { Button } from '../../components/Button';
+import { Badge } from '../../components/Badge';
+import { Modal } from '../../components/Modal';
+import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { EmptyState } from '../../components/EmptyState';
+
+import { MedicineCard } from '../../components/MedicineCard';
+import { MedicineForm } from '../../components/MedicineForm';
+import { MedicineFilters } from '../../components/MedicineFilters';
+import { MedicineSchedule } from '../../components/MedicineSchedule';
+import { MedicineDetailsModal } from '../../components/MedicineDetailsModal';
+import { useMedicine } from '../../context/MedicineContext';
+
+export default function Medicines() {
+  const { medicineRecords, addMedicineRecord, updateMedicineRecord, deleteMedicineRecord, analytics } = useMedicine();
+
+  // Search & Multi-Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [cropFilter, setCropFilter] = useState('');
+  const [tankFilter, setTankFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+
+  // Modal Control States
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [viewingRecord, setViewingRecord] = useState(null);
+
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deletingRecord, setDeletingRecord] = useState(null);
+
+  // Multi-Filter Logic
+  const filteredRecords = useMemo(() => {
+    return medicineRecords.filter((rec) => {
+      // Search match
+      const matchesSearch =
+        searchQuery.trim() === '' ||
+        rec.medicineName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        rec.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        rec.tankName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (rec.purpose && rec.purpose.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (rec.notes && rec.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      // Category match
+      const matchesCategory = categoryFilter === '' || rec.category === categoryFilter;
+
+      // Crop match
+      const matchesCrop = cropFilter === '' || rec.cropId === cropFilter;
+
+      // Tank match
+      const matchesTank = tankFilter === '' || rec.tankId === tankFilter;
+
+      // Status match
+      const matchesStatus = statusFilter === '' || rec.status === statusFilter;
+
+      // Date match
+      const matchesDate = dateFilter === '' || rec.applicationDate === dateFilter;
+
+      return matchesSearch && matchesCategory && matchesCrop && matchesTank && matchesStatus && matchesDate;
+    });
+  }, [medicineRecords, searchQuery, categoryFilter, cropFilter, tankFilter, statusFilter, dateFilter]);
+
+  // Handlers
+  const handleOpenAdd = () => {
+    setEditingRecord(null);
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = (rec) => {
+    setEditingRecord(rec);
+    setIsFormOpen(true);
+    if (isDetailsOpen) setIsDetailsOpen(false);
+  };
+
+  const handleOpenDetails = (rec) => {
+    setViewingRecord(rec);
+    setIsDetailsOpen(true);
+  };
+
+  const handleOpenDelete = (rec) => {
+    setDeletingRecord(rec);
+    setIsDeleteOpen(true);
+    if (isDetailsOpen) setIsDetailsOpen(false);
+  };
+
+  const handleSaveRecord = (formData) => {
+    if (editingRecord) {
+      updateMedicineRecord(editingRecord.id, formData);
+    } else {
+      addMedicineRecord(formData);
+    }
+    setIsFormOpen(false);
+    setEditingRecord(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deletingRecord) {
+      deleteMedicineRecord(deletingRecord.id);
+      setIsDeleteOpen(false);
+      setDeletingRecord(null);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('');
+    setCropFilter('');
+    setTankFilter('');
+    setStatusFilter('');
+    setDateFilter('');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 1. PAGE HEADER */}
+      <PageHeader
+        title="Medicine & Health Management"
+        subtitle="Track pond treatments, disease prevention, probiotic applications, and medicine expenditure."
+        badge={<Badge variant="primary">{medicineRecords.length} Treatment Records</Badge>}
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleOpenAdd}
+            icon={<Plus className="w-4 h-4" />}
+            className="font-semibold shadow-xs"
+          >
+            Add Treatment Record
+          </Button>
+        }
+      />
+
+      {/* 2. TOP 4 DASHBOARD SUMMARY CARDS (Requirement 1) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        {/* Card 1: Total Treatments */}
+        <Card padding="compact" className="border-border/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <Stethoscope className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Treatments</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{analytics.totalTreatments} Records</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 2: Medicines Used Today */}
+        <Card padding="compact" className="border-border/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Used Today</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{analytics.medicinesUsedToday} Today</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 3: Total Medicine Cost */}
+        <Card padding="compact" className="border-border/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <IndianRupee className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Cost</span>
+              <span className="text-lg font-bold text-emerald-700 tracking-tight">
+                ₹{(analytics.totalMedicineCostRupees / 1000).toFixed(1)}k <span className="text-xs font-normal text-text-secondary">Total</span>
+              </span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 4: Upcoming Treatments */}
+        <Card padding="compact" className="border-border/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Upcoming</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{analytics.upcomingTreatments} Scheduled</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* 3. TREATMENT SCHEDULE BREAKDOWN */}
+      <MedicineSchedule medicineRecords={medicineRecords} />
+
+      {/* 4. SEARCH & MULTI-FILTERS */}
+      <MedicineFilters
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        categoryFilter={categoryFilter}
+        onCategoryChange={setCategoryFilter}
+        cropFilter={cropFilter}
+        onCropChange={setCropFilter}
+        tankFilter={tankFilter}
+        onTankChange={setTankFilter}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        dateFilter={dateFilter}
+        onDateChange={setDateFilter}
+        onReset={handleResetFilters}
+      />
+
+      {/* 5. MEDICINE CARDS GRID OR EMPTY STATE */}
+      {filteredRecords.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {filteredRecords.map((rec) => (
+            <MedicineCard
+              key={rec.id}
+              record={rec}
+              onView={handleOpenDetails}
+              onEdit={handleOpenEdit}
+              onDelete={handleOpenDelete}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card padding="relaxed" className="border-border/80">
+          <EmptyState
+            title="No Treatment Records Found"
+            description={
+              searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter
+                ? "No medicine logs match your current filter selection. Try clearing filters or choosing another category."
+                : "You haven't logged any medicine or probiotic applications yet. Click the button below to add your first treatment record."
+            }
+            actionLabel={
+              searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter ? "Reset Filters" : "Add First Treatment"
+            }
+            onAction={
+              searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter ? handleResetFilters : handleOpenAdd
+            }
+          />
+        </Card>
+      )}
+
+      {/* 6. ADD / EDIT MEDICINE RECORD MODAL */}
+      <Modal
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? 'Edit Treatment Record' : 'Add New Treatment Record'}
+        description={
+          editingRecord
+            ? `Update properties for ${editingRecord.medicineName}`
+            : 'Select active crop to auto-fill pond and log medicine dosage, category, purpose, and cost.'
+        }
+        size="lg"
+      >
+        <MedicineForm
+          initialData={editingRecord}
+          onSubmit={handleSaveRecord}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingRecord(null);
+          }}
+        />
+      </Modal>
+
+      {/* 7. MEDICINE DETAILS MODAL */}
+      <MedicineDetailsModal
+        isOpen={isDetailsOpen}
+        onClose={() => {
+          setIsDetailsOpen(false);
+          setViewingRecord(null);
+        }}
+        record={viewingRecord}
+        onEdit={handleOpenEdit}
+        onDelete={handleOpenDelete}
+      />
+
+      {/* 8. DELETE CONFIRMATION DIALOG */}
+      <ConfirmationDialog
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setDeletingRecord(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Treatment Record"
+        message={
+          deletingRecord
+            ? `Are you sure you want to delete the treatment record for "${deletingRecord.medicineName}" applied to ${deletingRecord.tankName}? This action cannot be undone.`
+            : 'Are you sure you want to delete this treatment record?'
+        }
+        confirmText="Delete Record"
+        cancelText="Cancel"
+        type="danger"
+      />
+    </div>
+  );
+}

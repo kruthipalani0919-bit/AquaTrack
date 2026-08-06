@@ -1,0 +1,267 @@
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Wheat, Calendar, Weight, IndianRupee, User, Truck, DollarSign } from 'lucide-react';
+
+import { Input } from '../Input';
+import { Select } from '../Select';
+import { Button } from '../Button';
+import { useTanks } from '../../context/TankContext';
+
+// Zod Validation Schema matching backend contract (POST /api/harvests)
+// Rule: Do NOT include revenue or profit fields
+const harvestSchema = z.object({
+  tankId: z
+    .string()
+    .min(1, 'Please select a Tank / Pond'),
+  harvestDate: z
+    .string()
+    .min(1, 'Harvest Date is required'),
+  production: z
+    .coerce
+    .number({ invalid_type_error: 'Production must be a number' })
+    .positive('Production must be greater than 0'),
+  averageWeight: z
+    .coerce
+    .number({ invalid_type_error: 'Average Weight must be a number' })
+    .positive('Average Weight must be greater than 0'),
+  survivalRate: z
+    .coerce
+    .number({ invalid_type_error: 'Survival Rate must be a number' })
+    .min(0, 'Survival Rate cannot be negative')
+    .max(100, 'Survival Rate cannot exceed 100%'),
+  sellingPrice: z
+    .coerce
+    .number({ invalid_type_error: 'Selling Price must be a number' })
+    .positive('Selling Price must be greater than 0'),
+  buyerName: z
+    .string()
+    .min(1, 'Buyer Name is required')
+    .trim(),
+  transportationCost: z
+    .coerce
+    .number({ invalid_type_error: 'Transportation Cost must be a number' })
+    .min(0, 'Transportation Cost cannot be negative'),
+  harvestExpense: z
+    .coerce
+    .number({ invalid_type_error: 'Harvest Expense must be a number' })
+    .min(0, 'Harvest Expense cannot be negative'),
+});
+
+/**
+ * Reusable HarvestForm component with dynamic Tank dropdown from TankContext.
+ * Contains ONLY backend-supported fields: tankId, harvestDate, production, averageWeight,
+ * survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense.
+ * Rule: Does NOT include or calculate revenue or profit.
+ */
+export const HarvestForm = ({
+  initialData = null,
+  onSubmit,
+  onCancel,
+  isSubmitting = false,
+}) => {
+  const { tanks } = useTanks();
+  const isEditing = Boolean(initialData?.id);
+
+  const tankSelectOptions = tanks.map((tank) => ({
+    value: tank.id,
+    label: `${tank.name} (${tank.area} Acres - ${tank.waterSource})`,
+  }));
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(harvestSchema),
+    defaultValues: {
+      tankId: '',
+      harvestDate: new Date().toISOString().split('T')[0],
+      production: '',
+      averageWeight: '',
+      survivalRate: '',
+      sellingPrice: '',
+      buyerName: '',
+      transportationCost: '0',
+      harvestExpense: '0',
+    },
+    mode: 'onTouched',
+  });
+
+  useEffect(() => {
+    if (initialData) {
+      reset({
+        tankId: initialData.tankId || '',
+        harvestDate: initialData.harvestDate || '',
+        production: initialData.production || '',
+        averageWeight: initialData.averageWeight || '',
+        survivalRate: initialData.survivalRate || '',
+        sellingPrice: initialData.sellingPrice || '',
+        buyerName: initialData.buyerName || '',
+        transportationCost: initialData.transportationCost || '0',
+        harvestExpense: initialData.harvestExpense || '0',
+      });
+    }
+  }, [initialData, reset]);
+
+  const handleFormSubmit = (data) => {
+    const selectedTankObj = tanks.find((t) => t.id === data.tankId);
+
+    // Backend Request Model: { tankId, harvestDate, production, averageWeight, survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense }
+    // Rule: Excludes revenue & profit (calculated automatically by backend)
+    const harvestPayload = {
+      tankId: data.tankId,
+      harvestDate: data.harvestDate,
+      production: parseFloat(data.production),
+      averageWeight: parseFloat(data.averageWeight),
+      survivalRate: parseFloat(data.survivalRate),
+      sellingPrice: parseFloat(data.sellingPrice),
+      buyerName: data.buyerName.trim(),
+      transportationCost: parseFloat(data.transportationCost),
+      harvestExpense: parseFloat(data.harvestExpense),
+    };
+
+    console.log('Backend Harvest Payload:', harvestPayload);
+
+    if (onSubmit) {
+      onSubmit({
+        ...harvestPayload,
+        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
+      {/* Tank Select & Harvest Date */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Select
+          label="Select Pond / Tank"
+          required={true}
+          placeholder="Choose pond..."
+          options={tankSelectOptions}
+          error={errors.tankId?.message}
+          {...register('tankId')}
+        />
+
+        <Input
+          label="Harvest Date"
+          type="date"
+          required={true}
+          icon={<Calendar className="w-4 h-4" />}
+          error={errors.harvestDate?.message}
+          {...register('harvestDate')}
+        />
+      </div>
+
+      {/* Production, Average Weight & Survival Rate */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Input
+          label="Production (kg)"
+          type="number"
+          step="0.1"
+          placeholder="e.g. 3500"
+          required={true}
+          icon={<Wheat className="w-4 h-4" />}
+          error={errors.production?.message}
+          {...register('production')}
+        />
+
+        <Input
+          label="Average Weight (ABW in grams)"
+          type="number"
+          step="0.1"
+          placeholder="e.g. 18.5"
+          required={true}
+          icon={<Weight className="w-4 h-4" />}
+          error={errors.averageWeight?.message}
+          {...register('averageWeight')}
+        />
+
+        <Input
+          label="Survival Rate (%)"
+          type="number"
+          step="0.1"
+          placeholder="e.g. 85"
+          required={true}
+          error={errors.survivalRate?.message}
+          {...register('survivalRate')}
+        />
+      </div>
+
+      {/* Selling Price & Buyer Name */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input
+          label="Selling Price (₹/kg)"
+          type="number"
+          step="1"
+          placeholder="e.g. 420"
+          required={true}
+          icon={<IndianRupee className="w-4 h-4" />}
+          error={errors.sellingPrice?.message}
+          {...register('sellingPrice')}
+        />
+
+        <Input
+          label="Buyer / Trader Name"
+          type="text"
+          placeholder="e.g. Coastal Seafood Traders"
+          required={true}
+          icon={<User className="w-4 h-4" />}
+          error={errors.buyerName?.message}
+          {...register('buyerName')}
+        />
+      </div>
+
+      {/* Transportation Cost & Harvest Expense */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input
+          label="Transportation Cost (₹)"
+          type="number"
+          step="1"
+          placeholder="e.g. 1500"
+          required={true}
+          icon={<Truck className="w-4 h-4" />}
+          error={errors.transportationCost?.message}
+          {...register('transportationCost')}
+        />
+
+        <Input
+          label="Harvest Expense (₹)"
+          type="number"
+          step="1"
+          placeholder="e.g. 3000"
+          required={true}
+          icon={<IndianRupee className="w-4 h-4" />}
+          error={errors.harvestExpense?.message}
+          {...register('harvestExpense')}
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          type="submit"
+          variant="primary"
+          isLoading={isSubmitting}
+          className="font-semibold"
+        >
+          {isEditing ? 'Update Harvest Record' : 'Register Harvest Record'}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+export default HarvestForm;
