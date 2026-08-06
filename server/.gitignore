@@ -25,7 +25,3 @@ Thumbs.db
 
 # Coverage
 coverage/
-
-server/.agents/
-server/.claude/
-server/.windsurf/

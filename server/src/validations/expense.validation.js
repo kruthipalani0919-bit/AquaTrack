@@ -1,0 +1,40 @@
+import { z } from "zod";
+
+export const expenseCategories = [
+    "Pond Lease",
+    "Pond Preparation",
+    "Feed",
+    "Electricity",
+    "Labour",
+    "Harvest",
+    "Maintenance",
+    "Medicine",
+    "Generator & Diesel"
+];
+
+export const paymentModes = [
+    "CASH",
+    "UPI",
+    "BANK",
+    "CARD"
+];
+
+export const createExpenseSchema = z.object({
+
+    tankId: z.string().min(1, "Tank is required"),
+
+    category: z.enum(expenseCategories),
+
+    description: z.string().min(3),
+
+    amount: z.number().positive(),
+
+    paymentMode: z.enum(paymentModes),
+
+    date: z.string(),
+
+    notes: z.string().optional()
+
+});
+
+export const updateExpenseSchema = createExpenseSchema.partial();

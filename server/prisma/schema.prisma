@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CropStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK
+  CARD
+}
+
+model User {
+  id       String  @id @default(cuid())
+  fullName String
+  mobile   String  @unique
+  email    String? @unique
+  password String
+
+  farms Farm[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Farm {
+  id         String @id @default(cuid())
+  farmName   String
+  ownerName  String
+  location   String
+  district   String
+  state      String
+  totalAcres Float
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tanks Tank[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Tank {
+  id          String  @id @default(cuid())
+  tankName    String
+  area        Float
+  depth       Float
+  waterSource String
+  gpsLocation String?
+  remarks     String?
+
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  crops      Crop[]
+  waterTests WaterTest[]
+  medicines  Medicine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Crop {
+  id String @id @default(cuid())
+
+  cropName    String
+  seedVariety String
+  plCount     Int
+
+  stockingDate        DateTime
+  expectedHarvestDate DateTime
+
+  cropDuration Int
+
+  expectedProduction   Float
+  expectedSellingPrice Float
+
+  notes String?
+
+  status CropStatus @default(ACTIVE)
+
+  tankId String
+  tank   Tank   @relation(fields: [tankId], references: [id], onDelete: Cascade)
+
+  feedEntries FeedEntry[]
+  expenses    Expense[]
+  harvests    Harvest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FeedEntry {
+  id String @id @default(cuid())
+
+  date DateTime
+
+  feedType  String
+  feedBrand String
+  feedSize  String
+
+  quantity Float
+
+  costPerKg Float
+
+  totalCost Float
+
+  notes String?
+
+  cropId String
+  crop   Crop   @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Expense {
+  id String @id @default(cuid())
+
+  category    String
+  description String
+
+  amount Float
+
+  paymentMode PaymentMode
+
+  receipt String?
+  notes   String?
+
+  date DateTime
+
+  cropId String
+  crop   Crop   @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model WaterTest {
+  id String @id @default(cuid())
+
+  date DateTime
+
+  temperature Float
+  ph          Float
+  salinity    Float
+  oxygen      Float
+  ammonia     Float
+  nitrite     Float
+  alkalinity  Float
+
+  remarks String?
+
+  tankId String
+  tank   Tank   @relation(fields: [tankId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Medicine {
+  id String @id @default(cuid())
+
+  date DateTime
+
+  medicineName String
+  purpose      String
+  dosage       String
+  quantity     Float
+  cost         Float
+
+  notes String?
+
+  tankId String
+  tank   Tank   @relation(fields: [tankId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Harvest {
+  id String @id @default(cuid())
+
+  harvestDate DateTime
+
+  production Float
+
+  averageWeight Float
+
+  survivalRate Float
+
+  sellingPrice Float
+
+  buyerName String
+
+  transportationCost Float
+
+  harvestExpense Float
+
+  revenue Float
+
+  profit Float
+
+  cropId String
+  crop   Crop   @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
