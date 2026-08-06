@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wheat, Container, Calendar, User, Eye, Edit3, Trash2, TrendingUp, Weight } from 'lucide-react';
+import { Wheat, Container, Calendar, Eye, Edit3, Trash2, TrendingUp } from 'lucide-react';
 import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -8,7 +8,7 @@ import { Button } from '../Button';
  * Reusable HarvestCard component displaying harvest yield details, metrics, buyer info, and actions.
  */
 export const HarvestCard = ({
-  harvest,
+  harvest = {},
   onView,
   onEdit,
   onDelete,
@@ -27,6 +27,14 @@ export const HarvestCard = ({
     harvestExpense,
   } = harvest;
 
+  const displayBuyer = buyerName || 'Direct Market Buyer';
+  const displayTank = tankName || 'Tank';
+  const displayDate = harvestDate || 'Today';
+  const numericProd = parseFloat(production) || 0;
+  const numericAbw = parseFloat(averageWeight) || 0;
+  const numericSurvival = parseFloat(survivalRate) || 0;
+  const numericPrice = parseFloat(sellingPrice) || 0;
+
   return (
     <Card
       hoverEffect={true}
@@ -40,12 +48,12 @@ export const HarvestCard = ({
             <Wheat className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={buyerName}>
-              {buyerName || 'Buyer'}
+            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={displayBuyer}>
+              {displayBuyer}
             </h3>
             <span className="text-[11px] text-text-secondary flex items-center gap-1">
               <Container className="w-3 h-3 text-primary shrink-0" />
-              <span className="truncate">{tankName || 'Tank 1'}</span>
+              <span className="truncate">{displayTank}</span>
             </span>
           </div>
         </div>
@@ -60,21 +68,21 @@ export const HarvestCard = ({
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Production</span>
           <span className="text-xs sm:text-sm font-bold text-text-primary mt-0.5">
-            {production} <span className="text-[10px] font-normal text-text-secondary">kg</span>
+            {numericProd} <span className="text-[10px] font-normal text-text-secondary">kg</span>
           </span>
         </div>
 
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Avg Weight</span>
           <span className="text-xs sm:text-sm font-bold text-text-primary mt-0.5">
-            {averageWeight} <span className="text-[10px] font-normal text-text-secondary">g</span>
+            {numericAbw} <span className="text-[10px] font-normal text-text-secondary">g</span>
           </span>
         </div>
 
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Survival</span>
           <span className="text-xs sm:text-sm font-bold text-emerald-700 mt-0.5">
-            {survivalRate}%
+            {numericSurvival}%
           </span>
         </div>
       </div>
@@ -82,10 +90,10 @@ export const HarvestCard = ({
       {/* Selling Price & Date Row */}
       <div className="py-2.5 text-xs text-text-secondary flex items-center justify-between">
         <span className="font-semibold text-primary flex items-center gap-1">
-          <TrendingUp className="w-3.5 h-3.5" /> ₹{sellingPrice}/kg
+          <TrendingUp className="w-3.5 h-3.5" /> ₹{numericPrice}/kg
         </span>
         <span className="flex items-center gap-1 text-[11px]">
-          <Calendar className="w-3.5 h-3.5 text-text-secondary" /> {harvestDate}
+          <Calendar className="w-3.5 h-3.5 text-text-secondary" /> {displayDate}
         </span>
       </div>
 
@@ -94,7 +102,7 @@ export const HarvestCard = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onView(harvest)}
+          onClick={() => onView && onView(harvest)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs text-primary font-medium"
         >
@@ -108,7 +116,7 @@ export const HarvestCard = ({
               onClick={() => onEdit(harvest)}
               className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors"
               title="Edit Harvest"
-              aria-label={`Edit harvest for ${tankName}`}
+              aria-label={`Edit harvest for ${displayTank}`}
             >
               <Edit3 className="w-4 h-4" />
             </button>
@@ -116,10 +124,10 @@ export const HarvestCard = ({
 
           <button
             type="button"
-            onClick={() => onDelete(harvest)}
+            onClick={() => onDelete && onDelete(harvest)}
             className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
             title="Delete Harvest Record"
-            aria-label={`Delete harvest for ${tankName}`}
+            aria-label={`Delete harvest for ${displayTank}`}
           >
             <Trash2 className="w-4 h-4 text-danger/80" />
           </button>

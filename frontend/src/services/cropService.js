@@ -1,28 +1,80 @@
-/**
- * Crop Service (Mock Promises)
- */
-export const cropService = {
-  async getCrops() {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          data: [
-            { id: 1, pondName: 'Pond P-1', species: 'Penaeus vannamei', doc: 48, stockedCount: 150000, survivalRate: '88%' },
-            { id: 2, pondName: 'Pond P-2', species: 'Penaeus vannamei', doc: 35, stockedCount: 120000, survivalRate: '92%' },
-          ],
-        });
-      }, 300);
-    });
-  },
+import api from './api';
 
-  async addCrop(cropData) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: 'Crop batch registered', data: cropData });
-      }, 400);
-    });
-  },
+/**
+ * Crop Management Service
+ */
+export const createCrop = async (data) => {
+  try {
+    const response = await api.post('/crops', data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create crop');
+  }
+};
+
+export const getCrops = async () => {
+  try {
+    const response = await api.get('/crops');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch crops');
+  }
+};
+
+export const getActiveCrops = async () => {
+  try {
+    const response = await api.get('/crops/active');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch active crops');
+  }
+};
+
+export const getCropById = async (id) => {
+  try {
+    const response = await api.get(`/crops/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to fetch crop #${id}`);
+  }
+};
+
+export const updateCrop = async (id, data) => {
+  try {
+    const response = await api.put(`/crops/${id}`, data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to update crop #${id}`);
+  }
+};
+
+export const completeCrop = async (id) => {
+  try {
+    const response = await api.patch(`/crops/${id}/complete`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to complete crop #${id}`);
+  }
+};
+
+export const deleteCrop = async (id) => {
+  try {
+    const response = await api.delete(`/crops/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to delete crop #${id}`);
+  }
+};
+
+export const cropService = {
+  createCrop,
+  getCrops,
+  getActiveCrops,
+  getCropById,
+  updateCrop,
+  completeCrop,
+  deleteCrop,
 };
 
 export default cropService;
+

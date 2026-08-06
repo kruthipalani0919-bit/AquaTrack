@@ -1,53 +1,96 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
-import { MOCK_MEDICINE_RECORDS } from '../constants/medicineData';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import medicineService from '../services/medicineService';
+import { useAuth } from './AuthContext';
 
 const MedicineContext = createContext(null);
 
 export const MedicineProvider = ({ children }) => {
-  const [medicineRecords, setMedicineRecords] = useState(MOCK_MEDICINE_RECORDS);
+  const { token, isAuthenticated } = useAuth();
+  const [medicineRecords, setMedicineRecords] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const addMedicineRecord = (newRecordData) => {
-    const newRecord = {
-      id: `med-${Date.now()}`,
-      cropId: newRecordData.cropId,
-      cropName: newRecordData.cropName || 'Selected Crop',
-      tankId: newRecordData.tankId || 'tank-1',
-      tankName: newRecordData.tankName || 'Selected Tank',
+  const fetchMedicineRecords = useCallback(async () => {
+    if (!isAuthenticated) {
+      setMedicineRecords([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await medicineService.getMedicines();
+      const list = res.data || res || [];
+      const normalized = list.map((rec) => ({
+        ...rec,
+        applicationDate: rec.date ? new Date(rec.date).toISOString().split('T')[0] : rec.applicationDate,
+        tankName: rec.tank?.tankName || rec.tankName || 'Tank',
+        dosage: rec.dosage ? String(rec.dosage) : '1',
+        cost: parseFloat(rec.cost) || 0,
+        quantity: parseFloat(rec.quantity) || 1,
+        status: 'Completed',
+      }));
+      setMedicineRecords(normalized);
+    } catch (err) {
+      console.error('Error fetching medicines:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchMedicineRecords();
+  }, [fetchMedicineRecords, token]);
+
+  const addMedicineRecord = async (newRecordData) => {
+    const payload = {
+      tankId: newRecordData.tankId,
       medicineName: newRecordData.medicineName,
-      category: newRecordData.category,
-      dosage: parseFloat(newRecordData.dosage),
-      unit: newRecordData.unit,
-      applicationDate: newRecordData.applicationDate,
-      applicationTime: newRecordData.applicationTime,
+      purpose: newRecordData.purpose || 'Health treatment',
+      dosage: String(newRecordData.dosage),
+      quantity: parseFloat(newRecordData.quantity || 1),
       cost: parseFloat(newRecordData.cost || 0),
-      purpose: newRecordData.purpose || '',
-      status: newRecordData.status || 'Completed',
-      notes: newRecordData.notes || '',
-      createdAt: new Date().toISOString().split('T')[0],
+      date: newRecordData.applicationDate || newRecordData.date || new Date().toISOString().split('T')[0],
+      notes: newRecordData.notes || undefined,
     };
 
-    setMedicineRecords((prev) => [newRecord, ...prev]);
-    return newRecord;
+    const res = await medicineService.createMedicine(payload);
+    const created = res.data || res;
+    const normalized = {
+      ...created,
+      applicationDate: created.date ? new Date(created.date).toISOString().split('T')[0] : payload.date,
+      tankName: newRecordData.tankName || 'Tank',
+      status: 'Completed',
+    };
+    setMedicineRecords((prev) => [normalized, ...prev]);
+    return normalized;
   };
 
-  const updateMedicineRecord = (id, updatedData) => {
-    setMedicineRecords((prev) =>
-      prev.map((rec) => {
-        if (rec.id === id) {
-          return {
-            ...rec,
+  const updateMedicineRecord = async (id, updatedData) => {
+    const payload = {
+      ...(updatedData.medicineName ? { medicineName: updatedData.medicineName } : {}),
+      ...(updatedData.purpose ? { purpose: updatedData.purpose } : {}),
+      ...(updatedData.dosage !== undefined ? { dosage: String(updatedData.dosage) } : {}),
+      ...(updatedData.quantity !== undefined ? { quantity: parseFloat(updatedData.quantity) } : {}),
+      ...(updatedData.cost !== undefined ? { cost: parseFloat(updatedData.cost) } : {}),
+      ...(updatedData.applicationDate || updatedData.date ? { date: updatedData.applicationDate || updatedData.date } : {}),
+      ...(updatedData.notes !== undefined ? { notes: updatedData.notes } : {}),
+    };
 
-            ...updatedData,
-            dosage: parseFloat(updatedData.dosage),
-            cost: parseFloat(updatedData.cost || 0),
-          };
-        }
-        return rec;
-      })
-    );
+    const res = await medicineService.updateMedicine(id, payload);
+    const updated = res.data || res;
+    const normalized = {
+      ...updated,
+      applicationDate: updated.date ? new Date(updated.date).toISOString().split('T')[0] : updatedData.applicationDate,
+      tankName: updated.tank?.tankName || 'Tank',
+      status: 'Completed',
+    };
+    setMedicineRecords((prev) => prev.map((rec) => (rec.id === id ? { ...rec, ...normalized } : rec)));
+    return normalized;
   };
 
-  const deleteMedicineRecord = (id) => {
+  const deleteMedicineRecord = async (id) => {
+    await medicineService.deleteMedicine(id);
     setMedicineRecords((prev) => prev.filter((rec) => rec.id !== id));
   };
 
@@ -55,30 +98,25 @@ export const MedicineProvider = ({ children }) => {
     return medicineRecords.find((rec) => rec.id === id);
   };
 
-  // Analytics Computations (Requirement 1 & Requirement 8)
+  // Analytics Computations
   const analytics = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. Total Treatments
     const totalTreatments = medicineRecords.length;
 
-    // 2. Medicines Used Today (Completed today)
     const medicinesUsedToday = medicineRecords.filter(
-      (rec) => rec.applicationDate === todayStr && rec.status === 'Completed'
+      (rec) => rec.applicationDate === todayStr
     ).length;
 
-    // 3. Total Medicine Cost (₹)
     const totalMedicineCostRupees = medicineRecords.reduce(
       (acc, rec) => acc + (parseFloat(rec.cost) || 0),
       0
     );
 
-    // 4. Upcoming Treatments
     const upcomingTreatments = medicineRecords.filter(
-      (rec) => rec.status === 'Scheduled' || rec.applicationDate > todayStr
+      (rec) => rec.applicationDate > todayStr
     ).length;
 
-    // 5. This Week's Treatments
     const thisWeeksTreatments = medicineRecords.filter((rec) => {
       const recDate = new Date(rec.applicationDate);
       const today = new Date();
@@ -100,6 +138,9 @@ export const MedicineProvider = ({ children }) => {
     <MedicineContext.Provider
       value={{
         medicineRecords,
+        loading,
+        error,
+        fetchMedicineRecords,
         addMedicineRecord,
         updateMedicineRecord,
         deleteMedicineRecord,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stethoscope, Container, Sprout, Calendar, Clock, IndianRupee, Eye, Edit3, Trash2, ShieldAlert } from 'lucide-react';
+import { Stethoscope, Container, Sprout, Calendar, Clock, Eye, Edit3, Trash2 } from 'lucide-react';
 import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -9,7 +9,7 @@ import { Button } from '../Button';
  * category, dosage, cost, status badge, and action triggers.
  */
 export const MedicineCard = ({
-  record,
+  record = {},
   onView,
   onEdit,
   onDelete,
@@ -30,6 +30,16 @@ export const MedicineCard = ({
     status,
   } = record;
 
+  const displayMedName = medicineName || 'Treatment';
+  const displayCategory = category || 'General';
+  const displayCrop = cropName || 'Crop';
+  const displayTank = tankName || 'Tank';
+  const displayDosage = dosage || '1';
+  const displayUnit = unit || 'kg/ha';
+  const displayDate = applicationDate || 'Today';
+  const displayTime = applicationTime || 'Morning';
+  const numericCost = parseFloat(cost) || 0;
+
   const statusVariantMap = {
     Completed: 'success',
     Scheduled: 'warning',
@@ -49,17 +59,17 @@ export const MedicineCard = ({
             <Stethoscope className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={medicineName}>
-              {medicineName}
+            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={displayMedName}>
+              {displayMedName}
             </h3>
             <span className="text-[11px] font-semibold text-text-secondary truncate block">
-              {category}
+              {displayCategory}
             </span>
           </div>
         </div>
 
         <Badge variant={statusVariantMap[status] || 'primary'} size="sm" className="shrink-0">
-          {status}
+          {status || 'Completed'}
         </Badge>
       </div>
 
@@ -67,11 +77,11 @@ export const MedicineCard = ({
       <div className="flex items-center gap-3 py-2.5 text-xs border-b border-border/40 text-text-secondary">
         <span className="flex items-center gap-1 font-medium truncate">
           <Sprout className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span className="truncate">{cropName}</span>
+          <span className="truncate">{displayCrop}</span>
         </span>
         <span className="flex items-center gap-1 font-medium truncate">
           <Container className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className="truncate">{tankName}</span>
+          <span className="truncate">{displayTank}</span>
         </span>
       </div>
 
@@ -80,14 +90,14 @@ export const MedicineCard = ({
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Dosage Amount</span>
           <span className="text-xs sm:text-sm font-bold text-text-primary mt-0.5">
-            {dosage} <span className="text-[10px] font-normal text-text-secondary">{unit}</span>
+            {displayDosage} <span className="text-[10px] font-normal text-text-secondary">{displayUnit}</span>
           </span>
         </div>
 
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Treatment Cost</span>
           <span className="text-xs sm:text-sm font-bold text-emerald-700 mt-0.5">
-            ₹{(parseFloat(cost) || 0).toLocaleString()}
+            ₹{numericCost.toLocaleString()}
           </span>
         </div>
       </div>
@@ -95,10 +105,10 @@ export const MedicineCard = ({
       {/* Application Date & Time */}
       <div className="py-2.5 flex items-center justify-between text-xs text-text-secondary border-b border-border/40">
         <span className="flex items-center gap-1 font-medium">
-          <Calendar className="w-3.5 h-3.5 text-primary" /> {applicationDate}
+          <Calendar className="w-3.5 h-3.5 text-primary" /> {displayDate}
         </span>
         <span className="flex items-center gap-1 font-medium">
-          <Clock className="w-3.5 h-3.5 text-accent" /> {applicationTime}
+          <Clock className="w-3.5 h-3.5 text-accent" /> {displayTime}
         </span>
       </div>
 
@@ -114,7 +124,7 @@ export const MedicineCard = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onView(record)}
+          onClick={() => onView && onView(record)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs text-primary font-medium"
         >
@@ -124,7 +134,7 @@ export const MedicineCard = ({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => onEdit(record)}
+            onClick={() => onEdit && onEdit(record)}
             className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors"
             title="Edit Treatment Record"
             aria-label="Edit treatment record"
@@ -134,7 +144,7 @@ export const MedicineCard = ({
 
           <button
             type="button"
-            onClick={() => onDelete(record)}
+            onClick={() => onDelete && onDelete(record)}
             className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
             title="Delete Treatment Record"
             aria-label="Delete treatment record"

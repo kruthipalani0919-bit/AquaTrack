@@ -3,7 +3,6 @@ import api from './api';
 /**
  * Farm Management Service
  * Backend automatically links farm data to the authenticated user.
- * Do NOT send userId or farmId in requests.
  */
 export const createFarm = async (data) => {
   try {
@@ -23,12 +22,21 @@ export const getFarm = async () => {
   }
 };
 
-export const updateFarm = async (data) => {
+export const updateFarm = async (id, data) => {
   try {
-    const response = await api.put('/farms', data);
+    const response = await api.put(`/farms/${id}`, data);
     return response.data;
   } catch (error) {
     throw new Error(error.message || 'Failed to update farm details');
+  }
+};
+
+export const deleteFarm = async (id) => {
+  try {
+    const response = await api.delete(`/farms/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to delete farm');
   }
 };
 
@@ -36,6 +44,8 @@ export const farmService = {
   createFarm,
   getFarm,
   updateFarm,
+  deleteFarm,
 };
 
 export default farmService;
+

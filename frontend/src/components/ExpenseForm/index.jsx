@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Receipt, Calendar, IndianRupee, CreditCard, FileText } from 'lucide-react';
+import { Calendar, IndianRupee } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -15,7 +15,7 @@ import {
 } from '../../constants/expenseData';
 import { useTanks } from '../../context/TankContext';
 
-// Zod Validation Schema matching backend contract (POST /api/expenses)
+// Zod Validation Schema matching frontend required fields
 const expenseSchema = z.object({
   tankId: z
     .string()
@@ -23,10 +23,6 @@ const expenseSchema = z.object({
   category: z
     .string()
     .min(1, 'Please select an Expense Category'),
-  description: z
-    .string()
-    .min(1, 'Description is required')
-    .trim(),
   amount: z
     .coerce
     .number({ invalid_type_error: 'Amount must be a number' })
@@ -44,7 +40,8 @@ const expenseSchema = z.object({
 
 /**
  * Reusable ExpenseForm component with dynamic Tank dropdown from TankContext.
- * Contains ONLY backend-supported fields: tankId, category, description, amount, paymentMode, date, notes.
+ * Displays user-essential fields ONLY: tankId, category, amount, paymentMode, date, notes.
+ * Automatically populates description internally with category name for 100% backend API compatibility.
  */
 export const ExpenseForm = ({
   initialData = null,
@@ -57,7 +54,7 @@ export const ExpenseForm = ({
 
   const tankSelectOptions = tanks.map((tank) => ({
     value: tank.id,
-    label: `${tank.name} (${tank.area} Acres - ${tank.waterSource})`,
+    label: `${tank.name} (${tank.area} Acres)`,
   }));
 
   const {
@@ -70,7 +67,6 @@ export const ExpenseForm = ({
     defaultValues: {
       tankId: '',
       category: '',
-      description: '',
       amount: '',
       paymentMode: '',
       date: new Date().toISOString().split('T')[0],
@@ -84,10 +80,9 @@ export const ExpenseForm = ({
       reset({
         tankId: initialData.tankId || '',
         category: initialData.category || '',
-        description: initialData.description || '',
         amount: initialData.amount || '',
         paymentMode: initialData.paymentMode || '',
-        date: initialData.date || '',
+        date: initialData.date || new Date().toISOString().split('T')[0],
         notes: initialData.notes || '',
       });
     }
@@ -100,19 +95,17 @@ export const ExpenseForm = ({
     const expensePayload = {
       tankId: data.tankId,
       category: data.category,
-      description: data.description.trim(),
+      description: data.category, // Internally populate description using category for API compatibility
       amount: parseFloat(data.amount),
       paymentMode: data.paymentMode,
       date: data.date,
       notes: data.notes ? data.notes.trim() : '',
     };
 
-    console.log('Backend Expense Payload:', expensePayload);
-
     if (onSubmit) {
       onSubmit({
         ...expensePayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
+        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
       });
     }
   };
@@ -122,7 +115,7 @@ export const ExpenseForm = ({
       {/* Tank Select & Category */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Select
-          label="Select Pond / Tank"
+          label="Pond / Tank"
           required={true}
           placeholder="Choose pond..."
           options={tankSelectOptions}
@@ -139,17 +132,6 @@ export const ExpenseForm = ({
           {...register('category')}
         />
       </div>
-
-      {/* Description */}
-      <Input
-        label="Description"
-        type="text"
-        placeholder="e.g. Electricity bill / Feed purchase"
-        required={true}
-        icon={<FileText className="w-4 h-4" />}
-        error={errors.description?.message}
-        {...register('description')}
-      />
 
       {/* Amount, Payment Mode, & Date */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -183,11 +165,11 @@ export const ExpenseForm = ({
         />
       </div>
 
-      {/* Notes */}
+      {/* Notes & Observations */}
       <Textarea
         label="Notes & Observations (Optional)"
         placeholder="Add transaction details, invoice number, vendor name..."
-        rows={3}
+        rows={2}
         error={errors.notes?.message}
         {...register('notes')}
       />

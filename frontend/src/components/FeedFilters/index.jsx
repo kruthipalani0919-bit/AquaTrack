@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar } from 'lucide-react';
+import { X } from 'lucide-react';
 import { SearchBar } from '../SearchBar';
 import { Select } from '../Select';
 import { Input } from '../Input';
@@ -25,8 +25,8 @@ export const FeedFilters = ({
   onReset,
   className = '',
 }) => {
-  const { crops } = useCrops();
-  const { tanks } = useTanks();
+  const { crops = [] } = useCrops();
+  const { tanks = [] } = useTanks();
 
   const hasActiveFilters = Boolean(
     searchQuery || typeFilter || cropFilter || tankFilter || dateFilter
@@ -39,12 +39,12 @@ export const FeedFilters = ({
 
   const cropOptions = [
     { value: '', label: 'All Crops' },
-    ...crops.map((c) => ({ value: c.id, label: c.cropName })),
+    ...(crops || []).map((c) => ({ value: c.id, label: c.cropName || 'Crop' })),
   ];
 
   const tankOptions = [
     { value: '', label: 'All Tanks' },
-    ...tanks.map((t) => ({ value: t.id, label: t.name })),
+    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
   ];
 
   return (

@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, X, Droplets, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { SIDEBAR_MENU_ITEMS } from '../../constants/sidebarMenu';
-import { authService } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * Reusable Sidebar component with NavLink active states, mobile drawer behavior,
@@ -18,9 +18,10 @@ export const Sidebar = ({
   onLogout,
 }) => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogoutClick = async () => {
-    await authService.logout();
+    await logout();
     if (onLogout) {
       onLogout();
     } else {

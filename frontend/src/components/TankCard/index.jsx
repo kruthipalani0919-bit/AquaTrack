@@ -9,17 +9,21 @@ import { Button } from '../Button';
  * status badge, calculated volume, and action buttons.
  */
 export const TankCard = ({
-  tank,
+  tank = {},
   onView,
   onEdit,
   onDelete,
   className = '',
 }) => {
-  const { id, name, area, depth, waterSource, status, remarks } = tank;
+  const { id, name, tankName, area, depth, waterSource, status, remarks } = tank;
+  const displayName = name || tankName || 'Pond / Tank';
+
+  const numericArea = parseFloat(area) || 0;
+  const numericDepth = parseFloat(depth) || 0;
 
   // Calculate volume in Million Liters (1 Acre = 4046.86 m², 1 m³ = 1000 Liters)
-  const areaSqMeters = area * 4046.86;
-  const volumeCubicMeters = areaSqMeters * depth;
+  const areaSqMeters = numericArea * 4046.86;
+  const volumeCubicMeters = areaSqMeters * numericDepth;
   const volumeML = (volumeCubicMeters / 1000000).toFixed(2);
 
   const statusVariantMap = {
@@ -47,18 +51,18 @@ export const TankCard = ({
             <Container className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={name}>
-              {name}
+            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={displayName}>
+              {displayName}
             </h3>
             <span className="text-[11px] text-text-secondary flex items-center gap-1">
               <Waves className="w-3 h-3 text-primary shrink-0" />
-              <span className="truncate">{waterSource} Water</span>
+              <span className="truncate">{waterSource || 'Fresh'} Water</span>
             </span>
           </div>
         </div>
 
         <Badge variant={statusVariantMap[status] || 'primary'} size="sm" className="shrink-0">
-          {statusLabelMap[status] || status}
+          {statusLabelMap[status] || status || 'Active'}
         </Badge>
       </div>
 
@@ -69,7 +73,7 @@ export const TankCard = ({
             <Maximize2 className="w-3 h-3 text-primary" /> Area
           </span>
           <span className="text-sm font-bold text-text-primary mt-0.5">
-            {area} <span className="text-[11px] font-normal text-text-secondary">Acres</span>
+            {numericArea} <span className="text-[11px] font-normal text-text-secondary">Acres</span>
           </span>
         </div>
 
@@ -78,7 +82,7 @@ export const TankCard = ({
             <Layers className="w-3 h-3 text-secondary" /> Depth
           </span>
           <span className="text-sm font-bold text-text-primary mt-0.5">
-            {depth} <span className="text-[11px] font-normal text-text-secondary">m</span>
+            {numericDepth} <span className="text-[11px] font-normal text-text-secondary">m</span>
           </span>
         </div>
 
@@ -105,7 +109,7 @@ export const TankCard = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onView(tank)}
+          onClick={() => onView && onView(tank)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs text-primary font-medium"
         >
@@ -115,20 +119,20 @@ export const TankCard = ({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => onEdit(tank)}
+            onClick={() => onEdit && onEdit(tank)}
             className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors"
             title="Edit Tank"
-            aria-label={`Edit ${name}`}
+            aria-label={`Edit ${displayName}`}
           >
             <Edit3 className="w-4 h-4" />
           </button>
 
           <button
             type="button"
-            onClick={() => onDelete(tank)}
+            onClick={() => onDelete && onDelete(tank)}
             className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
             title="Delete Tank"
-            aria-label={`Delete ${name}`}
+            aria-label={`Delete ${displayName}`}
           >
             <Trash2 className="w-4 h-4 text-danger/80" />
           </button>

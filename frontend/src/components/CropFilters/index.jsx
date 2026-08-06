@@ -19,7 +19,7 @@ export const CropFilters = ({
   onReset,
   className = '',
 }) => {
-  const { tanks } = useTanks();
+  const { tanks = [] } = useTanks();
 
   const hasActiveFilters = Boolean(searchQuery || statusFilter || tankFilter);
 
@@ -30,7 +30,7 @@ export const CropFilters = ({
 
   const tankOptions = [
     { value: '', label: 'All Ponds / Tanks' },
-    ...tanks.map((t) => ({ value: t.id, label: t.name })),
+    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
   ];
 
   return (

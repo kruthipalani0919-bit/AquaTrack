@@ -8,6 +8,7 @@ import { Droplets, User, Phone, Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lu
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
+import { useAuth } from '../../context/AuthContext';
 
 // 1. Zod Validation Schema matching backend contract (fullName, mobile, email, password)
 // confirmPassword is used solely for frontend validation refinement.
@@ -46,10 +47,13 @@ const registerSchema = z
 
 export default function Register() {
   const navigate = useNavigate();
+  const { register: authRegister, logout } = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   const {
     register,
@@ -69,27 +73,34 @@ export default function Register() {
 
   const onSubmit = async (formData) => {
     setIsSubmitting(true);
+    setApiError('');
 
-    // Backend Request Model (confirmPassword excluded)
+    // Explicitly clear any existing session/token to prevent stale state from triggering login redirects
+    if (logout) {
+      await logout();
+    }
+
     const payload = {
       fullName: formData.fullName.trim(),
       mobile: formData.mobile.trim(),
-      email: formData.email ? formData.email.trim() : '',
+      email: formData.email ? formData.email.trim() : undefined,
       password: formData.password,
     };
 
-    // Print backend payload object to console locally
-    console.log('Registration Payload:', payload);
-
-    // Temporary frontend-only mock flow
-    setTimeout(() => {
+    try {
+      // Call register service (creates user, does not authenticate or set token)
+      await authRegister(payload);
       setIsSubmitting(false);
       setSubmitSuccess(true);
 
+      // Redirect ONLY to /login page after short delay for user to read success message
       setTimeout(() => {
-        navigate('/login');
+        navigate('/login', { replace: true });
       }, 1200);
-    }, 800);
+    } catch (err) {
+      setIsSubmitting(false);
+      setApiError(err.message || 'Registration failed. Please try again.');
+    }
   };
 
   return (
@@ -130,7 +141,7 @@ export default function Register() {
               <div className="w-14 h-14 rounded-full bg-success-light text-success flex items-center justify-center animate-bounce-slow">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h2 className="text-lg font-bold text-text-primary">Account Created Successfully!</h2>
+              <h2 className="text-lg font-bold text-text-primary">Registration successful. Please login to continue.</h2>
               <p className="text-xs text-text-secondary max-w-xs">
                 Redirecting you to the login page...
               </p>
@@ -138,13 +149,19 @@ export default function Register() {
                 variant="primary"
                 size="sm"
                 className="mt-2"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/login', { replace: true })}
               >
                 Go to Login Now
               </Button>
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+              {apiError && (
+                <div className="p-3 bg-danger-light text-danger rounded-lg text-xs font-medium border border-danger/20">
+                  {apiError}
+                </div>
+              )}
+
               {/* Full Name (Required) */}
               <Input
                 label="Full Name"

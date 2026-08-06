@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   Droplets,
   Layers,
-  ClipboardList
+  ClipboardList,
+  ShieldAlert
 } from 'lucide-react';
 
 import { Button } from '../../components/Button';
@@ -18,6 +19,8 @@ import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
 import { PageHeader } from '../../components/PageHeader';
 import { Badge } from '../../components/Badge';
+
+import farmService from '../../services/farmService';
 
 // Zod Validation Schema strictly matching backend contract (POST /api/farms)
 const farmSetupSchema = z.object({
@@ -36,12 +39,15 @@ export default function FarmSetup() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [existingFarmId, setExistingFarmId] = useState(null);
+  const [apiError, setApiError] = useState('');
 
   const {
     register,
     handleSubmit,
     trigger,
     getValues,
+    reset,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(farmSetupSchema),
@@ -56,7 +62,29 @@ export default function FarmSetup() {
     mode: 'onTouched',
   });
 
-  // Step Navigation Validation
+  useEffect(() => {
+    async function loadFarmDetails() {
+      try {
+        const res = await farmService.getFarm();
+        const farm = res.data || res;
+        if (farm && farm.id) {
+          setExistingFarmId(farm.id);
+          reset({
+            farmName: farm.farmName || '',
+            ownerName: farm.ownerName || '',
+            location: farm.location || '',
+            district: farm.district || '',
+            state: farm.state || '',
+            totalAcres: farm.totalAcres || '',
+          });
+        }
+      } catch (err) {
+        // Farm not found yet, normal for initial setup
+      }
+    }
+    loadFarmDetails();
+  }, [reset]);
+
   const handleNext = async () => {
     let fieldsToValidate = [];
 
@@ -79,10 +107,10 @@ export default function FarmSetup() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     setIsSubmitting(true);
+    setApiError('');
 
-    // Backend Request Model: { farmName, ownerName, location, district, state, totalAcres }
     const farmPayload = {
       farmName: data.farmName.trim(),
       ownerName: data.ownerName.trim(),
@@ -92,16 +120,22 @@ export default function FarmSetup() {
       totalAcres: parseFloat(data.totalAcres),
     };
 
-    console.log('Farm Payload:', farmPayload);
-
-    setTimeout(() => {
+    try {
+      if (existingFarmId) {
+        await farmService.updateFarm(existingFarmId, farmPayload);
+      } else {
+        await farmService.createFarm(farmPayload);
+      }
       setIsSubmitting(false);
       setIsCompleted(true);
 
       setTimeout(() => {
         navigate('/dashboard');
-      }, 1500);
-    }, 800);
+      }, 1200);
+    } catch (err) {
+      setIsSubmitting(false);
+      setApiError(err.message || 'Failed to save farm details.');
+    }
   };
 
   const steps = [
@@ -193,7 +227,7 @@ export default function FarmSetup() {
               </div>
               <h2 className="text-2xl font-bold text-text-primary">Farm Setup Complete!</h2>
               <p className="text-sm text-text-secondary max-w-md">
-                Your farm details have been initialized. Backend farm payload printed to developer console. Redirecting to your dashboard...
+                Your farm profile has been saved to the database. Redirecting to your dashboard...
               </p>
               <Button variant="primary" size="md" onClick={() => navigate('/dashboard')} className="mt-2">
                 Go to Dashboard
@@ -201,6 +235,13 @@ export default function FarmSetup() {
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
+              {apiError && (
+                <div className="mb-4 p-3 bg-danger-light text-danger rounded-lg text-xs font-medium border border-danger/20 flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>{apiError}</span>
+                </div>
+              )}
+
               {/* STEP 1: FARM DETAILS */}
               {currentStep === 1 && (
                 <div className="flex flex-col gap-6 animate-in fade-in duration-200">
@@ -298,7 +339,6 @@ export default function FarmSetup() {
                     </p>
                   </div>
 
-                  {/* Summary Box 1: Farm Details */}
                   <div className="bg-background border border-border rounded-xl p-5">
                     <div className="flex items-center justify-between mb-3 border-b border-border/60 pb-2">
                       <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
@@ -337,7 +377,6 @@ export default function FarmSetup() {
                     </div>
                   </div>
 
-                  {/* Summary Box 2: Land Details */}
                   <div className="bg-background border border-border rounded-xl p-5">
                     <div className="flex items-center justify-between mb-3 border-b border-border/60 pb-2">
                       <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">

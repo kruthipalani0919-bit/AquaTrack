@@ -3,14 +3,13 @@ import {
   Plus,
   Container,
   CheckCircle2,
-  AlertTriangle,
   Maximize2,
   Waves,
-  Layers,
   Calendar,
   Clock,
   Edit3,
-  Trash2
+  Trash2,
+  Layers
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -26,7 +25,7 @@ import { TankFilters } from '../../components/TankFilters';
 import { useTanks } from '../../context/TankContext';
 
 export default function Tanks() {
-  const { tanks, addTank, updateTank, deleteTank } = useTanks();
+  const { tanks = [], addTank, updateTank, deleteTank, loading, error } = useTanks();
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,14 +42,20 @@ export default function Tanks() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingTank, setDeletingTank] = useState(null);
 
-  // Filter Tanks List
+  // Filter Tanks List Safely
   const filteredTanks = useMemo(() => {
-    return tanks.filter((tank) => {
+    const list = tanks || [];
+    return list.filter((tank) => {
+      if (!tank) return false;
+      const nameStr = tank.name || tank.tankName || '';
+      const remarksStr = tank.remarks || '';
+      const query = (searchQuery || '').trim().toLowerCase();
+
       // Search query filter (matches name or remarks)
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        tank.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (tank.remarks && tank.remarks.toLowerCase().includes(searchQuery.toLowerCase()));
+        query === '' ||
+        nameStr.toLowerCase().includes(query) ||
+        remarksStr.toLowerCase().includes(query);
 
       // Status filter
       const matchesStatus = statusFilter === '' || tank.status === statusFilter;
@@ -62,16 +67,16 @@ export default function Tanks() {
     });
   }, [tanks, searchQuery, statusFilter, sourceFilter]);
 
-  // Operational Metrics Summary
+  // Operational Metrics Summary Safely
   const stats = useMemo(() => {
-    const totalCount = tanks.length;
-    const activeCount = tanks.filter((t) => t.status === 'Active').length;
-    const totalArea = tanks.reduce((acc, t) => acc + (parseFloat(t.area) || 0), 0);
+    const list = tanks || [];
+    const totalCount = list.length;
+    const activeCount = list.filter((t) => t && t.status === 'Active').length;
+    const totalArea = list.reduce((acc, t) => acc + (parseFloat(t?.area) || 0), 0);
 
-    // Total estimated volume in ML
-    const totalVolumeML = tanks.reduce((acc, t) => {
-      const areaM2 = (parseFloat(t.area) || 0) * 4046.86;
-      const depthM = parseFloat(t.depth) || 0;
+    const totalVolumeML = list.reduce((acc, t) => {
+      const areaM2 = (parseFloat(t?.area) || 0) * 4046.86;
+      const depthM = parseFloat(t?.depth) || 0;
       return acc + (areaM2 * depthM) / 1000000;
     }, 0);
 
@@ -106,21 +111,29 @@ export default function Tanks() {
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleSaveTank = (formData) => {
-    if (editingTank) {
-      updateTank(editingTank.id, formData);
-    } else {
-      addTank(formData);
+  const handleSaveTank = async (formData) => {
+    try {
+      if (editingTank) {
+        await updateTank(editingTank.id, formData);
+      } else {
+        await addTank(formData);
+      }
+      setIsFormOpen(false);
+      setEditingTank(null);
+    } catch (err) {
+      console.error('Error saving tank:', err);
     }
-    setIsFormOpen(false);
-    setEditingTank(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deletingTank) {
-      deleteTank(deletingTank.id);
-      setIsDeleteOpen(false);
-      setDeletingTank(null);
+      try {
+        await deleteTank(deletingTank.id);
+        setIsDeleteOpen(false);
+        setDeletingTank(null);
+      } catch (err) {
+        console.error('Error deleting tank:', err);
+      }
     }
   };
 
@@ -254,7 +267,7 @@ export default function Tanks() {
         title={editingTank ? 'Edit Tank Details' : 'Add New Tank'}
         description={
           editingTank
-            ? `Update properties for ${editingTank.name}`
+            ? `Update properties for ${editingTank.name || editingTank.tankName || 'Tank'}`
             : 'Register a new aquaculture pond into your farm setup.'
         }
         size="lg"
@@ -277,7 +290,7 @@ export default function Tanks() {
             setIsDetailsOpen(false);
             setViewingTank(null);
           }}
-          title={viewingTank.name}
+          title={viewingTank.name || viewingTank.tankName || 'Tank Details'}
           description="Detailed tank specifications and water capacity metrics"
           size="md"
         >
@@ -294,7 +307,7 @@ export default function Tanks() {
                     : 'neutral'
                 }
               >
-                {viewingTank.status}
+                {viewingTank.status || 'Active'}
               </Badge>
             </div>
 
@@ -329,7 +342,7 @@ export default function Tanks() {
                 <div>
                   <span className="text-[10px] text-text-secondary uppercase font-semibold block">Est. Volume</span>
                   <span className="text-sm font-bold text-text-primary">
-                    {((viewingTank.area * 4046.86 * viewingTank.depth) / 1000000).toFixed(2)} ML
+                    {(((parseFloat(viewingTank.area) || 0) * 4046.86 * (parseFloat(viewingTank.depth) || 0)) / 1000000).toFixed(2)} ML
                   </span>
                 </div>
               </div>
@@ -338,7 +351,7 @@ export default function Tanks() {
             {/* Dates Row */}
             <div className="flex items-center justify-between text-xs text-text-secondary pt-2 border-t border-border/60">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-text-secondary" /> Registered: {viewingTank.createdAt || 'N/A'}
+                <Calendar className="w-3.5 h-3.5 text-text-secondary" /> Registered: {viewingTank.createdAt ? new Date(viewingTank.createdAt).toLocaleDateString() : 'N/A'}
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-text-secondary" /> Last Water Log: {viewingTank.lastTested || 'Recent'}
@@ -388,7 +401,7 @@ export default function Tanks() {
         title="Delete Tank"
         message={
           deletingTank
-            ? `Are you sure you want to delete "${deletingTank.name}"? This action cannot be undone.`
+            ? `Are you sure you want to delete "${deletingTank.name || deletingTank.tankName}"? This action cannot be undone.`
             : 'Are you sure you want to delete this tank?'
         }
         confirmText="Delete Tank"

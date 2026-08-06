@@ -18,11 +18,11 @@ export const ExpenseFilters = ({
   onTankChange,
   onReset,
 }) => {
-  const { tanks } = useTanks();
+  const { tanks = [] } = useTanks();
 
   const tankOptions = [
     { value: '', label: 'All Tanks / Ponds' },
-    ...tanks.map((t) => ({ value: t.id, label: t.name })),
+    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
   ];
 
   const categoryOptions = [

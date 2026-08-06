@@ -1,52 +1,70 @@
-import React, { createContext, useContext, useState } from 'react';
-import { MOCK_HARVESTS } from '../constants/harvestData';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import harvestService from '../services/harvestService';
+import { useAuth } from './AuthContext';
 
 const HarvestContext = createContext(null);
 
 export const HarvestProvider = ({ children }) => {
-  const [harvests, setHarvests] = useState(MOCK_HARVESTS);
+  const { token, isAuthenticated } = useAuth();
+  const [harvests, setHarvests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const addHarvest = (newHarvestData) => {
-    const newHarvest = {
-      id: `harv-${Date.now()}`,
+  const fetchHarvests = useCallback(async () => {
+    if (!isAuthenticated) {
+      setHarvests([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await harvestService.getHarvests();
+      const list = res.data || res || [];
+      const normalized = list.map((h) => ({
+        ...h,
+        harvestDate: h.harvestDate ? new Date(h.harvestDate).toISOString().split('T')[0] : h.harvestDate,
+        tankName: h.crop?.tank?.tankName || h.tankName || 'Tank',
+        cropName: h.crop?.cropName || h.cropName || 'Crop',
+      }));
+      setHarvests(normalized);
+    } catch (err) {
+      console.error('Error fetching harvests:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchHarvests();
+  }, [fetchHarvests, token]);
+
+  const addHarvest = async (newHarvestData) => {
+    const payload = {
       tankId: newHarvestData.tankId,
-      tankName: newHarvestData.tankName || 'Tank 1',
-      harvestDate: newHarvestData.harvestDate,
-      production: parseFloat(newHarvestData.production) || 0,
-      averageWeight: parseFloat(newHarvestData.averageWeight) || 0,
-      survivalRate: parseFloat(newHarvestData.survivalRate) || 0,
-      sellingPrice: parseFloat(newHarvestData.sellingPrice) || 0,
+      harvestDate: newHarvestData.harvestDate || new Date().toISOString().split('T')[0],
+      production: parseFloat(newHarvestData.production),
+      averageWeight: parseFloat(newHarvestData.averageWeight),
+      survivalRate: parseFloat(newHarvestData.survivalRate),
+      sellingPrice: parseFloat(newHarvestData.sellingPrice),
       buyerName: newHarvestData.buyerName,
-      transportationCost: parseFloat(newHarvestData.transportationCost) || 0,
-      harvestExpense: parseFloat(newHarvestData.harvestExpense) || 0,
-      createdAt: new Date().toISOString().split('T')[0],
+      transportationCost: parseFloat(newHarvestData.transportationCost || 0),
+      harvestExpense: parseFloat(newHarvestData.harvestExpense || 0),
     };
 
-    setHarvests((prev) => [newHarvest, ...prev]);
-    return newHarvest;
+    const res = await harvestService.createHarvest(payload);
+    const created = res.data || res;
+    const normalized = {
+      ...created,
+      harvestDate: created.harvestDate ? new Date(created.harvestDate).toISOString().split('T')[0] : payload.harvestDate,
+      tankName: newHarvestData.tankName || 'Tank',
+    };
+    setHarvests((prev) => [normalized, ...prev]);
+    return normalized;
   };
 
-  const updateHarvest = (id, updatedData) => {
-    setHarvests((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          return {
-            ...item,
-            ...updatedData,
-            production: parseFloat(updatedData.production) || 0,
-            averageWeight: parseFloat(updatedData.averageWeight) || 0,
-            survivalRate: parseFloat(updatedData.survivalRate) || 0,
-            sellingPrice: parseFloat(updatedData.sellingPrice) || 0,
-            transportationCost: parseFloat(updatedData.transportationCost) || 0,
-            harvestExpense: parseFloat(updatedData.harvestExpense) || 0,
-          };
-        }
-        return item;
-      })
-    );
-  };
-
-  const deleteHarvest = (id) => {
+  const deleteHarvest = async (id) => {
+    await harvestService.deleteHarvest(id);
     setHarvests((prev) => prev.filter((item) => item.id !== id));
   };
 
@@ -58,8 +76,10 @@ export const HarvestProvider = ({ children }) => {
     <HarvestContext.Provider
       value={{
         harvests,
+        loading,
+        error,
+        fetchHarvests,
         addHarvest,
-        updateHarvest,
         deleteHarvest,
         getHarvestById,
       }}

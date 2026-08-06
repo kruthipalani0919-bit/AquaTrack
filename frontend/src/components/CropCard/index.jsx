@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sprout, Calendar, Eye, Edit3, Trash2, Container, IndianRupee, TrendingUp } from 'lucide-react';
+import { Sprout, Calendar, Eye, Edit3, Trash2, Container, TrendingUp } from 'lucide-react';
 import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -9,7 +9,7 @@ import { Button } from '../Button';
  * financial projections, and action triggers.
  */
 export const CropCard = ({
-  crop,
+  crop = {},
   onView,
   onEdit,
   onDelete,
@@ -28,10 +28,14 @@ export const CropCard = ({
     status,
   } = crop;
 
-  // 1. Calculate Days of Culture (DOC) & Duration
+  const displayName = cropName || 'Culture Batch';
+  const displayTank = tankName || 'Tank';
+  const displayVariety = seedVariety || 'Vannamei';
+
+  // 1. Calculate Days of Culture (DOC) & Duration Safely
   const now = new Date();
-  const start = new Date(stockingDate);
-  const end = new Date(expectedHarvestDate);
+  const start = stockingDate ? new Date(stockingDate) : now;
+  const end = expectedHarvestDate ? new Date(expectedHarvestDate) : new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000);
 
   const diffTimeDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
   const doc = Math.max(0, diffTimeDays);
@@ -40,7 +44,10 @@ export const CropCard = ({
   const progressPercent = Math.min(100, Math.max(0, Math.round((doc / totalDurationDays) * 100)));
 
   // 2. Financial calculation
-  const estimatedRevenue = (parseFloat(expectedProductionKg) || 0) * (parseFloat(expectedSellingPricePerKg) || 0);
+  const numericProd = parseFloat(expectedProductionKg) || 0;
+  const numericPrice = parseFloat(expectedSellingPricePerKg) || 0;
+  const numericPl = parseFloat(plCount) || 0;
+  const estimatedRevenue = numericProd * numericPrice;
 
   // Status mapping
   const statusVariantMap = {
@@ -63,18 +70,18 @@ export const CropCard = ({
             <Sprout className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={cropName}>
-              {cropName}
+            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={displayName}>
+              {displayName}
             </h3>
             <span className="text-[11px] text-text-secondary flex items-center gap-1">
               <Container className="w-3 h-3 text-primary shrink-0" />
-              <span className="truncate">{tankName}</span>
+              <span className="truncate">{displayTank}</span>
             </span>
           </div>
         </div>
 
         <Badge variant={statusVariantMap[status] || 'primary'} size="sm" className="shrink-0">
-          {status}
+          {status || 'Active'}
         </Badge>
       </div>
 
@@ -101,14 +108,14 @@ export const CropCard = ({
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">PL Stocked</span>
           <span className="text-xs sm:text-sm font-bold text-text-primary mt-0.5">
-            {(plCount / 1000).toFixed(0)}k <span className="text-[10px] font-normal text-text-secondary">PL</span>
+            {(numericPl / 1000).toFixed(0)}k <span className="text-[10px] font-normal text-text-secondary">PL</span>
           </span>
         </div>
 
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Est. Yield</span>
           <span className="text-xs sm:text-sm font-bold text-text-primary mt-0.5">
-            {expectedProductionKg} <span className="text-[10px] font-normal text-text-secondary">kg</span>
+            {numericProd} <span className="text-[10px] font-normal text-text-secondary">kg</span>
           </span>
         </div>
 
@@ -124,10 +131,10 @@ export const CropCard = ({
       <div className="py-2.5 text-xs text-text-secondary flex items-center justify-between">
         <span className="truncate max-w-[180px]">
           <span className="font-semibold text-text-primary">Variety: </span>
-          {seedVariety}
+          {displayVariety}
         </span>
         <span className="font-semibold text-primary flex items-center gap-0.5 shrink-0">
-          <TrendingUp className="w-3.5 h-3.5" /> ₹{expectedSellingPricePerKg}/kg
+          <TrendingUp className="w-3.5 h-3.5" /> ₹{numericPrice}/kg
         </span>
       </div>
 
@@ -136,7 +143,7 @@ export const CropCard = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onView(crop)}
+          onClick={() => onView && onView(crop)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs text-primary font-medium"
         >
@@ -146,20 +153,20 @@ export const CropCard = ({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => onEdit(crop)}
+            onClick={() => onEdit && onEdit(crop)}
             className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors"
             title="Edit Crop"
-            aria-label={`Edit ${cropName}`}
+            aria-label={`Edit ${displayName}`}
           >
             <Edit3 className="w-4 h-4" />
           </button>
 
           <button
             type="button"
-            onClick={() => onDelete(crop)}
+            onClick={() => onDelete && onDelete(crop)}
             className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
             title="Delete Crop"
-            aria-label={`Delete ${cropName}`}
+            aria-label={`Delete ${displayName}`}
           >
             <Trash2 className="w-4 h-4 text-danger/80" />
           </button>

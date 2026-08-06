@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,7 @@ import { Droplets, Phone, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
+import { useAuth } from '../../context/AuthContext';
 
 // 1. Zod Login Schema supporting ONLY 10-digit Mobile Number and Password
 const loginSchema = z.object({
@@ -27,9 +28,17 @@ const loginSchema = z.object({
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login: authLogin, isAuthenticated } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [apiError, setApiError] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const {
     register,
@@ -47,36 +56,25 @@ export default function Login() {
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
+    setApiError('');
 
-    // Backend Payload Model: { mobile, password }
     const payload = {
       mobile: data.mobile.trim(),
       password: data.password,
     };
 
-    console.log('Login Payload:', payload);
-
-    // Temporary frontend-only mock login
-    setTimeout(() => {
-      // Simulate successful login
-      localStorage.setItem('isAuthenticated', 'true');
-
-      // Store dummy user details
-      localStorage.setItem(
-        'user',
-        JSON.stringify({
-          name: 'Demo Farmer',
-          mobile: payload.mobile,
-        })
-      );
-
+    try {
+      await authLogin(payload);
       setIsSubmitting(false);
       setSubmitSuccess(true);
 
       setTimeout(() => {
         navigate('/dashboard');
-      }, 800);
-    }, 800);
+      }, 500);
+    } catch (err) {
+      setIsSubmitting(false);
+      setApiError(err.message || 'Login failed. Please check your credentials.');
+    }
   };
 
   return (
@@ -124,6 +122,12 @@ export default function Login() {
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+              {apiError && (
+                <div className="p-3 bg-danger-light text-danger rounded-lg text-xs font-medium border border-danger/20">
+                  {apiError}
+                </div>
+              )}
+
               {/* Mobile Number Only */}
               <Input
                 label="Mobile Number"

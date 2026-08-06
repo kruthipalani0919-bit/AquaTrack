@@ -27,8 +27,8 @@ export const MedicineFilters = ({
   onReset,
   className = '',
 }) => {
-  const { crops } = useCrops();
-  const { tanks } = useTanks();
+  const { crops = [] } = useCrops();
+  const { tanks = [] } = useTanks();
 
   const hasActiveFilters = Boolean(
     searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter
@@ -41,12 +41,12 @@ export const MedicineFilters = ({
 
   const cropOptions = [
     { value: '', label: 'All Crops' },
-    ...crops.map((c) => ({ value: c.id, label: c.cropName })),
+    ...(crops || []).map((c) => ({ value: c.id, label: c.cropName || 'Crop' })),
   ];
 
   const tankOptions = [
     { value: '', label: 'All Tanks' },
-    ...tanks.map((t) => ({ value: t.id, label: t.name })),
+    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
   ];
 
   const statusOptions = [

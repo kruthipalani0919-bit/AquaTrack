@@ -1,22 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
 
 import { Sidebar } from '../../components/Sidebar';
 import { Navbar } from '../../components/Navbar';
 import { SearchBar } from '../../components/SearchBar';
 import { Breadcrumb } from '../../components/Breadcrumb';
 import { Loader } from '../../components/Loader';
-import { authService } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * Reusable DashboardLayout component for AquaTrack application.
- * Requirements met:
- * - Desktop fixed sidebar with collapse/expand, mobile drawer sidebar.
- * - Top Navbar fixed at top.
- * - Automatic Breadcrumb header (Dashboard > Current Page).
- * - Brief page transition loading using Loader.
- * - Scrollable Outlet main content.
  */
 export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,8 +19,9 @@ export const DashboardLayout = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
-  // Handle page transition loader (Requirement 10)
+  // Handle page transition loader
   useEffect(() => {
     setIsNavigating(true);
     const timer = setTimeout(() => {
@@ -37,7 +31,7 @@ export const DashboardLayout = () => {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
-  // Generate dynamic breadcrumb items (Requirement 11)
+  // Generate dynamic breadcrumb items
   const getBreadcrumbItems = (pathname) => {
     const routeTitles = {
       '/dashboard': 'Dashboard Overview',
@@ -63,14 +57,18 @@ export const DashboardLayout = () => {
     ];
   };
 
-  const currentUser = authService.getCurrentUser();
+  const currentUser = {
+    name: user?.fullName || user?.name || 'Farmer',
+    role: 'Farm Owner',
+    farm: user?.farmName || 'Farm',
+  };
 
   return (
     <div className="h-screen w-full bg-background text-text-primary flex overflow-hidden">
       {/* Page Navigation Loader */}
       {isNavigating && <Loader fullPage={true} text="Loading page..." />}
 
-      {/* 1. SIDEBAR (Fixed on desktop with collapse/expand, drawer on mobile) */}
+      {/* 1. SIDEBAR */}
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -90,22 +88,14 @@ export const DashboardLayout = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              placeholder="Search tanks, crops, water logs..."
+              placeholder="Search tanks, crops, expenses, harvest logs..."
             />
-          }
-          actionsSlot={
-            <div className="hidden sm:flex items-center gap-2 bg-primary-light/60 px-3 py-1.5 rounded-lg border border-primary/20">
-              <Building2 className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-xs font-bold text-primary truncate max-w-[140px]">
-                {currentUser.farm || 'Farm'}
-              </span>
-            </div>
           }
         />
 
         {/* 3. SCROLLABLE CONTENT WITH AUTOMATIC BREADCRUMB HEADER */}
         <main className="flex-1 overflow-y-auto aqua-scrollbar p-4 sm:p-6 lg:p-8 space-y-6">
-          {/* Automatic Breadcrumb (Requirement 11) */}
+          {/* Automatic Breadcrumb */}
           <div className="pb-2 border-b border-border/40">
             <Breadcrumb items={getBreadcrumbItems(location.pathname)} />
           </div>

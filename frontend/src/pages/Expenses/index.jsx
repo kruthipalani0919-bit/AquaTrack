@@ -16,7 +16,7 @@ import { ExpenseDetailsModal } from '../../components/ExpenseDetailsModal';
 import { useExpenses } from '../../context/ExpenseContext';
 
 export default function Expenses() {
-  const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses();
+  const { expenses = [], addExpense, updateExpense, deleteExpense, loading, error } = useExpenses();
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,14 +33,22 @@ export default function Expenses() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingExpense, setDeletingExpense] = useState(null);
 
-  // Filter Expenses List
+  // Filter Expenses List Safely
   const filteredExpenses = useMemo(() => {
-    return expenses.filter((exp) => {
+    const list = expenses || [];
+    const query = (searchQuery || '').trim().toLowerCase();
+
+    return list.filter((exp) => {
+      if (!exp) return false;
+      const descStr = exp.description || '';
+      const catStr = exp.category || '';
+      const notesStr = exp.notes || '';
+
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        exp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exp.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (exp.notes && exp.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+        query === '' ||
+        descStr.toLowerCase().includes(query) ||
+        catStr.toLowerCase().includes(query) ||
+        notesStr.toLowerCase().includes(query);
 
       const matchesCategory = categoryFilter === '' || exp.category === categoryFilter;
       const matchesTank = tankFilter === '' || exp.tankId === tankFilter;
@@ -49,16 +57,17 @@ export default function Expenses() {
     });
   }, [expenses, searchQuery, categoryFilter, tankFilter]);
 
-  // Operational Metrics Summary
+  // Operational Metrics Summary Safely
   const stats = useMemo(() => {
-    const totalCount = expenses.length;
-    const totalAmount = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
-    const feedAmount = expenses
-      .filter((e) => e.category === 'Feed')
-      .reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
-    const powerAmount = expenses
-      .filter((e) => e.category === 'Electricity' || e.category === 'Generator & Diesel')
-      .reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+    const list = expenses || [];
+    const totalCount = list.length;
+    const totalAmount = list.reduce((acc, e) => acc + (parseFloat(e?.amount) || 0), 0);
+    const feedAmount = list
+      .filter((e) => e?.category === 'Feed')
+      .reduce((acc, e) => acc + (parseFloat(e?.amount) || 0), 0);
+    const powerAmount = list
+      .filter((e) => e?.category === 'Electricity' || e?.category === 'Generator & Diesel')
+      .reduce((acc, e) => acc + (parseFloat(e?.amount) || 0), 0);
 
     return {
       totalCount,
@@ -91,21 +100,29 @@ export default function Expenses() {
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleSaveExpense = (formData) => {
-    if (editingExpense) {
-      updateExpense(editingExpense.id, formData);
-    } else {
-      addExpense(formData);
+  const handleSaveExpense = async (formData) => {
+    try {
+      if (editingExpense) {
+        await updateExpense(editingExpense.id, formData);
+      } else {
+        await addExpense(formData);
+      }
+      setIsFormOpen(false);
+      setEditingExpense(null);
+    } catch (err) {
+      console.error('Error saving expense:', err);
     }
-    setIsFormOpen(false);
-    setEditingExpense(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deletingExpense) {
-      deleteExpense(deletingExpense.id);
-      setIsDeleteOpen(false);
-      setDeletingExpense(null);
+      try {
+        await deleteExpense(deletingExpense.id);
+        setIsDeleteOpen(false);
+        setDeletingExpense(null);
+      } catch (err) {
+        console.error('Error deleting expense:', err);
+      }
     }
   };
 
@@ -239,7 +256,7 @@ export default function Expenses() {
         title={editingExpense ? 'Edit Expense Record' : 'Add New Expense'}
         description={
           editingExpense
-            ? `Update expense details for ${editingExpense.description}`
+            ? `Update expense details for ${editingExpense.description || 'Expense'}`
             : 'Log a new farm operational expense or input cost.'
         }
         size="lg"
@@ -277,7 +294,7 @@ export default function Expenses() {
         title="Delete Expense Record"
         message={
           deletingExpense
-            ? `Are you sure you want to delete "${deletingExpense.description}"? This action cannot be undone.`
+            ? `Are you sure you want to delete "${deletingExpense.description || 'Expense'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this expense record?'
         }
         confirmText="Delete Expense"

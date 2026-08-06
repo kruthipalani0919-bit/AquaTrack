@@ -2,17 +2,14 @@ import React, { useState, useMemo } from 'react';
 import {
   Plus,
   Sprout,
-  CheckCircle2,
   Sparkles,
   Weight,
-  IndianRupee,
-  Calendar
+  IndianRupee
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { EmptyState } from '../../components/EmptyState';
@@ -24,7 +21,14 @@ import { CropDetailsModal } from '../../components/CropDetailsModal';
 import { useCrops } from '../../context/CropContext';
 
 export default function CropManagement() {
-  const { crops, addCrop, updateCrop, deleteCrop, summaryMetrics } = useCrops();
+  const {
+    crops = [],
+    addCrop,
+    updateCrop,
+    deleteCrop,
+    summaryMetrics = { activeCropsCount: 0, totalPlStocked: 0, expectedHarvestKg: 0, estimatedRevenueRupees: 0 },
+    loading
+  } = useCrops();
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,20 +45,31 @@ export default function CropManagement() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingCrop, setDeletingCrop] = useState(null);
 
-  // Filter Crops List
+  const safeMetrics = {
+    activeCropsCount: summaryMetrics?.activeCropsCount || 0,
+    totalPlStocked: summaryMetrics?.totalPlStocked || 0,
+    expectedHarvestKg: summaryMetrics?.expectedHarvestKg || 0,
+    estimatedRevenueRupees: summaryMetrics?.estimatedRevenueRupees || 0,
+  };
+
+  // Filter Crops List Safely
   const filteredCrops = useMemo(() => {
-    return crops.filter((crop) => {
-      // Search match
+    const list = crops || [];
+    const query = (searchQuery || '').trim().toLowerCase();
+
+    return list.filter((crop) => {
+      if (!crop) return false;
+      const nameStr = crop.cropName || '';
+      const varietyStr = crop.seedVariety || '';
+      const notesStr = crop.notes || '';
+
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        crop.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        crop.seedVariety.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (crop.notes && crop.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+        query === '' ||
+        nameStr.toLowerCase().includes(query) ||
+        varietyStr.toLowerCase().includes(query) ||
+        notesStr.toLowerCase().includes(query);
 
-      // Status match
       const matchesStatus = statusFilter === '' || crop.status === statusFilter;
-
-      // Tank match
       const matchesTank = tankFilter === '' || crop.tankId === tankFilter;
 
       return matchesSearch && matchesStatus && matchesTank;
@@ -84,21 +99,29 @@ export default function CropManagement() {
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleSaveCrop = (formData) => {
-    if (editingCrop) {
-      updateCrop(editingCrop.id, formData);
-    } else {
-      addCrop(formData);
+  const handleSaveCrop = async (formData) => {
+    try {
+      if (editingCrop) {
+        await updateCrop(editingCrop.id, formData);
+      } else {
+        await addCrop(formData);
+      }
+      setIsFormOpen(false);
+      setEditingCrop(null);
+    } catch (err) {
+      console.error('Error saving crop:', err);
     }
-    setIsFormOpen(false);
-    setEditingCrop(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deletingCrop) {
-      deleteCrop(deletingCrop.id);
-      setIsDeleteOpen(false);
-      setDeletingCrop(null);
+      try {
+        await deleteCrop(deletingCrop.id);
+        setIsDeleteOpen(false);
+        setDeletingCrop(null);
+      } catch (err) {
+        console.error('Error deleting crop:', err);
+      }
     }
   };
 
@@ -109,12 +132,11 @@ export default function CropManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="Crop Management"
-        subtitle="Track active culture batches, seed stocking, growth cycles, and estimated harvest yield."
-        badge={<Badge variant="primary">{summaryMetrics.activeCropsCount} Active Batches</Badge>}
+        subtitle="Track and manage crop batches across your farm ponds."
         actions={
           <Button
             variant="primary"
@@ -130,19 +152,19 @@ export default function CropManagement() {
 
       {/* 2. TOP SUMMARY CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card padding="compact" className="border-border/80">
+        <Card padding="compact" className="border-border/80 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
               <Sprout className="w-4 h-4" />
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Active Crops</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{summaryMetrics.activeCropsCount} Batches</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeMetrics.activeCropsCount} Batches</span>
             </div>
           </div>
         </Card>
 
-        <Card padding="compact" className="border-border/80">
+        <Card padding="compact" className="border-border/80 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0">
               <Sparkles className="w-4 h-4" />
@@ -150,13 +172,13 @@ export default function CropManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total PL Stocked</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">
-                {(summaryMetrics.totalPlStocked / 1000).toFixed(0)}k <span className="text-xs font-normal text-text-secondary">PL</span>
+                {(safeMetrics.totalPlStocked / 1000).toFixed(0)}k <span className="text-xs font-normal text-text-secondary">PL</span>
               </span>
             </div>
           </div>
         </Card>
 
-        <Card padding="compact" className="border-border/80">
+        <Card padding="compact" className="border-border/80 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
               <Weight className="w-4 h-4" />
@@ -164,13 +186,13 @@ export default function CropManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Expected Harvest</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">
-                {(summaryMetrics.expectedHarvestKg / 1000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Tons</span>
+                {(safeMetrics.expectedHarvestKg / 1000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Tons</span>
               </span>
             </div>
           </div>
         </Card>
 
-        <Card padding="compact" className="border-border/80">
+        <Card padding="compact" className="border-border/80 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
               <IndianRupee className="w-4 h-4" />
@@ -178,7 +200,7 @@ export default function CropManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Estimated Revenue</span>
               <span className="text-lg font-bold text-emerald-700 tracking-tight">
-                ₹{(summaryMetrics.estimatedRevenueRupees / 100000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Lakhs</span>
+                ₹{(safeMetrics.estimatedRevenueRupees / 100000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Lakhs</span>
               </span>
             </div>
           </div>
@@ -210,16 +232,16 @@ export default function CropManagement() {
           ))}
         </div>
       ) : (
-        <Card padding="relaxed" className="border-border/80">
+        <Card padding="relaxed" className="border-border/80 shadow-2xs">
           <EmptyState
-            title="No Crops Found"
+            title="No Crop Batches Found"
             description={
               searchQuery || statusFilter || tankFilter
-                ? "No crop batches match your current filter criteria. Try resetting filters or searching for another term."
-                : "You haven't registered any crop batches yet. Click the button below to register your first culture batch."
+                ? "No crop batches match your filter criteria. Try resetting filters."
+                : "No crop batches have been registered yet."
             }
             actionLabel={
-              searchQuery || statusFilter || tankFilter ? "Reset Filters" : "Register First Crop"
+              searchQuery || statusFilter || tankFilter ? "Reset Filters" : "Register New Crop"
             }
             onAction={
               searchQuery || statusFilter || tankFilter ? handleResetFilters : handleOpenAdd
@@ -228,20 +250,20 @@ export default function CropManagement() {
         </Card>
       )}
 
-      {/* 5. ADD / EDIT CROP MODAL */}
+      {/* 5. REGISTER NEW CROP MODAL */}
       <Modal
         isOpen={isFormOpen}
         onClose={() => {
           setIsFormOpen(false);
           setEditingCrop(null);
         }}
-        title={editingCrop ? 'Edit Crop Batch' : 'Register New Crop Batch'}
+        title={editingCrop ? 'Edit Crop Batch' : 'Register New Crop'}
         description={
           editingCrop
-            ? `Update properties for ${editingCrop.cropName}`
-            : 'Register seed stocking, species, expected production, and target harvest date.'
+            ? `Update properties for ${editingCrop.cropName || 'Crop'}`
+            : 'Enter pond, seed species, PL count, and stocking date.'
         }
-        size="lg"
+        size="md"
       >
         <CropForm
           initialData={editingCrop}
@@ -276,7 +298,7 @@ export default function CropManagement() {
         title="Delete Crop Batch"
         message={
           deletingCrop
-            ? `Are you sure you want to delete "${deletingCrop.cropName}"? This action cannot be undone.`
+            ? `Are you sure you want to delete "${deletingCrop.cropName || 'Crop'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this crop batch?'
         }
         confirmText="Delete Crop"

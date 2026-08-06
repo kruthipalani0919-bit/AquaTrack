@@ -4,10 +4,7 @@ import {
   UtensilsCrossed,
   Weight,
   TrendingUp,
-  IndianRupee,
-  Calendar,
-  Clock,
-  Package
+  IndianRupee
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -26,7 +23,15 @@ import { FeedDetailsModal } from '../../components/FeedDetailsModal';
 import { useFeed } from '../../context/FeedContext';
 
 export default function FeedManagement() {
-  const { feedLogs, addFeedLog, updateFeedLog, deleteFeedLog, analytics } = useFeed();
+  const {
+    feedLogs = [],
+    addFeedLog,
+    updateFeedLog,
+    deleteFeedLog,
+    analytics = { todaysFeedKg: 0, totalFeedUsedKg: 0, avgFeedPerDayKg: 0, totalFeedCostRupees: 0 },
+    loading,
+    error
+  } = useFeed();
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,27 +50,35 @@ export default function FeedManagement() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingFeedLog, setDeletingFeedLog] = useState(null);
 
-  // Multi-Filter Logic
+  const safeAnalytics = {
+    todaysFeedKg: analytics?.todaysFeedKg || 0,
+    totalFeedUsedKg: analytics?.totalFeedUsedKg || 0,
+    avgFeedPerDayKg: analytics?.avgFeedPerDayKg || 0,
+    totalFeedCostRupees: analytics?.totalFeedCostRupees || 0,
+  };
+
+  // Multi-Filter Logic Safely
   const filteredFeedLogs = useMemo(() => {
-    return feedLogs.filter((log) => {
-      // Search match
+    const list = feedLogs || [];
+    const query = (searchQuery || '').trim().toLowerCase();
+
+    return list.filter((log) => {
+      if (!log) return false;
+      const brandStr = log.feedBrand || '';
+      const cropStr = log.cropName || '';
+      const tankStr = log.tankName || '';
+      const notesStr = log.notes || '';
+
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        log.feedBrand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.tankName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (log.notes && log.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+        query === '' ||
+        brandStr.toLowerCase().includes(query) ||
+        cropStr.toLowerCase().includes(query) ||
+        tankStr.toLowerCase().includes(query) ||
+        notesStr.toLowerCase().includes(query);
 
-      // Type match
       const matchesType = typeFilter === '' || log.feedType === typeFilter;
-
-      // Crop match
       const matchesCrop = cropFilter === '' || log.cropId === cropFilter;
-
-      // Tank match
       const matchesTank = tankFilter === '' || log.tankId === tankFilter;
-
-      // Date match
       const matchesDate = dateFilter === '' || log.feedingDate === dateFilter;
 
       return matchesSearch && matchesType && matchesCrop && matchesTank && matchesDate;
@@ -95,21 +108,29 @@ export default function FeedManagement() {
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleSaveFeed = (formData) => {
-    if (editingFeedLog) {
-      updateFeedLog(editingFeedLog.id, formData);
-    } else {
-      addFeedLog(formData);
+  const handleSaveFeed = async (formData) => {
+    try {
+      if (editingFeedLog) {
+        await updateFeedLog(editingFeedLog.id, formData);
+      } else {
+        await addFeedLog(formData);
+      }
+      setIsFormOpen(false);
+      setEditingFeedLog(null);
+    } catch (err) {
+      console.error('Error saving feed:', err);
     }
-    setIsFormOpen(false);
-    setEditingFeedLog(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deletingFeedLog) {
-      deleteFeedLog(deletingFeedLog.id);
-      setIsDeleteOpen(false);
-      setDeletingFeedLog(null);
+      try {
+        await deleteFeedLog(deletingFeedLog.id);
+        setIsDeleteOpen(false);
+        setDeletingFeedLog(null);
+      } catch (err) {
+        console.error('Error deleting feed log:', err);
+      }
     }
   };
 
@@ -127,7 +148,7 @@ export default function FeedManagement() {
       <PageHeader
         title="Feed Management"
         subtitle="Monitor daily feed distribution, ration costs, tray consumption logs, and inventory stock."
-        badge={<Badge variant="primary">{feedLogs.length} Records</Badge>}
+        badge={<Badge variant="primary">{(feedLogs || []).length} Records</Badge>}
         actions={
           <Button
             variant="primary"
@@ -151,7 +172,7 @@ export default function FeedManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Today's Feed</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">
-                {analytics.todaysFeedKg} <span className="text-xs font-normal text-text-secondary">Kg</span>
+                {safeAnalytics.todaysFeedKg} <span className="text-xs font-normal text-text-secondary">Kg</span>
               </span>
             </div>
           </div>
@@ -165,7 +186,7 @@ export default function FeedManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Used</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">
-                {(analytics.totalFeedUsedKg / 1000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Tons</span>
+                {(safeAnalytics.totalFeedUsedKg / 1000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Tons</span>
               </span>
             </div>
           </div>
@@ -179,7 +200,7 @@ export default function FeedManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Avg Feed / Day</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">
-                {analytics.avgFeedPerDayKg} <span className="text-xs font-normal text-text-secondary">Kg</span>
+                {safeAnalytics.avgFeedPerDayKg} <span className="text-xs font-normal text-text-secondary">Kg</span>
               </span>
             </div>
           </div>
@@ -193,7 +214,7 @@ export default function FeedManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Cost</span>
               <span className="text-lg font-bold text-emerald-700 tracking-tight">
-                ₹{(analytics.totalFeedCostRupees / 100000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Lakhs</span>
+                ₹{(safeAnalytics.totalFeedCostRupees / 100000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Lakhs</span>
               </span>
             </div>
           </div>
@@ -201,7 +222,7 @@ export default function FeedManagement() {
       </div>
 
       {/* 3. TODAY'S FEEDING SCHEDULE TIMELINE */}
-      <FeedSchedule feedLogs={feedLogs} />
+      <FeedSchedule feedLogs={feedLogs || []} />
 
       {/* 4. SEARCH & MULTI-FILTERS */}
       <FeedFilters
@@ -260,7 +281,7 @@ export default function FeedManagement() {
         title={editingFeedLog ? 'Edit Feed Log' : 'Record New Feed Ration'}
         description={
           editingFeedLog
-            ? `Update properties for ${editingFeedLog.feedBrand} ration`
+            ? `Update properties for ${editingFeedLog.feedBrand || 'Feed'} ration`
             : 'Select active crop to auto-fill pond and log feed quantity, cost, and stock.'
         }
         size="lg"
@@ -298,7 +319,7 @@ export default function FeedManagement() {
         title="Delete Feed Record"
         message={
           deletingFeedLog
-            ? `Are you sure you want to delete this feed log (${deletingFeedLog.quantityKg} kg ${deletingFeedLog.feedBrand})? This action cannot be undone.`
+            ? `Are you sure you want to delete this feed log (${deletingFeedLog.quantityKg || 0} kg ${deletingFeedLog.feedBrand || 'Feed'})? This action cannot be undone.`
             : 'Are you sure you want to delete this feed record?'
         }
         confirmText="Delete Record"

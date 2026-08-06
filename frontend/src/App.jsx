@@ -1,5 +1,6 @@
 import { BrowserRouter } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes';
+import { AuthProvider } from './context/AuthContext';
 import { TankProvider } from './context/TankContext';
 import { CropProvider } from './context/CropContext';
 import { FeedProvider } from './context/FeedContext';
@@ -10,19 +11,21 @@ import { HarvestProvider } from './context/HarvestContext';
 export default function App() {
   return (
     <BrowserRouter>
-      <TankProvider>
-        <CropProvider>
-          <FeedProvider>
-            <MedicineProvider>
-              <ExpenseProvider>
-                <HarvestProvider>
-                  <AppRoutes />
-                </HarvestProvider>
-              </ExpenseProvider>
-            </MedicineProvider>
-          </FeedProvider>
-        </CropProvider>
-      </TankProvider>
+      <AuthProvider>
+        <TankProvider>
+          <CropProvider>
+            <FeedProvider>
+              <MedicineProvider>
+                <ExpenseProvider>
+                  <HarvestProvider>
+                    <AppRoutes />
+                  </HarvestProvider>
+                </ExpenseProvider>
+              </MedicineProvider>
+            </FeedProvider>
+          </CropProvider>
+        </TankProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

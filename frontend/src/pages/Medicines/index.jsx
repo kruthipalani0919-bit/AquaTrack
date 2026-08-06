@@ -3,7 +3,6 @@ import {
   Plus,
   Stethoscope,
   CheckCircle2,
-  Calendar,
   IndianRupee,
   Clock
 } from 'lucide-react';
@@ -24,7 +23,15 @@ import { MedicineDetailsModal } from '../../components/MedicineDetailsModal';
 import { useMedicine } from '../../context/MedicineContext';
 
 export default function Medicines() {
-  const { medicineRecords, addMedicineRecord, updateMedicineRecord, deleteMedicineRecord, analytics } = useMedicine();
+  const {
+    medicineRecords = [],
+    addMedicineRecord,
+    updateMedicineRecord,
+    deleteMedicineRecord,
+    analytics = { totalTreatments: 0, medicinesUsedToday: 0, totalMedicineCostRupees: 0, upcomingTreatments: 0 },
+    loading,
+    error
+  } = useMedicine();
 
   // Search & Multi-Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,31 +51,38 @@ export default function Medicines() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(null);
 
-  // Multi-Filter Logic
+  const safeAnalytics = {
+    totalTreatments: analytics?.totalTreatments || 0,
+    medicinesUsedToday: analytics?.medicinesUsedToday || 0,
+    totalMedicineCostRupees: analytics?.totalMedicineCostRupees || 0,
+    upcomingTreatments: analytics?.upcomingTreatments || 0,
+  };
+
+  // Multi-Filter Logic Safely
   const filteredRecords = useMemo(() => {
-    return medicineRecords.filter((rec) => {
-      // Search match
+    const list = medicineRecords || [];
+    const query = (searchQuery || '').trim().toLowerCase();
+
+    return list.filter((rec) => {
+      if (!rec) return false;
+      const medStr = rec.medicineName || '';
+      const cropStr = rec.cropName || '';
+      const tankStr = rec.tankName || '';
+      const purposeStr = rec.purpose || '';
+      const notesStr = rec.notes || '';
+
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        rec.medicineName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        rec.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        rec.tankName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (rec.purpose && rec.purpose.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (rec.notes && rec.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+        query === '' ||
+        medStr.toLowerCase().includes(query) ||
+        cropStr.toLowerCase().includes(query) ||
+        tankStr.toLowerCase().includes(query) ||
+        purposeStr.toLowerCase().includes(query) ||
+        notesStr.toLowerCase().includes(query);
 
-      // Category match
       const matchesCategory = categoryFilter === '' || rec.category === categoryFilter;
-
-      // Crop match
       const matchesCrop = cropFilter === '' || rec.cropId === cropFilter;
-
-      // Tank match
       const matchesTank = tankFilter === '' || rec.tankId === tankFilter;
-
-      // Status match
       const matchesStatus = statusFilter === '' || rec.status === statusFilter;
-
-      // Date match
       const matchesDate = dateFilter === '' || rec.applicationDate === dateFilter;
 
       return matchesSearch && matchesCategory && matchesCrop && matchesTank && matchesStatus && matchesDate;
@@ -98,21 +112,29 @@ export default function Medicines() {
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleSaveRecord = (formData) => {
-    if (editingRecord) {
-      updateMedicineRecord(editingRecord.id, formData);
-    } else {
-      addMedicineRecord(formData);
+  const handleSaveRecord = async (formData) => {
+    try {
+      if (editingRecord) {
+        await updateMedicineRecord(editingRecord.id, formData);
+      } else {
+        await addMedicineRecord(formData);
+      }
+      setIsFormOpen(false);
+      setEditingRecord(null);
+    } catch (err) {
+      console.error('Error saving medicine record:', err);
     }
-    setIsFormOpen(false);
-    setEditingRecord(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deletingRecord) {
-      deleteMedicineRecord(deletingRecord.id);
-      setIsDeleteOpen(false);
-      setDeletingRecord(null);
+      try {
+        await deleteMedicineRecord(deletingRecord.id);
+        setIsDeleteOpen(false);
+        setDeletingRecord(null);
+      } catch (err) {
+        console.error('Error deleting medicine record:', err);
+      }
     }
   };
 
@@ -131,7 +153,7 @@ export default function Medicines() {
       <PageHeader
         title="Medicine & Health Management"
         subtitle="Track pond treatments, disease prevention, probiotic applications, and medicine expenditure."
-        badge={<Badge variant="primary">{medicineRecords.length} Treatment Records</Badge>}
+        badge={<Badge variant="primary">{(medicineRecords || []).length} Treatment Records</Badge>}
         actions={
           <Button
             variant="primary"
@@ -145,7 +167,7 @@ export default function Medicines() {
         }
       />
 
-      {/* 2. TOP 4 DASHBOARD SUMMARY CARDS (Requirement 1) */}
+      {/* 2. TOP 4 DASHBOARD SUMMARY CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Total Treatments */}
         <Card padding="compact" className="border-border/80">
@@ -155,7 +177,7 @@ export default function Medicines() {
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Treatments</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{analytics.totalTreatments} Records</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.totalTreatments} Records</span>
             </div>
           </div>
         </Card>
@@ -168,7 +190,7 @@ export default function Medicines() {
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Used Today</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{analytics.medicinesUsedToday} Today</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.medicinesUsedToday} Today</span>
             </div>
           </div>
         </Card>
@@ -182,7 +204,7 @@ export default function Medicines() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Cost</span>
               <span className="text-lg font-bold text-emerald-700 tracking-tight">
-                ₹{(analytics.totalMedicineCostRupees / 1000).toFixed(1)}k <span className="text-xs font-normal text-text-secondary">Total</span>
+                ₹{(safeAnalytics.totalMedicineCostRupees / 1000).toFixed(1)}k <span className="text-xs font-normal text-text-secondary">Total</span>
               </span>
             </div>
           </div>
@@ -196,14 +218,14 @@ export default function Medicines() {
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Upcoming</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{analytics.upcomingTreatments} Scheduled</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.upcomingTreatments} Scheduled</span>
             </div>
           </div>
         </Card>
       </div>
 
       {/* 3. TREATMENT SCHEDULE BREAKDOWN */}
-      <MedicineSchedule medicineRecords={medicineRecords} />
+      <MedicineSchedule medicineRecords={medicineRecords || []} />
 
       {/* 4. SEARCH & MULTI-FILTERS */}
       <MedicineFilters
@@ -264,7 +286,7 @@ export default function Medicines() {
         title={editingRecord ? 'Edit Treatment Record' : 'Add New Treatment Record'}
         description={
           editingRecord
-            ? `Update properties for ${editingRecord.medicineName}`
+            ? `Update properties for ${editingRecord.medicineName || 'Medicine'}`
             : 'Select active crop to auto-fill pond and log medicine dosage, category, purpose, and cost.'
         }
         size="lg"
@@ -302,7 +324,7 @@ export default function Medicines() {
         title="Delete Treatment Record"
         message={
           deletingRecord
-            ? `Are you sure you want to delete the treatment record for "${deletingRecord.medicineName}" applied to ${deletingRecord.tankName}? This action cannot be undone.`
+            ? `Are you sure you want to delete the treatment record for "${deletingRecord.medicineName || 'Medicine'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this treatment record?'
         }
         confirmText="Delete Record"

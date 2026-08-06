@@ -15,7 +15,8 @@ export const register = async (data) => {
 export const login = async (data) => {
   try {
     const response = await api.post('/auth/login', data);
-    const { token, user } = response.data;
+    const authData = response.data?.data || response.data;
+    const { token, user } = authData;
 
     if (token) {
       localStorage.setItem('token', token);
@@ -42,22 +43,33 @@ export const logout = async () => {
   }
 };
 
+export const getProfile = async () => {
+  try {
+    const response = await api.get('/auth/profile');
+    if (response.data?.data) {
+      localStorage.setItem('user', JSON.stringify(response.data.data));
+    }
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch user profile');
+  }
+};
+
 export const getToken = () => {
   return localStorage.getItem('token');
 };
 
 export const isAuthenticated = () => {
   const token = localStorage.getItem('token');
-  const isAuthFlag = localStorage.getItem('isAuthenticated') === 'true';
-  return Boolean(token) || isAuthFlag;
+  return Boolean(token);
 };
 
 export const getCurrentUser = () => {
   try {
     const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : { name: 'Farmer', farm: 'Farm', role: 'Farm' };
+    return user ? JSON.parse(user) : null;
   } catch {
-    return { name: 'Farmer', farm: 'Farm', role: 'Farm' };
+    return null;
   }
 };
 
@@ -65,9 +77,11 @@ export const authService = {
   register,
   login,
   logout,
+  getProfile,
   getToken,
   isAuthenticated,
   getCurrentUser,
 };
 
 export default authService;
+

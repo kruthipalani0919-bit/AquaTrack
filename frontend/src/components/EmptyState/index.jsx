@@ -14,7 +14,7 @@ export const EmptyState = ({
   return (
     <div className={`flex flex-col items-center justify-center text-center p-8 md:p-12 rounded-xl bg-surface border border-dashed border-border/80 ${className}`}>
       <div className="w-14 h-14 rounded-full bg-primary-light/60 text-primary flex items-center justify-center mb-4 shadow-sm">
-        {typeof Icon === 'function' ? <Icon className="w-7 h-7" /> : Icon}
+        {React.isValidElement(Icon) ? Icon : <Icon className="w-7 h-7" />}
       </div>
 
       <h3 className="text-base md:text-lg font-semibold text-text-primary mb-1">

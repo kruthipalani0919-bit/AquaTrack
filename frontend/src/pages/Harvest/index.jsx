@@ -16,7 +16,7 @@ import { HarvestDetailsModal } from '../../components/HarvestDetailsModal';
 import { useHarvests } from '../../context/HarvestContext';
 
 export default function Harvest() {
-  const { harvests, addHarvest, updateHarvest, deleteHarvest } = useHarvests();
+  const { harvests = [], addHarvest, updateHarvest, deleteHarvest, loading, error } = useHarvests();
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,13 +32,20 @@ export default function Harvest() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingHarvest, setDeletingHarvest] = useState(null);
 
-  // Filter Harvest List
+  // Filter Harvest List Safely
   const filteredHarvests = useMemo(() => {
-    return harvests.filter((harv) => {
+    const list = harvests || [];
+    const query = (searchQuery || '').trim().toLowerCase();
+
+    return list.filter((harv) => {
+      if (!harv) return false;
+      const buyerStr = harv.buyerName || '';
+      const tankStr = harv.tankName || '';
+
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        harv.buyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        harv.tankName.toLowerCase().includes(searchQuery.toLowerCase());
+        query === '' ||
+        buyerStr.toLowerCase().includes(query) ||
+        tankStr.toLowerCase().includes(query);
 
       const matchesTank = tankFilter === '' || harv.tankId === tankFilter;
 
@@ -46,15 +53,16 @@ export default function Harvest() {
     });
   }, [harvests, searchQuery, tankFilter]);
 
-  // Operational Metrics Summary
+  // Operational Metrics Summary Safely
   const stats = useMemo(() => {
-    const totalCount = harvests.length;
-    const totalProductionKg = harvests.reduce((acc, h) => acc + (parseFloat(h.production) || 0), 0);
+    const list = harvests || [];
+    const totalCount = list.length;
+    const totalProductionKg = list.reduce((acc, h) => acc + (parseFloat(h?.production) || 0), 0);
     const avgAbwGrams = totalCount > 0
-      ? (harvests.reduce((acc, h) => acc + (parseFloat(h.averageWeight) || 0), 0) / totalCount).toFixed(1)
+      ? (list.reduce((acc, h) => acc + (parseFloat(h?.averageWeight) || 0), 0) / totalCount).toFixed(1)
       : 0;
     const avgPricePerKg = totalCount > 0
-      ? (harvests.reduce((acc, h) => acc + (parseFloat(h.sellingPrice) || 0), 0) / totalCount).toFixed(0)
+      ? (list.reduce((acc, h) => acc + (parseFloat(h?.sellingPrice) || 0), 0) / totalCount).toFixed(0)
       : 0;
 
     return {
@@ -88,21 +96,29 @@ export default function Harvest() {
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleSaveHarvest = (formData) => {
-    if (editingHarvest) {
-      updateHarvest(editingHarvest.id, formData);
-    } else {
-      addHarvest(formData);
+  const handleSaveHarvest = async (formData) => {
+    try {
+      if (editingHarvest) {
+        await updateHarvest(editingHarvest.id, formData);
+      } else {
+        await addHarvest(formData);
+      }
+      setIsFormOpen(false);
+      setEditingHarvest(null);
+    } catch (err) {
+      console.error('Error saving harvest:', err);
     }
-    setIsFormOpen(false);
-    setEditingHarvest(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deletingHarvest) {
-      deleteHarvest(deletingHarvest.id);
-      setIsDeleteOpen(false);
-      setDeletingHarvest(null);
+      try {
+        await deleteHarvest(deletingHarvest.id);
+        setIsDeleteOpen(false);
+        setDeletingHarvest(null);
+      } catch (err) {
+        console.error('Error deleting harvest:', err);
+      }
     }
   };
 
@@ -233,7 +249,7 @@ export default function Harvest() {
         title={editingHarvest ? 'Edit Harvest Record' : 'Register New Harvest'}
         description={
           editingHarvest
-            ? `Update harvest parameters for ${editingHarvest.tankName}`
+            ? `Update harvest parameters for ${editingHarvest.tankName || 'Tank'}`
             : 'Record yield, body weight, selling price, and buyer details for completed crop.'
         }
         size="lg"
@@ -271,7 +287,7 @@ export default function Harvest() {
         title="Delete Harvest Record"
         message={
           deletingHarvest
-            ? `Are you sure you want to delete the harvest record for "${deletingHarvest.tankName}"? This action cannot be undone.`
+            ? `Are you sure you want to delete the harvest record for "${deletingHarvest.tankName || 'Tank'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this harvest record?'
         }
         confirmText="Delete Harvest"
