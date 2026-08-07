@@ -18,7 +18,6 @@ import { EmptyState } from '../../components/EmptyState';
 import { FeedCard } from '../../components/FeedCard';
 import { FeedForm } from '../../components/FeedForm';
 import { FeedFilters } from '../../components/FeedFilters';
-import { FeedSchedule } from '../../components/FeedSchedule';
 import { FeedDetailsModal } from '../../components/FeedDetailsModal';
 import { useFeed } from '../../context/FeedContext';
 
@@ -221,10 +220,7 @@ export default function FeedManagement() {
         </Card>
       </div>
 
-      {/* 3. TODAY'S FEEDING SCHEDULE TIMELINE */}
-      <FeedSchedule feedLogs={feedLogs || []} />
-
-      {/* 4. SEARCH & MULTI-FILTERS */}
+      {/* 3. SEARCH & MULTI-FILTERS */}
       <FeedFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}

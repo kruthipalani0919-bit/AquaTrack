@@ -74,17 +74,10 @@ export default function Tanks() {
     const activeCount = list.filter((t) => t && t.status === 'Active').length;
     const totalArea = list.reduce((acc, t) => acc + (parseFloat(t?.area) || 0), 0);
 
-    const totalVolumeML = list.reduce((acc, t) => {
-      const areaM2 = (parseFloat(t?.area) || 0) * 4046.86;
-      const depthM = parseFloat(t?.depth) || 0;
-      return acc + (areaM2 * depthM) / 1000000;
-    }, 0);
-
     return {
       totalCount,
       activeCount,
       totalArea: totalArea.toFixed(1),
-      totalVolumeML: totalVolumeML.toFixed(1),
     };
   }, [tanks]);
 
@@ -164,7 +157,7 @@ export default function Tanks() {
       />
 
       {/* 2. OPERATIONAL SUMMARY METRICS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
@@ -197,18 +190,6 @@ export default function Tanks() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Area</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalArea} <span className="text-xs font-normal text-text-secondary">Acres</span></span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <Waves className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Water Capacity</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalVolumeML} <span className="text-xs font-normal text-text-secondary">ML</span></span>
             </div>
           </div>
         </Card>
@@ -291,7 +272,7 @@ export default function Tanks() {
             setViewingTank(null);
           }}
           title={viewingTank.name || viewingTank.tankName || 'Tank Details'}
-          description="Detailed tank specifications and water capacity metrics"
+          description="Detailed tank specifications and operating parameters"
           size="md"
         >
           <div className="space-y-6">
@@ -312,7 +293,7 @@ export default function Tanks() {
             </div>
 
             {/* Spec Cards */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-3">
                 <Maximize2 className="w-5 h-5 text-primary shrink-0" />
                 <div>
@@ -325,7 +306,7 @@ export default function Tanks() {
                 <Layers className="w-5 h-5 text-secondary shrink-0" />
                 <div>
                   <span className="text-[10px] text-text-secondary uppercase font-semibold block">Depth</span>
-                  <span className="text-sm font-bold text-text-primary">{viewingTank.depth} Meters</span>
+                  <span className="text-sm font-bold text-text-primary">{viewingTank.depth} Feet</span>
                 </div>
               </div>
 
@@ -334,16 +315,6 @@ export default function Tanks() {
                 <div>
                   <span className="text-[10px] text-text-secondary uppercase font-semibold block">Water Source</span>
                   <span className="text-sm font-bold text-text-primary">{viewingTank.waterSource}</span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-3">
-                <Container className="w-5 h-5 text-teal-600 shrink-0" />
-                <div>
-                  <span className="text-[10px] text-text-secondary uppercase font-semibold block">Est. Volume</span>
-                  <span className="text-sm font-bold text-text-primary">
-                    {(((parseFloat(viewingTank.area) || 0) * 4046.86 * (parseFloat(viewingTank.depth) || 0)) / 1000000).toFixed(2)} ML
-                  </span>
                 </div>
               </div>
             </div>

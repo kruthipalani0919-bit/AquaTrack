@@ -129,11 +129,11 @@ export const TankForm = ({
         />
 
         <Input
-          label="Depth (Meters)"
+          label="Depth (Feet)"
           type="number"
           step="0.1"
           min="0.1"
-          placeholder="e.g. 1.8"
+          placeholder="e.g. 6"
           required={true}
           icon={<Layers className="w-4 h-4" />}
           error={errors.depth?.message}

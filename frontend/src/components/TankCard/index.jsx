@@ -21,11 +21,6 @@ export const TankCard = ({
   const numericArea = parseFloat(area) || 0;
   const numericDepth = parseFloat(depth) || 0;
 
-  // Calculate volume in Million Liters (1 Acre = 4046.86 m², 1 m³ = 1000 Liters)
-  const areaSqMeters = numericArea * 4046.86;
-  const volumeCubicMeters = areaSqMeters * numericDepth;
-  const volumeML = (volumeCubicMeters / 1000000).toFixed(2);
-
   const statusVariantMap = {
     Active: 'success',
     Preparation: 'warning',
@@ -67,7 +62,7 @@ export const TankCard = ({
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-2 py-4 border-b border-border/60 text-center">
+      <div className="grid grid-cols-2 gap-2 py-4 border-b border-border/60 text-center">
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
           <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider flex items-center gap-1">
             <Maximize2 className="w-3 h-3 text-primary" /> Area
@@ -82,16 +77,7 @@ export const TankCard = ({
             <Layers className="w-3 h-3 text-secondary" /> Depth
           </span>
           <span className="text-sm font-bold text-text-primary mt-0.5">
-            {numericDepth} <span className="text-[11px] font-normal text-text-secondary">m</span>
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider flex items-center gap-1">
-            <Waves className="w-3 h-3 text-accent" /> Est. Vol.
-          </span>
-          <span className="text-sm font-bold text-text-primary mt-0.5">
-            {volumeML} <span className="text-[11px] font-normal text-text-secondary">ML</span>
+            {numericDepth} <span className="text-[11px] font-normal text-text-secondary">ft</span>
           </span>
         </div>
       </div>

@@ -3,8 +3,7 @@ import {
   Plus,
   Stethoscope,
   CheckCircle2,
-  IndianRupee,
-  Clock
+  IndianRupee
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -18,7 +17,6 @@ import { EmptyState } from '../../components/EmptyState';
 import { MedicineCard } from '../../components/MedicineCard';
 import { MedicineForm } from '../../components/MedicineForm';
 import { MedicineFilters } from '../../components/MedicineFilters';
-import { MedicineSchedule } from '../../components/MedicineSchedule';
 import { MedicineDetailsModal } from '../../components/MedicineDetailsModal';
 import { useMedicine } from '../../context/MedicineContext';
 
@@ -28,7 +26,7 @@ export default function Medicines() {
     addMedicineRecord,
     updateMedicineRecord,
     deleteMedicineRecord,
-    analytics = { totalTreatments: 0, medicinesUsedToday: 0, totalMedicineCostRupees: 0, upcomingTreatments: 0 },
+    analytics = { totalTreatments: 0, medicinesUsedToday: 0, totalMedicineCostRupees: 0 },
     loading,
     error
   } = useMedicine();
@@ -55,7 +53,6 @@ export default function Medicines() {
     totalTreatments: analytics?.totalTreatments || 0,
     medicinesUsedToday: analytics?.medicinesUsedToday || 0,
     totalMedicineCostRupees: analytics?.totalMedicineCostRupees || 0,
-    upcomingTreatments: analytics?.upcomingTreatments || 0,
   };
 
   // Multi-Filter Logic Safely
@@ -167,8 +164,8 @@ export default function Medicines() {
         }
       />
 
-      {/* 2. TOP 4 DASHBOARD SUMMARY CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      {/* 2. TOP DASHBOARD SUMMARY CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {/* Card 1: Total Treatments */}
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
@@ -209,25 +206,9 @@ export default function Medicines() {
             </div>
           </div>
         </Card>
-
-        {/* Card 4: Upcoming Treatments */}
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Upcoming</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.upcomingTreatments} Scheduled</span>
-            </div>
-          </div>
-        </Card>
       </div>
 
-      {/* 3. TREATMENT SCHEDULE BREAKDOWN */}
-      <MedicineSchedule medicineRecords={medicineRecords || []} />
-
-      {/* 4. SEARCH & MULTI-FILTERS */}
+      {/* 3. SEARCH & MULTI-FILTERS */}
       <MedicineFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
