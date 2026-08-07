@@ -2,10 +2,11 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Wheat, Calendar, Weight, IndianRupee, User, Truck, DollarSign } from 'lucide-react';
+import { Wheat, Calendar, Weight, IndianRupee, User, Truck, Container } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
+import { Textarea } from '../Textarea';
 import { Button } from '../Button';
 import { useTanks } from '../../context/TankContext';
 
@@ -25,12 +26,13 @@ const harvestSchema = z.object({
   averageWeight: z
     .coerce
     .number({ invalid_type_error: 'Average Weight must be a number' })
-    .positive('Average Weight must be greater than 0'),
+    .positive('Average Weight must be greater than 0')
+    .optional()
+    .or(z.literal('')),
   survivalRate: z
     .coerce
-    .number({ invalid_type_error: 'Survival Rate must be a number' })
-    .min(0, 'Survival Rate cannot be negative')
-    .max(100, 'Survival Rate cannot exceed 100%'),
+    .number()
+    .optional(),
   sellingPrice: z
     .coerce
     .number({ invalid_type_error: 'Selling Price must be a number' })
@@ -47,12 +49,15 @@ const harvestSchema = z.object({
     .coerce
     .number({ invalid_type_error: 'Harvest Expense must be a number' })
     .min(0, 'Harvest Expense cannot be negative'),
+  notes: z
+    .string()
+    .optional(),
 });
 
 /**
  * Reusable HarvestForm component with dynamic Tank dropdown from TankContext.
  * Contains ONLY backend-supported fields: tankId, harvestDate, production, averageWeight,
- * survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense.
+ * survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense, notes.
  * Rule: Does NOT include or calculate revenue or profit.
  */
 export const HarvestForm = ({
@@ -81,11 +86,12 @@ export const HarvestForm = ({
       harvestDate: new Date().toISOString().split('T')[0],
       production: '',
       averageWeight: '',
-      survivalRate: '',
+      survivalRate: '85',
       sellingPrice: '',
       buyerName: '',
       transportationCost: '0',
       harvestExpense: '0',
+      notes: '',
     },
     mode: 'onTouched',
   });
@@ -97,11 +103,12 @@ export const HarvestForm = ({
         harvestDate: initialData.harvestDate || '',
         production: initialData.production || '',
         averageWeight: initialData.averageWeight || '',
-        survivalRate: initialData.survivalRate || '',
+        survivalRate: initialData.survivalRate || '85',
         sellingPrice: initialData.sellingPrice || '',
         buyerName: initialData.buyerName || '',
         transportationCost: initialData.transportationCost || '0',
         harvestExpense: initialData.harvestExpense || '0',
+        notes: initialData.notes || '',
       });
     }
   }, [initialData, reset]);
@@ -109,18 +116,18 @@ export const HarvestForm = ({
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
 
-    // Backend Request Model: { tankId, harvestDate, production, averageWeight, survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense }
-    // Rule: Excludes revenue & profit (calculated automatically by backend)
+    // Backend Request Model: { tankId, harvestDate, production, averageWeight, survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense, notes }
     const harvestPayload = {
       tankId: data.tankId,
       harvestDate: data.harvestDate,
       production: parseFloat(data.production),
-      averageWeight: parseFloat(data.averageWeight),
-      survivalRate: parseFloat(data.survivalRate),
+      averageWeight: data.averageWeight ? parseFloat(data.averageWeight) : 0,
+      survivalRate: parseFloat(data.survivalRate) || 85,
       sellingPrice: parseFloat(data.sellingPrice),
       buyerName: data.buyerName.trim(),
       transportationCost: parseFloat(data.transportationCost),
       harvestExpense: parseFloat(data.harvestExpense),
+      notes: data.notes ? data.notes.trim() : '',
     };
 
     console.log('Backend Harvest Payload:', harvestPayload);
@@ -134,65 +141,46 @@ export const HarvestForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
-      {/* Tank Select & Harvest Date */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Select Pond / Tank"
-          required={true}
-          placeholder="Choose pond..."
-          options={tankSelectOptions}
-          error={errors.tankId?.message}
-          {...register('tankId')}
-        />
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
+      {/* SECTION 1: BASIC INFORMATION */}
+      <div className="space-y-3">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
+          <Container className="w-3.5 h-3.5 text-primary" /> Basic Information
+        </h4>
 
+        {/* Row 1: Pond / Tank & Harvest Date */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Pond / Tank"
+            required={true}
+            placeholder="Choose pond..."
+            options={tankSelectOptions}
+            error={errors.tankId?.message}
+            {...register('tankId')}
+          />
+
+          <Input
+            label="Harvest Date"
+            type="date"
+            required={true}
+            icon={<Calendar className="w-4 h-4" />}
+            error={errors.harvestDate?.message}
+            {...register('harvestDate')}
+          />
+        </div>
+
+        {/* Buyer / Trader Name */}
         <Input
-          label="Harvest Date"
-          type="date"
+          label="Buyer / Trader Name"
+          type="text"
+          placeholder="e.g. Coastal Seafood Traders"
           required={true}
-          icon={<Calendar className="w-4 h-4" />}
-          error={errors.harvestDate?.message}
-          {...register('harvestDate')}
-        />
-      </div>
-
-      {/* Production, Average Weight & Survival Rate */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Input
-          label="Production (kg)"
-          type="number"
-          step="0.1"
-          placeholder="e.g. 3500"
-          required={true}
-          icon={<Wheat className="w-4 h-4" />}
-          error={errors.production?.message}
-          {...register('production')}
+          icon={<User className="w-4 h-4" />}
+          error={errors.buyerName?.message}
+          {...register('buyerName')}
         />
 
-        <Input
-          label="Average Weight (ABW in grams)"
-          type="number"
-          step="0.1"
-          placeholder="e.g. 18.5"
-          required={true}
-          icon={<Weight className="w-4 h-4" />}
-          error={errors.averageWeight?.message}
-          {...register('averageWeight')}
-        />
-
-        <Input
-          label="Survival Rate (%)"
-          type="number"
-          step="0.1"
-          placeholder="e.g. 85"
-          required={true}
-          error={errors.survivalRate?.message}
-          {...register('survivalRate')}
-        />
-      </div>
-
-      {/* Selling Price & Buyer Name */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Selling Price (₹ / Kg) */}
         <Input
           label="Selling Price (₹/kg)"
           type="number"
@@ -203,44 +191,76 @@ export const HarvestForm = ({
           error={errors.sellingPrice?.message}
           {...register('sellingPrice')}
         />
+      </div>
 
+      {/* SECTION 2: HARVEST DETAILS */}
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+          <Wheat className="w-3.5 h-3.5" /> Harvest Details
+        </h4>
+
+        {/* Production (Kg) */}
         <Input
-          label="Buyer / Trader Name"
-          type="text"
-          placeholder="e.g. Coastal Seafood Traders"
+          label="Production (kg)"
+          type="number"
+          step="0.1"
+          placeholder="e.g. 3500"
           required={true}
-          icon={<User className="w-4 h-4" />}
-          error={errors.buyerName?.message}
-          {...register('buyerName')}
+          icon={<Wheat className="w-4 h-4 text-primary" />}
+          error={errors.production?.message}
+          {...register('production')}
+        />
+
+        {/* Average Body Weight (Optional) */}
+        <Input
+          label="Average Weight (ABW in grams)"
+          type="number"
+          step="0.1"
+          placeholder="Optional (e.g. 18.5)"
+          required={false}
+          icon={<Weight className="w-4 h-4 text-primary" />}
+          error={errors.averageWeight?.message}
+          {...register('averageWeight')}
+        />
+
+        {/* Transportation Cost & Harvest Expense */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Transportation Cost (₹)"
+            type="number"
+            step="1"
+            placeholder="e.g. 1500"
+            required={true}
+            icon={<Truck className="w-4 h-4 text-primary" />}
+            error={errors.transportationCost?.message}
+            {...register('transportationCost')}
+          />
+
+          <Input
+            label="Harvest Expense (₹)"
+            type="number"
+            step="1"
+            placeholder="e.g. 3000"
+            required={true}
+            icon={<IndianRupee className="w-4 h-4 text-primary" />}
+            error={errors.harvestExpense?.message}
+            {...register('harvestExpense')}
+          />
+        </div>
+      </div>
+
+      {/* SECTION 3: NOTES (OPTIONAL) */}
+      <div>
+        <Textarea
+          label="Notes (Optional)"
+          placeholder="Add buyer details, harvest quality, transportation remarks or any additional notes..."
+          rows={2}
+          error={errors.notes?.message}
+          {...register('notes')}
         />
       </div>
 
-      {/* Transportation Cost & Harvest Expense */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label="Transportation Cost (₹)"
-          type="number"
-          step="1"
-          placeholder="e.g. 1500"
-          required={true}
-          icon={<Truck className="w-4 h-4" />}
-          error={errors.transportationCost?.message}
-          {...register('transportationCost')}
-        />
-
-        <Input
-          label="Harvest Expense (₹)"
-          type="number"
-          step="1"
-          placeholder="e.g. 3000"
-          required={true}
-          icon={<IndianRupee className="w-4 h-4" />}
-          error={errors.harvestExpense?.message}
-          {...register('harvestExpense')}
-        />
-      </div>
-
-      {/* Actions */}
+      {/* ACTIONS */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
         <Button
           type="button"
@@ -257,7 +277,7 @@ export const HarvestForm = ({
           isLoading={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Harvest Record' : 'Register Harvest Record'}
+          {isEditing ? 'Update Harvest Record' : 'Register Harvest'}
         </Button>
       </div>
     </form>

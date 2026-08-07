@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Calendar, IndianRupee } from 'lucide-react';
+import { Calendar, IndianRupee, Container } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -111,70 +111,82 @@ export const ExpenseForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
-      {/* Tank Select & Category */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Pond / Tank"
-          required={true}
-          placeholder="Choose pond..."
-          options={tankSelectOptions}
-          error={errors.tankId?.message}
-          {...register('tankId')}
-        />
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
+      {/* SECTION 1: BASIC INFORMATION */}
+      <div className="space-y-3">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
+          <Container className="w-3.5 h-3.5 text-primary" /> Basic Information
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Pond / Tank"
+            required={true}
+            placeholder="Choose pond..."
+            options={tankSelectOptions}
+            error={errors.tankId?.message}
+            {...register('tankId')}
+          />
 
-        <Select
-          label="Expense Category"
-          required={true}
-          placeholder="Select category..."
-          options={EXPENSE_CATEGORY_OPTIONS}
-          error={errors.category?.message}
-          {...register('category')}
+          <Select
+            label="Expense Category"
+            required={true}
+            placeholder="Select category..."
+            options={EXPENSE_CATEGORY_OPTIONS}
+            error={errors.category?.message}
+            {...register('category')}
+          />
+        </div>
+      </div>
+
+      {/* SECTION 2: TRANSACTION DETAILS */}
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+          <IndianRupee className="w-3.5 h-3.5" /> Transaction Details
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input
+            label="Amount (₹)"
+            type="number"
+            step="1"
+            placeholder="e.g. 2500"
+            required={true}
+            icon={<IndianRupee className="w-4 h-4 text-primary" />}
+            error={errors.amount?.message}
+            {...register('amount')}
+          />
+
+          <Select
+            label="Payment Mode"
+            required={true}
+            placeholder="Select mode..."
+            options={PAYMENT_MODE_OPTIONS}
+            error={errors.paymentMode?.message}
+            {...register('paymentMode')}
+          />
+
+          <Input
+            label="Date"
+            type="date"
+            required={true}
+            icon={<Calendar className="w-4 h-4 text-primary" />}
+            error={errors.date?.message}
+            {...register('date')}
+          />
+        </div>
+      </div>
+
+      {/* SECTION 3: NOTES (OPTIONAL) */}
+      <div>
+        <Textarea
+          label="Notes (Optional)"
+          placeholder="Add transaction details, invoice number, vendor name..."
+          rows={2}
+          error={errors.notes?.message}
+          {...register('notes')}
         />
       </div>
 
-      {/* Amount, Payment Mode, & Date */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Input
-          label="Amount (₹)"
-          type="number"
-          step="1"
-          placeholder="e.g. 2500"
-          required={true}
-          icon={<IndianRupee className="w-4 h-4" />}
-          error={errors.amount?.message}
-          {...register('amount')}
-        />
-
-        <Select
-          label="Payment Mode"
-          required={true}
-          placeholder="Select mode..."
-          options={PAYMENT_MODE_OPTIONS}
-          error={errors.paymentMode?.message}
-          {...register('paymentMode')}
-        />
-
-        <Input
-          label="Date"
-          type="date"
-          required={true}
-          icon={<Calendar className="w-4 h-4" />}
-          error={errors.date?.message}
-          {...register('date')}
-        />
-      </div>
-
-      {/* Notes & Observations */}
-      <Textarea
-        label="Notes & Observations (Optional)"
-        placeholder="Add transaction details, invoice number, vendor name..."
-        rows={2}
-        error={errors.notes?.message}
-        {...register('notes')}
-      />
-
-      {/* Actions */}
+      {/* ACTIONS */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
         <Button
           type="button"

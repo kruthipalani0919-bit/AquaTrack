@@ -85,7 +85,11 @@ export default function FarmSetup() {
     loadFarmDetails();
   }, [reset]);
 
-  const handleNext = async () => {
+  const handleNext = async (e) => {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+
     let fieldsToValidate = [];
 
     if (currentStep === 1) {
@@ -102,12 +106,20 @@ export default function FarmSetup() {
     }
   };
 
-  const handlePrevious = () => {
+  const handlePrevious = (e) => {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     setCurrentStep((prev) => Math.max(prev - 1, 1));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const onSubmit = async (data) => {
+    if (currentStep < 3) {
+      handleNext();
+      return;
+    }
+
     setIsSubmitting(true);
     setApiError('');
 

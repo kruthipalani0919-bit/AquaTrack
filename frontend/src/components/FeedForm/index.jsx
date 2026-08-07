@@ -132,93 +132,112 @@ export const FeedForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
-      {/* Tank Select & Date */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Select Pond / Tank"
-          required={true}
-          placeholder="Choose pond..."
-          options={tankSelectOptions}
-          error={errors.tankId?.message}
-          {...register('tankId')}
-        />
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
+      {/* SECTION 1: BASIC INFORMATION */}
+      <div className="space-y-3">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
+          <Container className="w-3.5 h-3.5 text-primary" /> Basic Information
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Select Pond / Tank"
+            required={true}
+            placeholder="Choose pond..."
+            options={tankSelectOptions}
+            error={errors.tankId?.message}
+            {...register('tankId')}
+          />
 
-        <Input
-          label="Feeding Date"
-          type="date"
-          required={true}
-          icon={<Calendar className="w-4 h-4" />}
-          error={errors.date?.message}
-          {...register('date')}
+          <Input
+            label="Feeding Date"
+            type="date"
+            required={true}
+            icon={<Calendar className="w-4 h-4" />}
+            error={errors.date?.message}
+            {...register('date')}
+          />
+        </div>
+      </div>
+
+      {/* SECTION 2: FEED INFORMATION */}
+      <div className="space-y-3">
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
+          <Package className="w-3.5 h-3.5 text-primary" /> Feed Specifications
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Feed Brand"
+            required={true}
+            placeholder="Select brand..."
+            options={FEED_BRAND_OPTIONS}
+            error={errors.feedBrand?.message}
+            {...register('feedBrand')}
+          />
+
+          <Select
+            label="Feed Type"
+            required={true}
+            placeholder="Select type..."
+            options={FEED_TYPE_OPTIONS}
+            error={errors.feedType?.message}
+            {...register('feedType')}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Feed Size / Pellet Size"
+            required={true}
+            placeholder="Select size..."
+            options={FEED_SIZE_OPTIONS}
+            error={errors.feedSize?.message}
+            {...register('feedSize')}
+          />
+        </div>
+      </div>
+
+      {/* SECTION 3: QUANTITY & COST (Prominent Section) */}
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+          <UtensilsCrossed className="w-3.5 h-3.5" /> Quantity & Cost
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Quantity (Kg)"
+            type="number"
+            step="0.5"
+            placeholder="e.g. 45"
+            required={true}
+            icon={<UtensilsCrossed className="w-4 h-4 text-primary" />}
+            error={errors.quantity?.message}
+            {...register('quantity')}
+          />
+
+          <Input
+            label="Cost Per Kg (₹)"
+            type="number"
+            step="1"
+            placeholder="e.g. 70"
+            required={true}
+            icon={<IndianRupee className="w-4 h-4 text-primary" />}
+            error={errors.costPerKg?.message}
+            {...register('costPerKg')}
+          />
+        </div>
+      </div>
+
+      {/* SECTION 4: OPTIONAL NOTES */}
+      <div>
+        <Textarea
+          label="Notes (Optional)"
+          placeholder="Add any additional notes..."
+          rows={2}
+          error={errors.notes?.message}
+          {...register('notes')}
         />
       </div>
 
-      {/* Feed Brand & Feed Type */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Feed Brand"
-          required={true}
-          placeholder="Select brand..."
-          options={FEED_BRAND_OPTIONS}
-          error={errors.feedBrand?.message}
-          {...register('feedBrand')}
-        />
-
-        <Select
-          label="Feed Type"
-          required={true}
-          placeholder="Select type..."
-          options={FEED_TYPE_OPTIONS}
-          error={errors.feedType?.message}
-          {...register('feedType')}
-        />
-      </div>
-
-      {/* Feed Size, Quantity & Cost Per Kg */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Select
-          label="Feed Size / Pellet Size"
-          required={true}
-          placeholder="Select size..."
-          options={FEED_SIZE_OPTIONS}
-          error={errors.feedSize?.message}
-          {...register('feedSize')}
-        />
-
-        <Input
-          label="Quantity (Kg)"
-          type="number"
-          step="0.5"
-          placeholder="e.g. 45"
-          required={true}
-          icon={<UtensilsCrossed className="w-4 h-4" />}
-          error={errors.quantity?.message}
-          {...register('quantity')}
-        />
-
-        <Input
-          label="Cost Per Kg (₹)"
-          type="number"
-          step="1"
-          placeholder="e.g. 70"
-          required={true}
-          icon={<IndianRupee className="w-4 h-4" />}
-          error={errors.costPerKg?.message}
-          {...register('costPerKg')}
-        />
-      </div>
-
-      {/* Notes */}
-      <Textarea
-        label="Tray Check & Observations (Optional)"
-        placeholder="Add details on check tray consumption, waste leftover, water turbidity, etc."
-        rows={3}
-        error={errors.notes?.message}
-        {...register('notes')}
-      />
-
-      {/* Actions */}
+      {/* ACTION BUTTONS */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
         <Button
           type="button"
