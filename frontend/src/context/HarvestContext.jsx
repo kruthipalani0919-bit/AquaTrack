@@ -40,12 +40,15 @@ export const HarvestProvider = ({ children }) => {
   }, [fetchHarvests, token]);
 
   const addHarvest = async (newHarvestData) => {
+    const parsedAbw = parseFloat(newHarvestData.averageWeight);
+    const parsedSr = parseFloat(newHarvestData.survivalRate);
+
     const payload = {
       tankId: newHarvestData.tankId,
       harvestDate: newHarvestData.harvestDate || new Date().toISOString().split('T')[0],
       production: parseFloat(newHarvestData.production),
-      averageWeight: parseFloat(newHarvestData.averageWeight),
-      survivalRate: parseFloat(newHarvestData.survivalRate),
+      averageWeight: (!isNaN(parsedAbw) && parsedAbw > 0) ? parsedAbw : 18.5,
+      survivalRate: (!isNaN(parsedSr) && parsedSr >= 0) ? parsedSr : 85,
       sellingPrice: parseFloat(newHarvestData.sellingPrice),
       buyerName: newHarvestData.buyerName,
       transportationCost: parseFloat(newHarvestData.transportationCost || 0),
@@ -61,6 +64,27 @@ export const HarvestProvider = ({ children }) => {
     };
     setHarvests((prev) => [normalized, ...prev]);
     return normalized;
+  };
+
+  const updateHarvest = async (id, updatedHarvestData) => {
+    const parsedAbw = parseFloat(updatedHarvestData.averageWeight);
+    const parsedSr = parseFloat(updatedHarvestData.survivalRate);
+
+    const payload = {
+      tankId: updatedHarvestData.tankId,
+      harvestDate: updatedHarvestData.harvestDate || new Date().toISOString().split('T')[0],
+      production: parseFloat(updatedHarvestData.production),
+      averageWeight: (!isNaN(parsedAbw) && parsedAbw > 0) ? parsedAbw : 18.5,
+      survivalRate: (!isNaN(parsedSr) && parsedSr >= 0) ? parsedSr : 85,
+      sellingPrice: parseFloat(updatedHarvestData.sellingPrice),
+      buyerName: updatedHarvestData.buyerName,
+      transportationCost: parseFloat(updatedHarvestData.transportationCost || 0),
+      harvestExpense: parseFloat(updatedHarvestData.harvestExpense || 0),
+    };
+
+    setHarvests((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...payload, id } : item))
+    );
   };
 
   const deleteHarvest = async (id) => {
@@ -80,6 +104,7 @@ export const HarvestProvider = ({ children }) => {
         error,
         fetchHarvests,
         addHarvest,
+        updateHarvest,
         deleteHarvest,
         getHarvestById,
       }}
