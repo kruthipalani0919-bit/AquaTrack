@@ -11,11 +11,10 @@ export const EXPENSE_CATEGORY_OPTIONS = [
 ];
 
 export const PAYMENT_MODE_OPTIONS = [
-  { value: 'Cash', label: 'Cash' },
-  { value: 'UPI / Net Banking', label: 'UPI / Net Banking' },
-  { value: 'Bank Transfer', label: 'Bank Transfer' },
-  { value: 'Cheque', label: 'Cheque' },
-  { value: 'Credit / Card', label: 'Credit / Card' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'BANK', label: 'Bank' },
+  { value: 'CARD', label: 'Card' },
 ];
 
 export const MOCK_EXPENSES = [
@@ -26,7 +25,7 @@ export const MOCK_EXPENSES = [
     category: 'Feed',
     description: 'Feed Expense',
     amount: 0,
-    paymentMode: 'Bank Transfer',
+    paymentMode: 'BANK',
     date: '2026-08-05',
     notes: '',
     createdAt: '2026-08-05',
@@ -38,7 +37,7 @@ export const MOCK_EXPENSES = [
     category: 'Electricity',
     description: 'Electricity Bill',
     amount: 0,
-    paymentMode: 'UPI / Net Banking',
+    paymentMode: 'UPI',
     date: '2026-08-04',
     notes: '',
     createdAt: '2026-08-04',
@@ -50,7 +49,7 @@ export const MOCK_EXPENSES = [
     category: 'Labour',
     description: 'Labour Wages',
     amount: 0,
-    paymentMode: 'Cash',
+    paymentMode: 'CASH',
     date: '2026-08-03',
     notes: '',
     createdAt: '2026-08-03',
@@ -62,7 +61,7 @@ export const MOCK_EXPENSES = [
     category: 'Medicine',
     description: 'Chemical Sanitizer',
     amount: 0,
-    paymentMode: 'UPI / Net Banking',
+    paymentMode: 'UPI',
     date: '2026-08-02',
     notes: '',
     createdAt: '2026-08-02',
