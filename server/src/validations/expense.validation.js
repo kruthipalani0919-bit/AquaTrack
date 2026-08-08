@@ -3,13 +3,13 @@ import { z } from "zod";
 export const expenseCategories = [
     "Pond Lease",
     "Pond Preparation",
-    "Feed",
+    "Seed Cost",
     "Electricity",
+    "Generator & Diesel",
     "Labour",
     "Harvest",
     "Maintenance",
-    "Medicine",
-    "Generator & Diesel"
+    "Medicine"
 ];
 
 export const paymentModes = [

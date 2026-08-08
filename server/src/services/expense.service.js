@@ -205,27 +205,27 @@ export const deleteExpense = async (
 
 export const getExpenseCategories = async () => {
 
-    return [
+ return [
 
-        "Pond Lease",
+    "Pond Lease",
 
-        "Pond Preparation",
+    "Pond Preparation",
 
-        "Feed",
+    "Seed Cost",
 
-        "Electricity",
+    "Electricity",
 
-        "Labour",
+    "Generator & Diesel",
 
-        "Harvest",
+    "Labour",
 
-        "Maintenance",
+    "Harvest",
 
-        "Medicine",
+    "Maintenance",
 
-        "Generator & Diesel"
+    "Medicine"
 
-    ];
+];
 
 };
 
