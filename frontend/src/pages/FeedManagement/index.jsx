@@ -278,7 +278,7 @@ export default function FeedManagement() {
         description={
           editingFeedLog
             ? `Update properties for ${editingFeedLog.feedBrand || 'Feed'} ration`
-            : 'Select active crop to auto-fill pond and log feed quantity, cost, and stock.'
+            : 'Choose tank to log feed brand, type, quantity, and cost.'
         }
         size="lg"
       >

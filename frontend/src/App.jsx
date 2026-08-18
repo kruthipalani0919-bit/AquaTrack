@@ -8,6 +8,7 @@ import { FeedProvider } from './context/FeedContext';
 import { MedicineProvider } from './context/MedicineContext';
 import { ExpenseProvider } from './context/ExpenseContext';
 import { HarvestProvider } from './context/HarvestContext';
+import { StockingProvider } from './context/StockingContext';
 
 export default function App() {
   return (
@@ -20,7 +21,9 @@ export default function App() {
                 <MedicineProvider>
                   <ExpenseProvider>
                     <HarvestProvider>
-                      <AppRoutes />
+                      <StockingProvider>
+                        <AppRoutes />
+                      </StockingProvider>
                     </HarvestProvider>
                   </ExpenseProvider>
                 </MedicineProvider>

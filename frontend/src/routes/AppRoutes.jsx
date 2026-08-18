@@ -9,6 +9,7 @@ import FarmSetup from '../pages/FarmSetup';
 import Sites from '../pages/Sites';
 import Tanks from '../pages/Tanks';
 import CropManagement from '../pages/CropManagement';
+import Stocking from '../pages/Stocking';
 import FeedManagement from '../pages/FeedManagement';
 import Medicines from '../pages/Medicines';
 import Expenses from '../pages/Expenses';
@@ -36,6 +37,7 @@ const AppRoutes = () => {
           <Route path="/sites" element={<Sites />} />
           <Route path="/tanks" element={<Tanks />} />
           <Route path="/crops" element={<CropManagement />} />
+          <Route path="/stocking" element={<Stocking />} />
           <Route path="/feed" element={<FeedManagement />} />
           <Route path="/medicines" element={<Medicines />} />
           <Route path="/expenses" element={<Expenses />} />
