@@ -12,6 +12,7 @@ import harvestRoutes from "./harvest.routes.js";
 import dashboardRoutes from "./dashboard.routes.js";
 import reportRoutes from "./report.routes.js";
 import siteRoutes from "./site.routes.js";
+import stockingRoutes from "./stocking.routes.js";
 const router = Router();
 
 router.get("/health", healthCheck);
@@ -37,4 +38,6 @@ router.use("/dashboard", dashboardRoutes);
 router.use("/reports", reportRoutes);
 
 router.use("/sites", siteRoutes);
+
+router.use("/stocking", stockingRoutes);
 export default router;
