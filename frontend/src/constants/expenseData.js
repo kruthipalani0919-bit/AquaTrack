@@ -1,6 +1,7 @@
 export const EXPENSE_CATEGORY_OPTIONS = [
   { value: 'Pond Lease', label: 'Pond Lease' },
   { value: 'Pond Preparation', label: 'Pond Preparation' },
+  { value: 'Feed', label: 'Feed' },
   { value: 'Seed Cost', label: 'Seed Cost' },
   { value: 'Electricity', label: 'Electricity' },
   { value: 'Generator & Diesel', label: 'Generator & Diesel' },
@@ -11,10 +12,11 @@ export const EXPENSE_CATEGORY_OPTIONS = [
 ];
 
 export const PAYMENT_MODE_OPTIONS = [
-  { value: 'CASH', label: 'Cash' },
-  { value: 'UPI', label: 'UPI' },
-  { value: 'BANK', label: 'Bank' },
-  { value: 'CARD', label: 'Card' },
+  { value: 'Cash', label: 'Cash' },
+  { value: 'UPI / Net Banking', label: 'UPI / Net Banking' },
+  { value: 'Bank Transfer', label: 'Bank Transfer' },
+  { value: 'Cheque', label: 'Cheque' },
+  { value: 'Credit / Card', label: 'Credit / Card' },
 ];
 
 export const MOCK_EXPENSES = [
@@ -25,7 +27,7 @@ export const MOCK_EXPENSES = [
     category: 'Feed',
     description: 'Feed Expense',
     amount: 0,
-    paymentMode: 'BANK',
+    paymentMode: 'Bank Transfer',
     date: '2026-08-05',
     notes: '',
     createdAt: '2026-08-05',
@@ -37,7 +39,7 @@ export const MOCK_EXPENSES = [
     category: 'Electricity',
     description: 'Electricity Bill',
     amount: 0,
-    paymentMode: 'UPI',
+    paymentMode: 'UPI / Net Banking',
     date: '2026-08-04',
     notes: '',
     createdAt: '2026-08-04',
@@ -49,7 +51,7 @@ export const MOCK_EXPENSES = [
     category: 'Labour',
     description: 'Labour Wages',
     amount: 0,
-    paymentMode: 'CASH',
+    paymentMode: 'Cash',
     date: '2026-08-03',
     notes: '',
     createdAt: '2026-08-03',
@@ -61,7 +63,7 @@ export const MOCK_EXPENSES = [
     category: 'Medicine',
     description: 'Chemical Sanitizer',
     amount: 0,
-    paymentMode: 'UPI',
+    paymentMode: 'UPI / Net Banking',
     date: '2026-08-02',
     notes: '',
     createdAt: '2026-08-02',

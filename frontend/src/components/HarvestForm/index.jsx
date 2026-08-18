@@ -116,20 +116,17 @@ export const HarvestForm = ({
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
 
-    const parsedAbw = data.averageWeight ? parseFloat(data.averageWeight) : 18.5;
-    const parsedSr = data.survivalRate ? parseFloat(data.survivalRate) : 85;
-
     // Backend Request Model: { tankId, harvestDate, production, averageWeight, survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense, notes }
     const harvestPayload = {
       tankId: data.tankId,
       harvestDate: data.harvestDate,
       production: parseFloat(data.production),
-      averageWeight: (!isNaN(parsedAbw) && parsedAbw > 0) ? parsedAbw : 18.5,
-      survivalRate: (!isNaN(parsedSr) && parsedSr >= 0) ? parsedSr : 85,
+      averageWeight: data.averageWeight ? parseFloat(data.averageWeight) : 0,
+      survivalRate: parseFloat(data.survivalRate) || 85,
       sellingPrice: parseFloat(data.sellingPrice),
       buyerName: data.buyerName.trim(),
-      transportationCost: parseFloat(data.transportationCost || 0),
-      harvestExpense: parseFloat(data.harvestExpense || 0),
+      transportationCost: parseFloat(data.transportationCost),
+      harvestExpense: parseFloat(data.harvestExpense),
       notes: data.notes ? data.notes.trim() : '',
     };
 
