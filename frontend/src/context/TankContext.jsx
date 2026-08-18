@@ -39,6 +39,7 @@ export const TankProvider = ({ children }) => {
 
   const addTank = async (newTankData) => {
     const payload = {
+      siteId: newTankData.siteId,
       tankName: newTankData.tankName || newTankData.name,
       area: parseFloat(newTankData.area),
       depth: parseFloat(newTankData.depth),
@@ -58,6 +59,7 @@ export const TankProvider = ({ children }) => {
 
   const updateTank = async (id, updatedData) => {
     const payload = {
+      ...(updatedData.siteId ? { siteId: updatedData.siteId } : {}),
       ...(updatedData.name || updatedData.tankName ? { tankName: updatedData.tankName || updatedData.name } : {}),
       ...(updatedData.area ? { area: parseFloat(updatedData.area) } : {}),
       ...(updatedData.depth ? { depth: parseFloat(updatedData.depth) } : {}),

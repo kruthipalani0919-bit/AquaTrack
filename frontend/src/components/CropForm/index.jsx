@@ -2,35 +2,30 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Sprout, Calendar, Sparkles, Container } from 'lucide-react';
+import { Sprout, Calendar, Container, Tag } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
 import { Button } from '../Button';
-
-import { SEED_VARIETY_OPTIONS } from '../../constants/cropData';
 import { useTanks } from '../../context/TankContext';
 
-// Zod Validation Schema matching required user-visible fields
+// Zod Validation Schema strictly matching required form fields
 const cropSchema = z.object({
   tankId: z
     .string()
-    .min(1, 'Please select a Tank / Pond'),
-  cropName: z
-    .string()
-    .min(1, 'Crop Name / Batch Name is required')
-    .trim(),
-  seedVariety: z
-    .string()
-    .min(1, 'Please select a Seed Variety / Species'),
-  plCount: z
-    .coerce
-    .number({ invalid_type_error: 'PL Count must be a number' })
-    .positive('PL Count must be greater than 0'),
+    .min(1, 'Please select a Tank'),
   stockingDate: z
     .string()
     .min(1, 'Stocking Date is required'),
+  seedVariety: z
+    .string()
+    .min(1, 'Seed Variety is required')
+    .trim(),
+  batchNumber: z
+    .string()
+    .min(1, 'Batch Number is required')
+    .trim(),
   notes: z
     .string()
     .optional(),
@@ -38,8 +33,11 @@ const cropSchema = z.object({
 
 /**
  * Reusable CropForm component for Registering and Editing crops.
- * Displays ONLY user-essential fields: Pond/Tank, Crop Name, Seed Variety, PL Count, Stocking Date, Notes.
- * Computes default values internally for expectedHarvestDate, expectedProduction, and expectedSellingPrice
+ * Contains exact user-requested layout:
+ * - Row 1 (side-by-side): Tank & Stocking Date
+ * - Highlighted "Crop Specifications" section: Seed Variety (full width) stacked above Batch Number (full width)
+ * - Row 3: Notes (Optional)
+ * Computes internal fallback defaults for plCount, expectedHarvestDate, expectedProduction, and expectedSellingPrice
  * to preserve 100% backend API contract compatibility.
  */
 export const CropForm = ({
@@ -65,10 +63,9 @@ export const CropForm = ({
     resolver: zodResolver(cropSchema),
     defaultValues: {
       tankId: '',
-      cropName: '',
-      seedVariety: '',
-      plCount: '',
       stockingDate: new Date().toISOString().split('T')[0],
+      seedVariety: '',
+      batchNumber: '',
       notes: '',
     },
     mode: 'onTouched',
@@ -78,10 +75,9 @@ export const CropForm = ({
     if (initialData) {
       reset({
         tankId: initialData.tankId || '',
-        cropName: initialData.cropName || '',
-        seedVariety: initialData.seedVariety || '',
-        plCount: initialData.plCount || '',
         stockingDate: initialData.stockingDate || new Date().toISOString().split('T')[0],
+        seedVariety: initialData.seedVariety || '',
+        batchNumber: initialData.batchNumber || initialData.cropName || '',
         notes: initialData.notes || '',
       });
     }
@@ -93,15 +89,15 @@ export const CropForm = ({
     // Compute internal fallback defaults to ensure backend API request compliance
     const stockingTime = data.stockingDate ? new Date(data.stockingDate).getTime() : Date.now();
     const computedHarvestDate = new Date(stockingTime + 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const parsedPl = parseFloat(data.plCount) || 100000;
+    const parsedPl = initialData?.plCount || 100000;
     const computedProduction = initialData?.expectedProduction || Math.round(parsedPl * 0.015);
     const computedSellingPrice = initialData?.expectedSellingPrice || 350;
 
     // Full Backend Payload
     const cropPayload = {
       tankId: data.tankId,
-      cropName: data.cropName.trim(),
-      seedVariety: data.seedVariety,
+      cropName: data.batchNumber.trim(),
+      seedVariety: data.seedVariety.trim(),
       plCount: parsedPl,
       stockingDate: data.stockingDate,
       expectedHarvestDate: initialData?.expectedHarvestDate || computedHarvestDate,
@@ -114,7 +110,8 @@ export const CropForm = ({
     if (onSubmit) {
       onSubmit({
         ...cropPayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
+        batchNumber: data.batchNumber.trim(),
+        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
         expectedProductionKg: cropPayload.expectedProduction,
         expectedSellingPricePerKg: cropPayload.expectedSellingPrice,
         status: initialData?.status || 'Active',
@@ -123,82 +120,65 @@ export const CropForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
-      {/* SECTION 1: BASIC INFORMATION */}
-      <div className="space-y-3">
-        <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
-          <Container className="w-3.5 h-3.5 text-primary" /> Basic Information
-        </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Pond / Tank"
-            required={true}
-            placeholder="Choose pond..."
-            options={tankSelectOptions}
-            error={errors.tankId?.message}
-            {...register('tankId')}
-          />
-
-          <Input
-            label="Stocking Date"
-            type="date"
-            required={true}
-            icon={<Calendar className="w-4 h-4" />}
-            error={errors.stockingDate?.message}
-            {...register('stockingDate')}
-          />
-        </div>
-      </div>
-
-      {/* SECTION 2: CROP DETAILS */}
-      <div className="space-y-3">
-        <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
-          <Sprout className="w-3.5 h-3.5 text-primary" /> Crop Specifications
-        </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Crop Name / Batch Name"
-            type="text"
-            placeholder="e.g. Batch 2026-A"
-            required={true}
-            icon={<Sprout className="w-4 h-4" />}
-            error={errors.cropName?.message}
-            {...register('cropName')}
-          />
-
-          <Select
-            label="Seed Variety / Species"
-            required={true}
-            placeholder="Select species..."
-            options={SEED_VARIETY_OPTIONS}
-            error={errors.seedVariety?.message}
-            {...register('seedVariety')}
-          />
-        </div>
-      </div>
-
-      {/* SECTION 3: PL COUNT (PROMINENT) */}
-      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-2 shadow-2xs">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5" /> Stocking Quantity
-        </h4>
-        <Input
-          label="PL Count (Post-Larvae Seed Quantity)"
-          type="number"
-          placeholder="e.g. 150000"
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" noValidate>
+      {/* 1. TANK & 2. STOCKING DATE ROW (Side-by-Side) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Select
+          label="Tank"
           required={true}
-          icon={<Sparkles className="w-4 h-4 text-primary" />}
-          error={errors.plCount?.message}
-          {...register('plCount')}
+          placeholder="Select tank..."
+          options={tankSelectOptions}
+          error={errors.tankId?.message}
+          icon={<Container className="w-4 h-4" />}
+          {...register('tankId')}
+        />
+
+        <Input
+          label="Stocking Date"
+          type="date"
+          required={true}
+          icon={<Calendar className="w-4 h-4" />}
+          error={errors.stockingDate?.message}
+          {...register('stockingDate')}
         />
       </div>
 
-      {/* SECTION 4: NOTES (OPTIONAL) */}
+      {/* HIGHLIGHTED SECTION: CROP SPECIFICATIONS */}
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-1.5">
+          <Sprout className="w-3.5 h-3.5" /> Crop Specifications
+        </h4>
+        <div className="flex flex-col gap-3">
+          {/* 3. SEED VARIETY (Full Width Row) */}
+          <Input
+            label="Seed Variety"
+            type="text"
+            placeholder="Enter seed variety..."
+            required={true}
+            icon={<Sprout className="w-4 h-4 text-primary" />}
+            error={errors.seedVariety?.message}
+            {...register('seedVariety')}
+          />
+
+          {/* 4. BATCH NUMBER (Full Width Row) */}
+          <Input
+            label="Batch Number"
+            type="text"
+            placeholder="Enter batch number..."
+            required={true}
+            icon={<Tag className="w-4 h-4 text-primary" />}
+            error={errors.batchNumber?.message}
+            {...register('batchNumber')}
+          />
+        </div>
+      </div>
+
+      {/* 5. NOTES (OPTIONAL) */}
       <div>
         <Textarea
           label="Notes (Optional)"
           placeholder="Add additional notes..."
-          rows={2}
+          rows={3}
           error={errors.notes?.message}
           {...register('notes')}
         />

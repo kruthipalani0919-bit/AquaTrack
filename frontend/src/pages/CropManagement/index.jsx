@@ -261,7 +261,7 @@ export default function CropManagement() {
         description={
           editingCrop
             ? `Update properties for ${editingCrop.cropName || 'Crop'}`
-            : 'Enter pond, seed species, PL count, and stocking date.'
+            : 'Enter tank, seed variety, batch number, and stocking date.'
         }
         size="md"
       >

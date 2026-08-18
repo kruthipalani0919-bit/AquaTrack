@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   Plus,
   Container,
@@ -9,7 +10,9 @@ import {
   Clock,
   Edit3,
   Trash2,
-  Layers
+  Layers,
+  MapPin,
+  ShieldAlert
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -23,14 +26,20 @@ import { TankCard } from '../../components/TankCard';
 import { TankForm } from '../../components/TankForm';
 import { TankFilters } from '../../components/TankFilters';
 import { useTanks } from '../../context/TankContext';
+import { useSites } from '../../context/SiteContext';
 
 export default function Tanks() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSiteId = searchParams.get('siteId') || '';
+
   const { tanks = [], addTank, updateTank, deleteTank, loading, error } = useTanks();
+  const { sites = [], loading: sitesLoading } = useSites();
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [siteFilter, setSiteFilter] = useState(initialSiteId);
 
   // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -63,9 +72,12 @@ export default function Tanks() {
       // Water source filter
       const matchesSource = sourceFilter === '' || tank.waterSource === sourceFilter;
 
-      return matchesSearch && matchesStatus && matchesSource;
+      // Site filter
+      const matchesSite = siteFilter === '' || tank.siteId === siteFilter;
+
+      return matchesSearch && matchesStatus && matchesSource && matchesSite;
     });
-  }, [tanks, searchQuery, statusFilter, sourceFilter]);
+  }, [tanks, searchQuery, statusFilter, sourceFilter, siteFilter]);
 
   // Operational Metrics Summary Safely
   const stats = useMemo(() => {
@@ -80,6 +92,12 @@ export default function Tanks() {
       totalArea: totalArea.toFixed(1),
     };
   }, [tanks]);
+
+  // Selected site object if siteFilter is active
+  const selectedSite = useMemo(() => {
+    if (!siteFilter) return null;
+    return sites.find((s) => s.id === siteFilter);
+  }, [sites, siteFilter]);
 
   // Form Handlers
   const handleOpenAdd = () => {
@@ -134,15 +152,21 @@ export default function Tanks() {
     setSearchQuery('');
     setStatusFilter('');
     setSourceFilter('');
+    setSiteFilter('');
+    setSearchParams({});
   };
 
   return (
     <div className="space-y-6">
       {/* 1. PAGE HEADER */}
       <PageHeader
-        title="Tank Management"
-        subtitle="Monitor and manage farm ponds, dimensions, water sources, and stocking status."
-        badge={<Badge variant="primary">{stats.totalCount} Tanks</Badge>}
+        title={selectedSite ? `Tanks in ${selectedSite.siteName}` : "Tank Management"}
+        subtitle={
+          selectedSite
+            ? `Viewing ponds belonging to ${selectedSite.siteName} (${selectedSite.location}, ${selectedSite.district})`
+            : "Monitor and manage farm ponds, dimensions, water sources, and stocking status."
+        }
+        badge={<Badge variant="primary">{filteredTanks.length} Tanks</Badge>}
         actions={
           <Button
             variant="primary"
@@ -155,6 +179,30 @@ export default function Tanks() {
           </Button>
         }
       />
+
+      {/* NO SITES WARNING BANNER */}
+      {!sitesLoading && sites.length === 0 && (
+        <Card padding="normal" className="border-amber-500/30 bg-amber-500/10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-text-primary">No Sites Found</h4>
+                <p className="text-xs text-text-secondary">
+                  Tanks must be linked to a Site. Please create your first Site before registering tanks.
+                </p>
+              </div>
+            </div>
+            <Link to="/sites">
+              <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />}>
+                Create Site
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      )}
 
       {/* 2. OPERATIONAL SUMMARY METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -203,6 +251,13 @@ export default function Tanks() {
         onStatusChange={setStatusFilter}
         sourceFilter={sourceFilter}
         onSourceChange={setSourceFilter}
+        siteFilter={siteFilter}
+        onSiteChange={(val) => {
+          setSiteFilter(val);
+          if (val) setSearchParams({ siteId: val });
+          else setSearchParams({});
+        }}
+        sites={sites}
         onReset={handleResetFilters}
       />
 
@@ -224,15 +279,15 @@ export default function Tanks() {
           <EmptyState
             title="No Tanks Found"
             description={
-              searchQuery || statusFilter || sourceFilter
+              searchQuery || statusFilter || sourceFilter || siteFilter
                 ? "No tanks match your current filter criteria. Try clearing filters or searching for a different term."
                 : "You haven't added any tanks yet. Click the button below to register your first pond."
             }
             actionLabel={
-              searchQuery || statusFilter || sourceFilter ? "Reset Filters" : "Add First Tank"
+              searchQuery || statusFilter || sourceFilter || siteFilter ? "Reset Filters" : "Add First Tank"
             }
             onAction={
-              searchQuery || statusFilter || sourceFilter ? handleResetFilters : handleOpenAdd
+              searchQuery || statusFilter || sourceFilter || siteFilter ? handleResetFilters : handleOpenAdd
             }
           />
         </Card>
@@ -249,12 +304,13 @@ export default function Tanks() {
         description={
           editingTank
             ? `Update properties for ${editingTank.name || editingTank.tankName || 'Tank'}`
-            : 'Register a new aquaculture pond into your farm setup.'
+            : 'Register a new aquaculture pond into your site setup.'
         }
         size="lg"
       >
         <TankForm
           initialData={editingTank}
+          defaultSiteId={siteFilter}
           onSubmit={handleSaveTank}
           onCancel={() => {
             setIsFormOpen(false);

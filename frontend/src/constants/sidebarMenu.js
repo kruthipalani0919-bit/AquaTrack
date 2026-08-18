@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Building2,
+  MapPin,
   Container,
   Sprout,
   UtensilsCrossed,
@@ -14,6 +15,7 @@ import {
 export const SIDEBAR_MENU_ITEMS = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Farm Setup', path: '/farm-setup', icon: Building2 },
+  { label: 'Sites', path: '/sites', icon: MapPin },
   { label: 'Tanks', path: '/tanks', icon: Container },
   { label: 'Crop Management', path: '/crops', icon: Sprout },
   { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed },

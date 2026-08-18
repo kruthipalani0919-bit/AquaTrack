@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { SearchBar } from '../SearchBar';
 import { Select } from '../Select';
 import { Button } from '../Button';
@@ -15,10 +15,13 @@ export const TankFilters = ({
   onStatusChange,
   sourceFilter = '',
   onSourceChange,
+  siteFilter = '',
+  onSiteChange,
+  sites = [],
   onReset,
   className = '',
 }) => {
-  const hasActiveFilters = Boolean(searchQuery || statusFilter || sourceFilter);
+  const hasActiveFilters = Boolean(searchQuery || statusFilter || sourceFilter || siteFilter);
 
   const statusOptions = [
     { value: '', label: 'All Statuses' },
@@ -28,6 +31,11 @@ export const TankFilters = ({
   const sourceOptions = [
     { value: '', label: 'All Water Sources' },
     ...WATER_SOURCE_OPTIONS,
+  ];
+
+  const siteOptions = [
+    { value: '', label: 'All Sites' },
+    ...sites.map((s) => ({ value: s.id, label: s.siteName })),
   ];
 
   return (
@@ -44,6 +52,19 @@ export const TankFilters = ({
 
       {/* Filter Dropdowns & Reset */}
       <div className="flex flex-wrap items-center gap-3 shrink-0">
+        {/* Site Dropdown */}
+        {sites.length > 0 && (
+          <div className="w-36 sm:w-44">
+            <Select
+              placeholder=""
+              options={siteOptions}
+              value={siteFilter}
+              onChange={(e) => onSiteChange(e.target.value)}
+              fullWidth
+            />
+          </div>
+        )}
+
         {/* Status Dropdown */}
         <div className="w-36 sm:w-44">
           <Select

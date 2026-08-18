@@ -6,6 +6,7 @@ import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
 import FarmSetup from '../pages/FarmSetup';
+import Sites from '../pages/Sites';
 import Tanks from '../pages/Tanks';
 import CropManagement from '../pages/CropManagement';
 import FeedManagement from '../pages/FeedManagement';
@@ -32,6 +33,7 @@ const AppRoutes = () => {
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/farm-setup" element={<FarmSetup />} />
+          <Route path="/sites" element={<Sites />} />
           <Route path="/tanks" element={<Tanks />} />
           <Route path="/crops" element={<CropManagement />} />
           <Route path="/feed" element={<FeedManagement />} />
