@@ -2,19 +2,14 @@ import { z } from "zod";
 
 export const createFarmSchema = z.object({
 
-    farmName: z.string().min(3),
+    farmName: z
+        .string()
+        .min(3, "Farm name must be at least 3 characters"),
 
-    ownerName: z.string().min(3),
-
-    location: z.string().min(2),
-
-    district: z.string().min(2),
-
-    state: z.string().min(2),
-
-    totalAcres: z.number().positive()
+    ownerName: z
+        .string()
+        .min(3, "Owner name must be at least 3 characters")
 
 });
 
 export const updateFarmSchema = createFarmSchema.partial();
-

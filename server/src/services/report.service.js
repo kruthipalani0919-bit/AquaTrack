@@ -17,7 +17,11 @@ export const getReportTanks = async (userId) => {
 
         where: {
 
-            farmId: farm.id
+            site: {
+
+                farmId: farm.id
+
+            }
 
         },
 
@@ -177,7 +181,11 @@ export const getCompletedCropReport = async (
 
             tank: {
 
-                farmId: farm.id
+                site: {
+
+                    farmId: farm.id
+
+                }
 
             }
 

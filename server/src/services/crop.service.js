@@ -15,7 +15,9 @@ export const createCrop = async (userId, cropData) => {
     const tank = await prisma.tank.findFirst({
         where: {
             id: cropData.tankId,
-            farmId: farm.id
+            site: {
+                farmId: farm.id
+            }
         }
     });
 
@@ -83,7 +85,9 @@ export const getCrops = async (userId) => {
     const crops = await prisma.crop.findMany({
         where: {
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         }
     });
@@ -108,7 +112,9 @@ export const getActiveCrops = async (userId) => {
         where: {
             status: "ACTIVE",
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         }
     });
@@ -133,7 +139,9 @@ export const getCropById = async (userId, cropId) => {
         where: {
             id: cropId,
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         }
     });
@@ -162,7 +170,9 @@ export const updateCrop = async (userId, cropId, cropData) => {
         where: {
             id: cropId,
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         }
     });
@@ -185,7 +195,9 @@ export const updateCrop = async (userId, cropId, cropData) => {
         const targetTank = await prisma.tank.findFirst({
             where: {
                 id: updateData.tankId,
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         });
 
@@ -240,7 +252,9 @@ export const completeCrop = async (userId, cropId) => {
         where: {
             id: cropId,
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         }
     });
@@ -278,7 +292,9 @@ export const deleteCrop = async (userId, cropId) => {
         where: {
             id: cropId,
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         }
     });

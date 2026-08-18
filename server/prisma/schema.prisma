@@ -33,16 +33,37 @@ model User {
 }
 
 model Farm {
-  id         String @id @default(cuid())
-  farmName   String
-  ownerName  String
-  location   String
-  district   String
-  state      String
-  totalAcres Float
+  id        String @id @default(cuid())
+  farmName  String
+  ownerName String
+
+  location   String?
+  district   String?
+  state      String?
+  totalAcres Float?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sites Site[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Site {
+  id String @id @default(cuid())
+
+  siteName String
+  location String
+  district String
+  state    String
+
+  gpsLocation String?
+  remarks     String?
+
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
 
   tanks Tank[]
 
@@ -59,12 +80,11 @@ model Tank {
   gpsLocation String?
   remarks     String?
 
-  farmId String
-  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
-  crops      Crop[]
-  waterTests WaterTest[]
-  medicines  Medicine[]
+  crops     Crop[]
+  medicines Medicine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -140,27 +160,6 @@ model Expense {
 
   cropId String
   crop   Crop   @relation(fields: [cropId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-model WaterTest {
-  id String @id @default(cuid())
-
-  date DateTime
-
-  temperature Float
-  ph          Float
-  salinity    Float
-  oxygen      Float
-  ammonia     Float
-  nitrite     Float
-  alkalinity  Float
-
-  remarks String?
-
-  tankId String
-  tank   Tank   @relation(fields: [tankId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }

@@ -2,16 +2,69 @@ import { z } from "zod";
 
 export const createTankSchema = z.object({
 
-    tankName: z.string().min(2),
+    siteId: z
+        .string()
+        .min(1, "Site is required"),
 
-    area: z.number().positive(),
+    tankName: z
+        .string()
+        .min(2, "Tank name must be at least 2 characters"),
 
-    depth: z.number().positive(),
+    area: z
+        .number()
+        .positive("Area must be greater than 0"),
 
-    waterSource: z.string().min(2),
+    depth: z
+        .number()
+        .positive("Depth must be greater than 0"),
 
-    remarks: z.string().optional()
+    waterSource: z
+        .string()
+        .min(2, "Water source is required"),
+
+    gpsLocation: z
+        .string()
+        .optional(),
+
+    remarks: z
+        .string()
+        .optional()
 
 });
 
-export const updateTankSchema = createTankSchema.partial();
+export const updateTankSchema = z.object({
+
+    siteId: z
+        .string()
+        .min(1, "Site is required")
+        .optional(),
+
+    tankName: z
+        .string()
+        .min(2, "Tank name must be at least 2 characters")
+        .optional(),
+
+    area: z
+        .number()
+        .positive("Area must be greater than 0")
+        .optional(),
+
+    depth: z
+        .number()
+        .positive("Depth must be greater than 0")
+        .optional(),
+
+    waterSource: z
+        .string()
+        .min(2, "Water source is required")
+        .optional(),
+
+    gpsLocation: z
+        .string()
+        .optional(),
+
+    remarks: z
+        .string()
+        .optional()
+
+});

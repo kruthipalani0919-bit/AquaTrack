@@ -11,6 +11,7 @@ import medicineRoutes from "./medicine.routes.js";
 import harvestRoutes from "./harvest.routes.js";
 import dashboardRoutes from "./dashboard.routes.js";
 import reportRoutes from "./report.routes.js";
+import siteRoutes from "./site.routes.js";
 const router = Router();
 
 router.get("/health", healthCheck);
@@ -34,4 +35,6 @@ router.use("/harvests", harvestRoutes);
 router.use("/dashboard", dashboardRoutes);
 
 router.use("/reports", reportRoutes);
+
+router.use("/sites", siteRoutes);
 export default router;

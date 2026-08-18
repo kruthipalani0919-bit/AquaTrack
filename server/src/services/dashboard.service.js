@@ -8,14 +8,18 @@ export const getDashboard = async (userId) => {
 
     const tanks = await prisma.tank.findMany({
         where: {
-            farmId: farm.id
+            site: {
+                farmId: farm.id
+            }
         }
     });
 
     const activeCrops = await prisma.crop.findMany({
         where: {
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             },
             status: "ACTIVE"
         },
@@ -27,7 +31,9 @@ export const getDashboard = async (userId) => {
     const completedCrops = await prisma.crop.count({
         where: {
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             },
             status: "COMPLETED"
         }
@@ -37,7 +43,9 @@ export const getDashboard = async (userId) => {
         where: {
             crop: {
                 tank: {
-                    farmId: farm.id
+                    site: {
+                        farmId: farm.id
+                    }
                 }
             }
         }
@@ -47,7 +55,9 @@ export const getDashboard = async (userId) => {
         where: {
             crop: {
                 tank: {
-                    farmId: farm.id
+                    site: {
+                        farmId: farm.id
+                    }
                 }
             }
         }
@@ -56,7 +66,9 @@ export const getDashboard = async (userId) => {
     const medicines = await prisma.medicine.findMany({
         where: {
             tank: {
-                farmId: farm.id
+                site: {
+                    farmId: farm.id
+                }
             }
         }
     });
@@ -65,7 +77,9 @@ export const getDashboard = async (userId) => {
         where: {
             crop: {
                 tank: {
-                    farmId: farm.id
+                    site: {
+                        farmId: farm.id
+                    }
                 }
             }
         }

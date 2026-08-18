@@ -1,16 +1,26 @@
 import prisma from "../config/prisma.js";
 
-export const createTank = async (userId, tankData) => {
+import {
+    getUserFarm,
+    getUserSite,
+    getUserTank
+} from "../utils/farm.helpers.js";
 
-    const farm = await prisma.farm.findFirst({
-        where: {
-            userId
-        }
-    });
 
-    if (!farm) {
-        throw new Error("Please create a farm first.");
-    }
+/*
+ * Create a new Tank under a Site
+ */
+export const createTank = async (
+    userId,
+    tankData
+) => {
+
+    const farm = await getUserFarm(userId);
+
+    const site = await getUserSite(
+        farm.id,
+        tankData.siteId
+    );
 
     const tank = await prisma.tank.create({
 
@@ -24,11 +34,17 @@ export const createTank = async (userId, tankData) => {
 
             waterSource: tankData.waterSource,
 
+            gpsLocation: tankData.gpsLocation ?? null,
+
             remarks: tankData.remarks ?? null,
 
-            gpsLocation: null,
+            siteId: site.id
 
-            farmId: farm.id
+        },
+
+        include: {
+
+            site: true
 
         }
 
@@ -38,118 +54,168 @@ export const createTank = async (userId, tankData) => {
 
 };
 
+
+/*
+ * Get all Tanks belonging to the
+ * logged-in user's Farm
+ */
 export const getTanks = async (userId) => {
 
-    const farm = await prisma.farm.findFirst({
-        where: {
-            userId
-        }
-    });
-
-    if (!farm) {
-        throw new Error("Please create a farm first.");
-    }
+    const farm = await getUserFarm(userId);
 
     const tanks = await prisma.tank.findMany({
+
         where: {
-            farmId: farm.id
+
+            site: {
+
+                farmId: farm.id
+
+            }
+
+        },
+
+        include: {
+
+            site: true
+
+        },
+
+        orderBy: {
+
+            createdAt: "desc"
+
         }
+
     });
 
     return tanks;
 
 };
 
-export const getTankById = async (userId, tankId) => {
 
-    const farm = await prisma.farm.findFirst({
+/*
+ * Get a single Tank
+ */
+export const getTankById = async (
+    userId,
+    tankId
+) => {
+
+    const farm = await getUserFarm(userId);
+
+    const tank = await getUserTank(
+        farm.id,
+        tankId
+    );
+
+    return await prisma.tank.findUnique({
+
         where: {
-            userId
+
+            id: tank.id
+
+        },
+
+        include: {
+
+            site: true
+
         }
+
     });
-
-    if (!farm) {
-        throw new Error("Please create a farm first.");
-    }
-
-    const tank = await prisma.tank.findFirst({
-        where: {
-            id: tankId,
-            farmId: farm.id
-        }
-    });
-
-    if (!tank) {
-        throw new Error("Tank not found.");
-    }
-
-    return tank;
 
 };
 
-export const updateTank = async (userId, tankId, tankData) => {
 
-    const farm = await prisma.farm.findFirst({
-        where: {
-            userId
-        }
-    });
+/*
+ * Update a Tank
+ */
+export const updateTank = async (
+    userId,
+    tankId,
+    tankData
+) => {
 
-    if (!farm) {
-        throw new Error("Please create a farm first.");
-    }
+    const farm = await getUserFarm(userId);
 
-    const existingTank = await prisma.tank.findFirst({
-        where: {
-            id: tankId,
-            farmId: farm.id
-        }
-    });
+    const existingTank = await getUserTank(
+        farm.id,
+        tankId
+    );
 
-    if (!existingTank) {
-        throw new Error("Tank not found.");
+    const updateData = {
+        ...tankData
+    };
+
+    /*
+     * If the Site is being changed,
+     * verify that the new Site belongs
+     * to the logged-in user's Farm.
+     */
+    if (updateData.siteId) {
+
+        const site = await getUserSite(
+            farm.id,
+            updateData.siteId
+        );
+
+        updateData.siteId = site.id;
+
     }
 
     const updatedTank = await prisma.tank.update({
+
         where: {
-            id: tankId
+
+            id: existingTank.id
+
         },
-        data: tankData
+
+        data: updateData,
+
+        include: {
+
+            site: true
+
+        }
+
     });
 
     return updatedTank;
 
 };
 
-export const deleteTank = async (userId, tankId) => {
 
-    const farm = await prisma.farm.findFirst({
-        where: {
-            userId
-        }
-    });
+/*
+ * Delete a Tank
+ */
+export const deleteTank = async (
+    userId,
+    tankId
+) => {
 
-    if (!farm) {
-        throw new Error("Please create a farm first.");
-    }
+    const farm = await getUserFarm(userId);
 
-    const existingTank = await prisma.tank.findFirst({
-        where: {
-            id: tankId,
-            farmId: farm.id
-        }
-    });
-
-    if (!existingTank) {
-        throw new Error("Tank not found.");
-    }
+    const existingTank = await getUserTank(
+        farm.id,
+        tankId
+    );
 
     await prisma.tank.delete({
+
         where: {
-            id: tankId
+
+            id: existingTank.id
+
         }
+
     });
 
-    return { message: "Tank deleted successfully" };
+    return {
 
-};
+        message: "Tank deleted successfully"
+
+    };
+
+};

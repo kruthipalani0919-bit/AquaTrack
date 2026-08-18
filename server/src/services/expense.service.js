@@ -59,7 +59,11 @@ export const getExpenses = async (userId) => {
 
                 tank: {
 
-                    farmId: farm.id
+                    site: {
+
+                        farmId: farm.id
+
+                    }
 
                 }
 
@@ -110,7 +114,11 @@ export const getExpenseById = async (
 
                 tank: {
 
-                    farmId: farm.id
+                    site: {
+
+                        farmId: farm.id
+
+                    }
 
                 }
 
@@ -243,7 +251,11 @@ export const getExpenseSummary = async (
 
                 tank: {
 
-                    farmId: farm.id
+                    site: {
+
+                        farmId: farm.id
+
+                    }
 
                 }
 

@@ -17,7 +17,9 @@ export const createFeed = async (userId, feedData) => {
     const tank = await prisma.tank.findFirst({
         where: {
             id: feedData.tankId,
-            farmId: farm.id
+            site: {
+                farmId: farm.id
+            }
         }
     });
 
@@ -85,7 +87,9 @@ export const getFeeds = async (userId) => {
         where: {
             crop: {
                 tank: {
-                    farmId: farm.id
+                    site: {
+                        farmId: farm.id
+                    }
                 }
             }
         },
@@ -124,7 +128,9 @@ export const getFeedById = async (userId, feedId) => {
             id: feedId,
             crop: {
                 tank: {
-                    farmId: farm.id
+                    site: {
+                        farmId: farm.id
+                    }
                 }
             }
         },
@@ -221,7 +227,9 @@ export const getRecentFeeds = async (userId) => {
         where: {
             crop: {
                 tank: {
-                    farmId: farm.id
+                    site: {
+                        farmId: farm.id
+                    }
                 }
             }
         },
@@ -260,7 +268,9 @@ export const getTodayFeedSummary = async (userId) => {
 
             crop: {
                 tank: {
-                    farmId: farm.id
+                    site: {
+                        farmId: farm.id
+                    }
                 }
             },
 

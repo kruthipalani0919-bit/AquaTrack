@@ -1,20 +1,20 @@
 import {
-    createTank,
-    getTanks,
-    getTankById,
-    updateTank,
-    deleteTank
-} from "../services/tank.service.js";
+    createSite,
+    getSites,
+    getSiteById,
+    updateSite,
+    deleteSite
+} from "../services/site.service.js";
 
 
 /*
- * Create Tank
+ * Create Site
  */
-export const createTankController = async (req, res) => {
+export const createSiteController = async (req, res) => {
 
     try {
 
-        const tank = await createTank(
+        const site = await createSite(
             req.user.id,
             req.body
         );
@@ -23,9 +23,9 @@ export const createTankController = async (req, res) => {
 
             success: true,
 
-            message: "Tank created successfully",
+            message: "Site created successfully",
 
-            data: tank
+            data: site
 
         });
 
@@ -45,13 +45,13 @@ export const createTankController = async (req, res) => {
 
 
 /*
- * Get All Tanks
+ * Get all Sites
  */
-export const getTanksController = async (req, res) => {
+export const getSitesController = async (req, res) => {
 
     try {
 
-        const tanks = await getTanks(
+        const sites = await getSites(
             req.user.id
         );
 
@@ -59,9 +59,9 @@ export const getTanksController = async (req, res) => {
 
             success: true,
 
-            message: "Tanks fetched successfully",
+            message: "Sites fetched successfully",
 
-            data: tanks
+            data: sites
 
         });
 
@@ -81,24 +81,27 @@ export const getTanksController = async (req, res) => {
 
 
 /*
- * Get Tank By ID
+ * Get Site by ID
  */
-export const getTankByIdController = async (req, res) => {
+export const getSiteByIdController = async (req, res) => {
 
     try {
 
-        const tank = await getTankById(
+        const site = await getSiteById(
+
             req.user.id,
-            req.params.id
+
+            req.params.siteId
+
         );
 
         return res.status(200).json({
 
             success: true,
 
-            message: "Tank fetched successfully",
+            message: "Site fetched successfully",
 
-            data: tank
+            data: site
 
         });
 
@@ -118,25 +121,29 @@ export const getTankByIdController = async (req, res) => {
 
 
 /*
- * Update Tank
+ * Update Site
  */
-export const updateTankController = async (req, res) => {
+export const updateSiteController = async (req, res) => {
 
     try {
 
-        const tank = await updateTank(
+        const site = await updateSite(
+
             req.user.id,
-            req.params.id,
+
+            req.params.siteId,
+
             req.body
+
         );
 
         return res.status(200).json({
 
             success: true,
 
-            message: "Tank updated successfully",
+            message: "Site updated successfully",
 
-            data: tank
+            data: site
 
         });
 
@@ -156,15 +163,18 @@ export const updateTankController = async (req, res) => {
 
 
 /*
- * Delete Tank
+ * Delete Site
  */
-export const deleteTankController = async (req, res) => {
+export const deleteSiteController = async (req, res) => {
 
     try {
 
-        const result = await deleteTank(
+        const result = await deleteSite(
+
             req.user.id,
-            req.params.id
+
+            req.params.siteId
+
         );
 
         return res.status(200).json({

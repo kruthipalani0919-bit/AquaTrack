@@ -52,7 +52,11 @@ export const getMedicines = async (userId) => {
 
             tank: {
 
-                farmId: farm.id
+                site: {
+
+                    farmId: farm.id
+
+                }
 
             }
 
@@ -91,7 +95,11 @@ export const getMedicineById = async (
 
             tank: {
 
-                farmId: farm.id
+                site: {
+
+                    farmId: farm.id
+
+                }
 
             }
 
@@ -194,7 +202,11 @@ export const getMedicineSummary = async (
 
             tank: {
 
-                farmId: farm.id
+                site: {
+
+                    farmId: farm.id
+
+                }
 
             }
 

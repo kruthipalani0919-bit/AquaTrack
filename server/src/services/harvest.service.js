@@ -137,7 +137,11 @@ export const getHarvests = async (userId) => {
 
                 tank: {
 
-                    farmId: farm.id
+                    site: {
+
+                        farmId: farm.id
+
+                    }
 
                 }
 
@@ -186,7 +190,11 @@ export const getHarvestById = async (
 
                 tank: {
 
-                    farmId: farm.id
+                    site: {
+
+                        farmId: farm.id
+
+                    }
 
                 }
 
