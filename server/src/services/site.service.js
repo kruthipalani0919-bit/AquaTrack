@@ -4,6 +4,7 @@ import {
     getUserFarm
 } from "../utils/farm.helpers.js";
 
+
 /*
  * Create a new Site
  */
@@ -19,9 +20,7 @@ export const createSite = async (userId, siteData) => {
 
             location: siteData.location,
 
-            district: siteData.district,
-
-            state: siteData.state,
+            area: siteData.area,
 
             gpsLocation: siteData.gpsLocation ?? null,
 
