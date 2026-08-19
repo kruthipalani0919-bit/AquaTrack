@@ -7,16 +7,13 @@ export const expenseCategories = [
     "Electricity",
     "Generator & Diesel",
     "Labour",
-    "Harvest",
     "Maintenance",
-    "Medicine"
+    "Salaries"
 ];
 
 export const paymentModes = [
     "CASH",
-    "UPI",
-    "BANK",
-    "CARD"
+    "UPI"
 ];
 
 export const createExpenseSchema = z.object({

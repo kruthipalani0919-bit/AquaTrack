@@ -13,6 +13,9 @@ import {
 
 /*
  * Create Expense
+ *
+ * Categories and payment modes are validated
+ * by expense.validation.js.
  */
 export const createExpense = async (
     userId,
@@ -326,10 +329,19 @@ export const deleteExpense = async (
 /*
  * Get Expense Categories
  *
- * Categories are maintained in
- * expense.validation.js so that
- * validation and API response use
- * the same source.
+ * Uses the same category list from
+ * expense.validation.js.
+ *
+ * Current categories:
+ *
+ * Pond Lease
+ * Pond Preparation
+ * Seed Cost
+ * Electricity
+ * Generator & Diesel
+ * Labour
+ * Maintenance
+ * Salaries
  */
 export const getExpenseCategories = async () => {
 
