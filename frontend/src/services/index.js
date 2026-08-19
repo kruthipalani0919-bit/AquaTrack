@@ -10,3 +10,4 @@ export * from './medicineService';
 export * from './harvestService';
 export * from './dashboardService';
 export * from './reportService';
+export * from './stockingService';

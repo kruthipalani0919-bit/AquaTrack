@@ -2,21 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
+  MapPin,
   Container,
   Sprout,
+  Boxes,
   UtensilsCrossed,
+  Stethoscope,
   Receipt,
   Wheat,
+  FileSpreadsheet,
   ArrowRight,
-  Stethoscope,
-  BarChart3,
   Waves,
   IndianRupee
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardBody } from '../../components/Card';
 import { Button } from '../../components/Button';
-
 import dashboardService from '../../services/dashboardService';
 
 export default function Dashboard() {
@@ -81,20 +82,23 @@ export default function Dashboard() {
     },
   ];
 
+  // Exact 10 Quick Actions Modules. ONLY Stocking Management, Expenses, & Reports get the subtle blue highlight.
   const quickActions = [
-    { label: 'Farm Setup', path: '/farm-setup', icon: Building2 },
-    { label: 'Tanks', path: '/tanks', icon: Container },
-    { label: 'Crop Management', path: '/crops', icon: Sprout },
-    { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed },
-    { label: 'Medicines', path: '/medicines', icon: Stethoscope },
-    { label: 'Expenses', path: '/expenses', icon: Receipt },
-    { label: 'Harvest', path: '/harvest', icon: Wheat },
-    { label: 'Reports', path: '/reports', icon: BarChart3 },
+    { label: 'Farm Setup', path: '/farm-setup', icon: Building2, isHighlighted: false },
+    { label: 'Sites', path: '/sites', icon: MapPin, isHighlighted: false },
+    { label: 'Tanks', path: '/tanks', icon: Container, isHighlighted: false },
+    { label: 'Crop Management', path: '/crops', icon: Sprout, isHighlighted: false },
+    { label: 'Stocking Management', path: '/stocking', icon: Boxes, isHighlighted: true },
+    { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed, isHighlighted: false },
+    { label: 'Medicines', path: '/medicines', icon: Stethoscope, isHighlighted: false },
+    { label: 'Expenses', path: '/expenses', icon: Receipt, isHighlighted: true },
+    { label: 'Harvest', path: '/harvest', icon: Wheat, isHighlighted: false },
+    { label: 'Reports', path: '/reports', icon: FileSpreadsheet, isHighlighted: true },
   ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. SINGLE ESSENTIAL WELCOME BANNER (No badges, no repetitive text, no checklists) */}
+      {/* 1. WELCOME SECTION */}
       <div className="relative rounded-2xl bg-gradient-to-r from-teal-900 via-primary to-teal-800 text-white p-5 sm:p-6 shadow-md overflow-hidden border border-teal-700/40">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -108,7 +112,6 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Single Primary Action Button */}
           <div className="shrink-0">
             <Button
               variant="secondary"
@@ -124,7 +127,56 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 2. PREMIUM SUMMARY CARDS */}
+      {/* 2. QUICK ACTIONS (Directly below Welcome section) */}
+      <div className="bg-surface border border-border/80 rounded-2xl p-5 shadow-2xs space-y-3.5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
+            Quick Actions
+          </h2>
+          <span className="text-[11px] text-text-secondary">Direct access to active modules</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
+          {quickActions.map((action, idx) => {
+            const Icon = action.icon;
+            const isHighlighted = action.isHighlighted;
+
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => navigate(action.path)}
+                className={`flex flex-col items-center justify-center p-3.5 rounded-xl transition-all text-center group cursor-pointer border ${
+                  isHighlighted
+                    ? 'bg-primary-light/30 border-primary/30 hover:border-primary/60 hover:bg-primary-light/50 shadow-2xs'
+                    : 'bg-background border-border/70 hover:border-primary/50 hover:bg-teal-50/30'
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 shadow-2xs border transition-transform group-hover:scale-105 ${
+                    isHighlighted
+                      ? 'bg-primary-light text-primary border-primary/30'
+                      : 'bg-surface text-primary border-border/50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span
+                  className={`text-xs leading-tight transition-colors ${
+                    isHighlighted
+                      ? 'font-bold text-primary'
+                      : 'font-semibold text-text-primary group-hover:text-primary'
+                  }`}
+                >
+                  {action.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. FARM SUMMARY (Below Quick Actions) */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
@@ -169,38 +221,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 3. MODERN QUICK ACTIONS CARDS */}
-      <div className="bg-surface border border-border/80 rounded-2xl p-5 shadow-2xs space-y-3.5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
-            Quick Actions
-          </h2>
-          <span className="text-[11px] text-text-secondary">Direct access to active modules</span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {quickActions.map((action, idx) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => navigate(action.path)}
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-background border border-border/70 hover:border-primary/50 hover:bg-teal-50/30 transition-all text-center group cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-lg bg-surface text-primary group-hover:scale-105 flex items-center justify-center mb-1.5 shadow-2xs border border-border/50 transition-transform">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-semibold text-text-primary group-hover:text-primary transition-colors leading-tight">
-                  {action.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 4. ACTIVE CROPS OVERVIEW (Only rendered if real backend data exists) */}
+      {/* 4. ACTIVE CROPS OVERVIEW */}
       {activeCropsOverview.length > 0 && (
         <Card padding="relaxed" className="border-border/80 shadow-2xs">
           <CardHeader>

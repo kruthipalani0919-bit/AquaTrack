@@ -2,37 +2,30 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UtensilsCrossed, Container, Calendar, IndianRupee, Package, Layers } from 'lucide-react';
+import { UtensilsCrossed, Container, Calendar, IndianRupee, Package } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
 import { Button } from '../Button';
-
-import {
-  FEED_BRAND_OPTIONS,
-  FEED_TYPE_OPTIONS,
-  FEED_SIZE_OPTIONS
-} from '../../constants/feedData';
 import { useTanks } from '../../context/TankContext';
 
-// Zod Validation Schema matching backend contract (POST /api/feed)
+// Zod Validation Schema matching required text inputs
 const feedSchema = z.object({
   tankId: z
     .string()
-    .min(1, 'Please select a Tank / Pond'),
+    .min(1, 'Please select a Tank'),
   date: z
     .string()
     .min(1, 'Date is required'),
-  feedType: z
-    .string()
-    .min(1, 'Please select a Feed Type'),
   feedBrand: z
     .string()
-    .min(1, 'Please select a Feed Brand'),
-  feedSize: z
+    .min(1, 'Feed Brand is required')
+    .trim(),
+  feedType: z
     .string()
-    .min(1, 'Please select a Feed Size'),
+    .min(1, 'Feed Type is required')
+    .trim(),
   quantity: z
     .coerce
     .number({ invalid_type_error: 'Quantity must be a number' })
@@ -48,8 +41,9 @@ const feedSchema = z.object({
 
 /**
  * Reusable FeedForm component with dynamic Tank dropdown from TankContext.
- * Contains ONLY backend-supported fields: tankId, date, feedType, feedBrand, feedSize, quantity, costPerKg, notes.
- * Note: totalCost is NOT calculated or submitted in the backend payload.
+ * Contains user customizable text inputs for Feed Brand and Feed Type.
+ * Feed Size / Pellet Size field is completely removed.
+ * Internal fallback feedSize is provided to maintain 100% backend API contract compatibility.
  */
 export const FeedForm = ({
   initialData = null,
@@ -75,9 +69,8 @@ export const FeedForm = ({
     defaultValues: {
       tankId: '',
       date: new Date().toISOString().split('T')[0],
-      feedType: '',
       feedBrand: '',
-      feedSize: '',
+      feedType: '',
       quantity: '',
       costPerKg: '',
       notes: '',
@@ -90,9 +83,8 @@ export const FeedForm = ({
       reset({
         tankId: initialData.tankId || '',
         date: initialData.date || initialData.feedingDate || '',
-        feedType: initialData.feedType || '',
         feedBrand: initialData.feedBrand || '',
-        feedSize: initialData.feedSize || '1.2mm',
+        feedType: initialData.feedType || '',
         quantity: initialData.quantity || initialData.quantityKg || '',
         costPerKg: initialData.costPerKg || (initialData.feedCost && initialData.quantityKg ? initialData.feedCost / initialData.quantityKg : ''),
         notes: initialData.notes || '',
@@ -104,25 +96,21 @@ export const FeedForm = ({
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
 
     // Backend Request Model: { tankId, date, feedType, feedBrand, feedSize, quantity, costPerKg, notes }
-    // Rule: The frontend must NOT calculate totalCost in the backend payload.
     const feedPayload = {
       tankId: data.tankId,
       date: data.date,
-      feedType: data.feedType,
-      feedBrand: data.feedBrand,
-      feedSize: data.feedSize,
+      feedBrand: data.feedBrand.trim(),
+      feedType: data.feedType.trim(),
+      feedSize: initialData?.feedSize || '1.2mm',
       quantity: parseFloat(data.quantity),
       costPerKg: parseFloat(data.costPerKg),
       notes: data.notes ? data.notes.trim() : '',
     };
 
-    console.log('Backend Feed Payload:', feedPayload);
-
     if (onSubmit) {
       onSubmit({
         ...feedPayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
-        // Display helpers for local mock list
+        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
         quantityKg: feedPayload.quantity,
         feedingDate: feedPayload.date,
         feedCost: feedPayload.quantity * feedPayload.costPerKg,
@@ -140,9 +128,9 @@ export const FeedForm = ({
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
-            label="Select Pond / Tank"
+            label="Choose Tank"
             required={true}
-            placeholder="Choose pond..."
+            placeholder="Choose tank..."
             options={tankSelectOptions}
             error={errors.tankId?.message}
             {...register('tankId')}
@@ -165,33 +153,24 @@ export const FeedForm = ({
           <Package className="w-3.5 h-3.5 text-primary" /> Feed Specifications
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
+          <Input
             label="Feed Brand"
+            type="text"
+            placeholder="Enter feed brand..."
             required={true}
-            placeholder="Select brand..."
-            options={FEED_BRAND_OPTIONS}
+            icon={<Package className="w-4 h-4" />}
             error={errors.feedBrand?.message}
             {...register('feedBrand')}
           />
 
-          <Select
+          <Input
             label="Feed Type"
+            type="text"
+            placeholder="Enter feed type..."
             required={true}
-            placeholder="Select type..."
-            options={FEED_TYPE_OPTIONS}
+            icon={<Package className="w-4 h-4" />}
             error={errors.feedType?.message}
             {...register('feedType')}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Feed Size / Pellet Size"
-            required={true}
-            placeholder="Select size..."
-            options={FEED_SIZE_OPTIONS}
-            error={errors.feedSize?.message}
-            {...register('feedSize')}
           />
         </div>
       </div>
@@ -254,7 +233,7 @@ export const FeedForm = ({
           isLoading={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Feed Log' : 'Save Feed Record'}
+          {isEditing ? 'Update Feed Log' : 'Record Feed'}
         </Button>
       </div>
     </form>
