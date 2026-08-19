@@ -3,35 +3,20 @@ import { X } from 'lucide-react';
 import { SearchBar } from '../SearchBar';
 import { Select } from '../Select';
 import { Button } from '../Button';
-import { WATER_SOURCE_OPTIONS, TANK_STATUS_OPTIONS } from '../../constants/tankData';
 
 /**
- * Reusable TankFilters component for search & multi-dropdown filtering.
+ * Reusable TankFilters component for search & site dropdown filtering.
  */
 export const TankFilters = ({
   searchQuery = '',
   onSearchChange,
-  statusFilter = '',
-  onStatusChange,
-  sourceFilter = '',
-  onSourceChange,
   siteFilter = '',
   onSiteChange,
   sites = [],
   onReset,
   className = '',
 }) => {
-  const hasActiveFilters = Boolean(searchQuery || statusFilter || sourceFilter || siteFilter);
-
-  const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    ...TANK_STATUS_OPTIONS,
-  ];
-
-  const sourceOptions = [
-    { value: '', label: 'All Water Sources' },
-    ...WATER_SOURCE_OPTIONS,
-  ];
+  const hasActiveFilters = Boolean(searchQuery || siteFilter);
 
   const siteOptions = [
     { value: '', label: 'All Sites' },
@@ -54,7 +39,7 @@ export const TankFilters = ({
       <div className="flex flex-wrap items-center gap-3 shrink-0">
         {/* Site Dropdown */}
         {sites.length > 0 && (
-          <div className="w-36 sm:w-44">
+          <div className="w-40 sm:w-48">
             <Select
               placeholder=""
               options={siteOptions}
@@ -64,28 +49,6 @@ export const TankFilters = ({
             />
           </div>
         )}
-
-        {/* Status Dropdown */}
-        <div className="w-36 sm:w-44">
-          <Select
-            placeholder=""
-            options={statusOptions}
-            value={statusFilter}
-            onChange={(e) => onStatusChange(e.target.value)}
-            fullWidth
-          />
-        </div>
-
-        {/* Water Source Dropdown */}
-        <div className="w-40 sm:w-48">
-          <Select
-            placeholder=""
-            options={sourceOptions}
-            value={sourceFilter}
-            onChange={(e) => onSourceChange(e.target.value)}
-            fullWidth
-          />
-        </div>
 
         {/* Clear / Reset Filters Button */}
         {hasActiveFilters && (

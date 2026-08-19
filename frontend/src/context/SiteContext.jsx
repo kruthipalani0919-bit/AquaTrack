@@ -20,7 +20,11 @@ export const SiteProvider = ({ children }) => {
     try {
       const res = await siteService.getSites();
       const siteList = res.data || res || [];
-      setSites(Array.isArray(siteList) ? siteList : []);
+      const normalized = (Array.isArray(siteList) ? siteList : []).map((s) => ({
+        ...s,
+        landArea: s.landArea ?? s.area ?? s.totalArea ?? null,
+      }));
+      setSites(normalized);
     } catch (err) {
       console.error('Error fetching sites:', err);
       setError(err.message);
@@ -37,16 +41,18 @@ export const SiteProvider = ({ children }) => {
     const payload = {
       siteName: newSiteData.siteName?.trim(),
       location: newSiteData.location?.trim(),
-      district: newSiteData.district?.trim(),
-      state: newSiteData.state?.trim(),
-      gpsLocation: newSiteData.gpsLocation?.trim() || undefined,
-      remarks: newSiteData.remarks?.trim() || undefined,
+      district: newSiteData.district?.trim() || 'District',
+      state: newSiteData.state?.trim() || 'State',
     };
 
     const res = await siteService.createSite(payload);
     const created = res.data || res;
-    setSites((prev) => [created, ...prev]);
-    return created;
+    const result = {
+      ...created,
+      landArea: newSiteData.landArea ? parseFloat(newSiteData.landArea) : (created.landArea || created.area || null),
+    };
+    setSites((prev) => [result, ...prev]);
+    return result;
   };
 
   const updateSite = async (siteId, updatedData) => {
@@ -55,16 +61,18 @@ export const SiteProvider = ({ children }) => {
       ...(updatedData.location ? { location: updatedData.location.trim() } : {}),
       ...(updatedData.district ? { district: updatedData.district.trim() } : {}),
       ...(updatedData.state ? { state: updatedData.state.trim() } : {}),
-      ...(updatedData.gpsLocation !== undefined ? { gpsLocation: updatedData.gpsLocation?.trim() || '' } : {}),
-      ...(updatedData.remarks !== undefined ? { remarks: updatedData.remarks?.trim() || '' } : {}),
     };
 
     const res = await siteService.updateSite(siteId, payload);
     const updated = res.data || res;
+    const result = {
+      ...updated,
+      landArea: updatedData.landArea !== undefined ? parseFloat(updatedData.landArea) : (updated.landArea || updated.area || null),
+    };
     setSites((prev) =>
-      prev.map((site) => (site.id === siteId ? { ...site, ...updated } : site))
+      prev.map((site) => (site.id === siteId ? { ...site, ...result } : site))
     );
-    return updated;
+    return result;
   };
 
   const deleteSite = async (siteId) => {

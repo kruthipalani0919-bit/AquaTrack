@@ -1,12 +1,12 @@
 import React from 'react';
-import { MapPin, Navigation, Container, Edit3, Trash2, ArrowRight } from 'lucide-react';
+import { MapPin, Container, Edit3, Trash2, Layers } from 'lucide-react';
 import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
  * Reusable SiteCard component for displaying Site summary details,
- * location info, associated tank counts, and action buttons.
+ * land area (Acres), location info, associated tank counts, and action buttons.
  */
 export const SiteCard = ({
   site = {},
@@ -19,15 +19,15 @@ export const SiteCard = ({
     id,
     siteName,
     location,
-    district,
-    state,
-    gpsLocation,
-    remarks,
+    landArea,
+    area,
+    totalArea,
     tanks,
     _count,
   } = site;
 
   const tankCount = Array.isArray(tanks) ? tanks.length : (_count?.tanks || 0);
+  const displayLandArea = landArea ?? area ?? totalArea ?? null;
 
   return (
     <Card
@@ -58,47 +58,29 @@ export const SiteCard = ({
         </Badge>
       </div>
 
-      {/* Details Grid */}
+      {/* Details Grid (Land Area & Location) */}
       <div className="grid grid-cols-2 gap-2 py-4 border-b border-border/60 text-center">
-        <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40 min-w-0">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider truncate">
-            District
+        <div className="flex flex-col items-center p-2.5 rounded-lg bg-background/60 border border-border/40 min-w-0">
+          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider truncate flex items-center gap-1">
+            <Layers className="w-3 h-3 text-primary" /> Land Area
           </span>
-          <span className="text-xs font-bold text-text-primary mt-0.5 truncate w-full" title={district}>
-            {district}
+          <span className="text-xs font-bold text-primary mt-0.5 truncate w-full">
+            {displayLandArea ? `${displayLandArea} Acres` : 'N/A'}
           </span>
         </div>
 
-        <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40 min-w-0">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider truncate">
-            State
+        <div className="flex flex-col items-center p-2.5 rounded-lg bg-background/60 border border-border/40 min-w-0">
+          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider truncate flex items-center gap-1">
+            <MapPin className="w-3 h-3 text-primary" /> Location
           </span>
-          <span className="text-xs font-bold text-text-primary mt-0.5 truncate w-full" title={state}>
-            {state}
+          <span className="text-xs font-bold text-text-primary mt-0.5 truncate w-full" title={location}>
+            {location || 'N/A'}
           </span>
         </div>
       </div>
 
-      {/* GPS & Remarks */}
-      {(gpsLocation || remarks) && (
-        <div className="py-3 text-xs text-text-secondary space-y-1">
-          {gpsLocation && (
-            <div className="flex items-center gap-1.5 text-[11px] text-text-secondary truncate">
-              <Navigation className="w-3 h-3 text-primary shrink-0" />
-              <span className="font-medium truncate">{gpsLocation}</span>
-            </div>
-          )}
-          {remarks && (
-            <p className="line-clamp-2 leading-relaxed text-xs">
-              <span className="font-semibold text-text-primary">Note: </span>
-              {remarks}
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Card Actions Footer */}
-      <div className="pt-3 flex items-center justify-between gap-2 mt-auto border-t border-border/40">
+      <div className="pt-3 flex items-center justify-between gap-2 mt-auto">
         <Button
           variant="outline"
           size="sm"

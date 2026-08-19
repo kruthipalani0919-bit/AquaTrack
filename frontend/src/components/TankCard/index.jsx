@@ -1,12 +1,11 @@
 import React from 'react';
-import { Container, Waves, Eye, Edit3, Trash2, Maximize2, Layers } from 'lucide-react';
+import { Container, MapPin, Eye, Edit3, Trash2, Maximize2 } from 'lucide-react';
 import { Card } from '../Card';
-import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Reusable TankCard component displaying tank details, dimensions,
- * status badge, calculated volume, and action buttons.
+ * Reusable TankCard component displaying registered tank details:
+ * Tank Name, Site Name, Area (Acres), and Action Triggers.
  */
 export const TankCard = ({
   tank = {},
@@ -15,23 +14,10 @@ export const TankCard = ({
   onDelete,
   className = '',
 }) => {
-  const { id, name, tankName, area, depth, waterSource, status, remarks } = tank;
-  const displayName = name || tankName || 'Pond / Tank';
-
+  const { name, tankName, area, site, siteName } = tank;
+  const displayName = name || tankName || 'Tank';
+  const displaySite = site?.siteName || siteName || 'Site';
   const numericArea = parseFloat(area) || 0;
-  const numericDepth = parseFloat(depth) || 0;
-
-  const statusVariantMap = {
-    Active: 'success',
-    Preparation: 'warning',
-    Maintenance: 'neutral',
-  };
-
-  const statusLabelMap = {
-    Active: 'Active / Stocked',
-    Preparation: 'In Preparation',
-    Maintenance: 'Under Maintenance',
-  };
 
   return (
     <Card
@@ -39,65 +25,42 @@ export const TankCard = ({
       padding="normal"
       className={`flex flex-col justify-between border-border/80 bg-surface shadow-xs transition-all ${className}`}
     >
-      {/* Top Header Row */}
-      <div className="flex items-start justify-between gap-3 pb-3 border-b border-border/60">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-primary-light text-primary flex items-center justify-center shrink-0 shadow-xs">
-            <Container className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={displayName}>
-              {displayName}
-            </h3>
-            <span className="text-[11px] text-text-secondary flex items-center gap-1">
-              <Waves className="w-3 h-3 text-primary shrink-0" />
-              <span className="truncate">{waterSource || 'Fresh'} Water</span>
-            </span>
-          </div>
+      {/* Top Header Row: Icon, Tank Name, Site Name */}
+      <div className="flex items-start gap-3 pb-3 border-b border-border/60">
+        <div className="w-10 h-10 rounded-xl bg-primary-light text-primary flex items-center justify-center shrink-0 shadow-xs">
+          <Container className="w-5 h-5" />
         </div>
-
-        <Badge variant={statusVariantMap[status] || 'primary'} size="sm" className="shrink-0">
-          {statusLabelMap[status] || status || 'Active'}
-        </Badge>
-      </div>
-
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-2 py-4 border-b border-border/60 text-center">
-        <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider flex items-center gap-1">
-            <Maximize2 className="w-3 h-3 text-primary" /> Area
-          </span>
-          <span className="text-sm font-bold text-text-primary mt-0.5">
-            {numericArea} <span className="text-[11px] font-normal text-text-secondary">Acres</span>
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider flex items-center gap-1">
-            <Layers className="w-3 h-3 text-secondary" /> Depth
-          </span>
-          <span className="text-sm font-bold text-text-primary mt-0.5">
-            {numericDepth} <span className="text-[11px] font-normal text-text-secondary">ft</span>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-base text-text-primary truncate tracking-tight" title={displayName}>
+            {displayName}
+          </h3>
+          <span className="text-xs text-text-secondary flex items-center gap-1 mt-0.5">
+            <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="truncate font-medium">{displaySite}</span>
           </span>
         </div>
       </div>
 
-      {/* Remarks Snippet */}
-      {remarks && (
-        <div className="py-3 text-xs text-text-secondary line-clamp-2 leading-relaxed">
-          <span className="font-semibold text-text-primary">Note: </span>
-          {remarks}
+      {/* Area Specification Box */}
+      <div className="py-4 border-b border-border/60">
+        <div className="flex flex-col items-start p-3 rounded-lg bg-background/60 border border-border/40">
+          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider flex items-center gap-1.5">
+            <Maximize2 className="w-3.5 h-3.5 text-primary" /> Area
+          </span>
+          <span className="text-sm font-bold text-text-primary mt-1">
+            {numericArea > 0 ? `${numericArea} Acres` : 'Not specified'}
+          </span>
         </div>
-      )}
+      </div>
 
       {/* Card Actions Footer */}
-      <div className="pt-3 flex items-center justify-between gap-2 mt-auto border-t border-border/40">
+      <div className="pt-3 flex items-center justify-between gap-2 mt-auto">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={() => onView && onView(tank)}
           icon={<Eye className="w-4 h-4 text-primary" />}
-          className="text-xs text-primary font-medium"
+          className="text-xs font-medium"
         >
           Details
         </Button>
@@ -106,7 +69,7 @@ export const TankCard = ({
           <button
             type="button"
             onClick={() => onEdit && onEdit(tank)}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors"
+            className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors cursor-pointer"
             title="Edit Tank"
             aria-label={`Edit ${displayName}`}
           >
@@ -116,7 +79,7 @@ export const TankCard = ({
           <button
             type="button"
             onClick={() => onDelete && onDelete(tank)}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
+            className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors cursor-pointer"
             title="Delete Tank"
             aria-label={`Delete ${displayName}`}
           >

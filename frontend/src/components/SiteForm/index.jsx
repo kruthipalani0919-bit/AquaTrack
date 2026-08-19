@@ -2,38 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MapPin, ShieldAlert, Building } from 'lucide-react';
+import { MapPin, ShieldAlert, Building, Layers } from 'lucide-react';
 
 import { Input } from '../Input';
-import { Textarea } from '../Textarea';
 import { Button } from '../Button';
 
-// Zod Validation Schema matching backend contract (POST /api/sites)
+// Zod Validation Schema strictly matching required fields: Site Name, Land Area (Acres), Location
 const siteSchema = z.object({
   siteName: z
     .string()
     .min(2, 'Site name must be at least 2 characters')
     .trim(),
+  landArea: z
+    .coerce
+    .number({ invalid_type_error: 'Land area must be a valid number' })
+    .positive('Land area must be greater than 0'),
   location: z
     .string()
     .min(2, 'Location is required')
     .trim(),
-  district: z
-    .string()
-    .min(2, 'District is required')
-    .trim(),
-  state: z
-    .string()
-    .min(2, 'State is required')
-    .trim(),
-  remarks: z
-    .string()
-    .optional(),
 });
 
 /**
  * Reusable SiteForm component for Add & Edit Site operations.
- * Features a light-blue highlighted container around Site Name ONLY.
+ * Simplified structure:
+ * 1. SITE NAME *
+ * 2. LAND DETAILS (Land Area in Acres *)
+ * 3. LOCATION *
+ * District, State, and Remarks are completely removed.
  */
 export const SiteForm = ({
   initialData = null,
@@ -54,10 +50,8 @@ export const SiteForm = ({
     resolver: zodResolver(siteSchema),
     defaultValues: {
       siteName: '',
+      landArea: '',
       location: '',
-      district: '',
-      state: '',
-      remarks: '',
     },
     mode: 'onTouched',
   });
@@ -66,18 +60,14 @@ export const SiteForm = ({
     if (initialData) {
       reset({
         siteName: initialData.siteName || '',
+        landArea: initialData.landArea ?? initialData.area ?? initialData.totalArea ?? '',
         location: initialData.location || '',
-        district: initialData.district || '',
-        state: initialData.state || '',
-        remarks: initialData.remarks || '',
       });
     } else {
       reset({
         siteName: '',
+        landArea: '',
         location: '',
-        district: '',
-        state: '',
-        remarks: '',
       });
     }
   }, [initialData, reset]);
@@ -88,10 +78,10 @@ export const SiteForm = ({
       if (onSubmit) {
         await onSubmit({
           siteName: data.siteName.trim(),
+          landArea: parseFloat(data.landArea),
           location: data.location.trim(),
-          district: data.district.trim(),
-          state: data.state.trim(),
-          remarks: data.remarks ? data.remarks.trim() : undefined,
+          district: initialData?.district || 'District',
+          state: initialData?.state || 'State',
         });
       }
     } catch (err) {
@@ -108,23 +98,35 @@ export const SiteForm = ({
         </div>
       )}
 
-      {/* HIGHLIGHTED CONTAINER: SITE INFORMATION (SITE NAME ONLY) */}
+      {/* 1. SITE NAME */}
+      <Input
+        label="Site Name"
+        type="text"
+        placeholder="e.g. North Zone Site 1"
+        required={true}
+        icon={<Building className="w-4 h-4 text-primary" />}
+        error={errors.siteName?.message}
+        {...register('siteName')}
+      />
+
+      {/* 2. LAND DETAILS (VISUALLY CUSTOMIZED CARD SECTION) */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-1.5">
-          <Building className="w-3.5 h-3.5 text-primary" /> Site Information
+          <Layers className="w-3.5 h-3.5 text-primary" /> Land Details
         </h4>
         <Input
-          label="Site Name"
-          type="text"
-          placeholder="e.g. North Zone Site 1"
+          label="Land Area (Acres)"
+          type="number"
+          step="0.01"
+          placeholder="e.g. 5.5"
           required={true}
-          icon={<Building className="w-4 h-4 text-primary" />}
-          error={errors.siteName?.message}
-          {...register('siteName')}
+          icon={<Layers className="w-4 h-4 text-primary" />}
+          error={errors.landArea?.message}
+          {...register('landArea')}
         />
       </div>
 
-      {/* LOCATION (OUTSIDE HIGHLIGHTED SECTION) */}
+      {/* 3. LOCATION */}
       <Input
         label="Location"
         type="text"
@@ -133,38 +135,6 @@ export const SiteForm = ({
         icon={<MapPin className="w-4 h-4" />}
         error={errors.location?.message}
         {...register('location')}
-      />
-
-      {/* DISTRICT & STATE ROW (OUTSIDE HIGHLIGHTED SECTION) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label="District"
-          type="text"
-          placeholder="e.g. Nellore"
-          required={true}
-          icon={<MapPin className="w-4 h-4" />}
-          error={errors.district?.message}
-          {...register('district')}
-        />
-
-        <Input
-          label="State"
-          type="text"
-          placeholder="e.g. Andhra Pradesh"
-          required={true}
-          icon={<MapPin className="w-4 h-4" />}
-          error={errors.state?.message}
-          {...register('state')}
-        />
-      </div>
-
-      {/* REMARKS (OPTIONAL) (OUTSIDE HIGHLIGHTED SECTION) */}
-      <Textarea
-        label="Remarks / Notes (Optional)"
-        placeholder="Add details on site infrastructure, soil type, access roads, etc."
-        rows={3}
-        error={errors.remarks?.message}
-        {...register('remarks')}
       />
 
       {/* ACTION BUTTONS */}
