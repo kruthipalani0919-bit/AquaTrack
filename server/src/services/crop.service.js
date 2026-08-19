@@ -1,5 +1,18 @@
 import prisma from "../config/prisma.js";
 
+
+/*
+ * Create Crop
+ *
+ * Current Crop registration UI only requires:
+ * - Tank
+ * - Stocking Date
+ * - Seed Variety
+ * - Batch Number
+ * - Notes (optional)
+ *
+ * Other legacy Crop fields are stored as null.
+ */
 export const createCrop = async (userId, cropData) => {
 
     const farm = await prisma.farm.findFirst({
@@ -12,6 +25,11 @@ export const createCrop = async (userId, cropData) => {
         throw new Error("Please create a farm first.");
     }
 
+
+    /*
+     * Verify that the selected Tank
+     * belongs to the logged-in user's Farm.
+     */
     const tank = await prisma.tank.findFirst({
         where: {
             id: cropData.tankId,
@@ -25,6 +43,11 @@ export const createCrop = async (userId, cropData) => {
         throw new Error("Tank not found.");
     }
 
+
+    /*
+     * Only one ACTIVE crop is allowed
+     * in a Tank at a time.
+     */
     const activeCrop = await prisma.crop.findFirst({
         where: {
             tankId: cropData.tankId,
@@ -33,32 +56,51 @@ export const createCrop = async (userId, cropData) => {
     });
 
     if (activeCrop) {
-        throw new Error("This tank already has an active crop.");
+        throw new Error(
+            "This tank already has an active crop."
+        );
     }
 
+
+    /*
+     * Create Crop using only the fields
+     * currently required by the frontend.
+     *
+     * Legacy fields are intentionally set to null.
+     */
     const crop = await prisma.crop.create({
 
         data: {
 
             tankId: cropData.tankId,
 
-            cropName: cropData.cropName,
+            stockingDate:
+                new Date(cropData.stockingDate),
 
-            seedVariety: cropData.seedVariety,
+            seedVariety:
+                cropData.seedVariety,
 
-            plCount: cropData.plCount,
+            batchNumber:
+                cropData.batchNumber,
 
-            stockingDate: new Date(cropData.stockingDate),
+            notes:
+                cropData.notes ?? null,
 
-            expectedHarvestDate: new Date(cropData.expectedHarvestDate),
+            /*
+             * Legacy fields not currently used
+             * by the Crop registration UI.
+             */
+            cropName: null,
 
-            cropDuration: cropData.cropDuration,
+            plCount: null,
 
-            expectedProduction: cropData.expectedProduction,
+            expectedHarvestDate: null,
 
-            expectedSellingPrice: cropData.expectedSellingPrice,
+            cropDuration: null,
 
-            notes: cropData.notes ?? null,
+            expectedProduction: null,
+
+            expectedSellingPrice: null,
 
             status: "ACTIVE"
 
@@ -70,6 +112,10 @@ export const createCrop = async (userId, cropData) => {
 
 };
 
+
+/*
+ * Get all Crops
+ */
 export const getCrops = async (userId) => {
 
     const farm = await prisma.farm.findFirst({
@@ -83,19 +129,31 @@ export const getCrops = async (userId) => {
     }
 
     const crops = await prisma.crop.findMany({
+
         where: {
+
             tank: {
+
                 site: {
+
                     farmId: farm.id
+
                 }
+
             }
+
         }
+
     });
 
     return crops;
 
 };
 
+
+/*
+ * Get Active Crops
+ */
 export const getActiveCrops = async (userId) => {
 
     const farm = await prisma.farm.findFirst({
@@ -109,21 +167,37 @@ export const getActiveCrops = async (userId) => {
     }
 
     const activeCrops = await prisma.crop.findMany({
+
         where: {
+
             status: "ACTIVE",
+
             tank: {
+
                 site: {
+
                     farmId: farm.id
+
                 }
+
             }
+
         }
+
     });
 
     return activeCrops;
 
 };
 
-export const getCropById = async (userId, cropId) => {
+
+/*
+ * Get Crop by ID
+ */
+export const getCropById = async (
+    userId,
+    cropId
+) => {
 
     const farm = await prisma.farm.findFirst({
         where: {
@@ -136,14 +210,23 @@ export const getCropById = async (userId, cropId) => {
     }
 
     const crop = await prisma.crop.findFirst({
+
         where: {
+
             id: cropId,
+
             tank: {
+
                 site: {
+
                     farmId: farm.id
+
                 }
+
             }
+
         }
+
     });
 
     if (!crop) {
@@ -154,7 +237,19 @@ export const getCropById = async (userId, cropId) => {
 
 };
 
-export const updateCrop = async (userId, cropId, cropData) => {
+
+/*
+ * Update Crop
+ *
+ * Supports the current Crop fields while
+ * preserving the existing tank ownership
+ * and active-crop validation logic.
+ */
+export const updateCrop = async (
+    userId,
+    cropId,
+    cropData
+) => {
 
     const farm = await prisma.farm.findFirst({
         where: {
@@ -166,77 +261,155 @@ export const updateCrop = async (userId, cropId, cropData) => {
         throw new Error("Please create a farm first.");
     }
 
+
     const existingCrop = await prisma.crop.findFirst({
+
         where: {
+
             id: cropId,
+
             tank: {
+
                 site: {
+
                     farmId: farm.id
+
                 }
+
             }
+
         }
+
     });
 
     if (!existingCrop) {
         throw new Error("Crop not found.");
     }
 
-    const updateData = { ...cropData };
 
+    const updateData = {
+        ...cropData
+    };
+
+
+    /*
+     * Convert date strings to Date objects.
+     */
     if (updateData.stockingDate) {
-        updateData.stockingDate = new Date(updateData.stockingDate);
+
+        updateData.stockingDate =
+            new Date(updateData.stockingDate);
+
     }
+
 
     if (updateData.expectedHarvestDate) {
-        updateData.expectedHarvestDate = new Date(updateData.expectedHarvestDate);
+
+        updateData.expectedHarvestDate =
+            new Date(updateData.expectedHarvestDate);
+
     }
 
-    if (updateData.tankId && updateData.tankId !== existingCrop.tankId) {
-        const targetTank = await prisma.tank.findFirst({
-            where: {
-                id: updateData.tankId,
-                site: {
-                    farmId: farm.id
+
+    /*
+     * If Tank is being changed,
+     * verify that the new Tank belongs
+     * to the same Farm.
+     */
+    if (
+        updateData.tankId &&
+        updateData.tankId !== existingCrop.tankId
+    ) {
+
+        const targetTank =
+            await prisma.tank.findFirst({
+
+                where: {
+
+                    id: updateData.tankId,
+
+                    site: {
+
+                        farmId: farm.id
+
+                    }
+
                 }
-            }
-        });
+
+            });
 
         if (!targetTank) {
             throw new Error("Tank not found.");
         }
+
     }
 
-    const targetTankId = updateData.tankId || existingCrop.tankId;
-    const targetStatus = updateData.status || existingCrop.status;
+
+    /*
+     * Preserve existing active-crop protection.
+     */
+    const targetTankId =
+        updateData.tankId ||
+        existingCrop.tankId;
+
+    const targetStatus =
+        updateData.status ||
+        existingCrop.status;
+
 
     if (targetStatus === "ACTIVE") {
-        const activeCrop = await prisma.crop.findFirst({
-            where: {
-                tankId: targetTankId,
-                status: "ACTIVE",
-                id: {
-                    not: cropId
+
+        const activeCrop =
+            await prisma.crop.findFirst({
+
+                where: {
+
+                    tankId: targetTankId,
+
+                    status: "ACTIVE",
+
+                    id: {
+                        not: cropId
+                    }
+
                 }
-            }
-        });
+
+            });
 
         if (activeCrop) {
-            throw new Error("This tank already has an active crop.");
+
+            throw new Error(
+                "This tank already has an active crop."
+            );
+
         }
+
     }
 
-    const updatedCrop = await prisma.crop.update({
-        where: {
-            id: cropId
-        },
-        data: updateData
-    });
+
+    const updatedCrop =
+        await prisma.crop.update({
+
+            where: {
+                id: cropId
+            },
+
+            data: updateData
+
+        });
 
     return updatedCrop;
 
 };
 
-export const completeCrop = async (userId, cropId) => {
+
+/*
+ * Complete Crop
+ */
+export const completeCrop = async (
+    userId,
+    cropId
+) => {
 
     const farm = await prisma.farm.findFirst({
         where: {
@@ -248,35 +421,61 @@ export const completeCrop = async (userId, cropId) => {
         throw new Error("Please create a farm first.");
     }
 
+
     const crop = await prisma.crop.findFirst({
+
         where: {
+
             id: cropId,
+
             tank: {
+
                 site: {
+
                     farmId: farm.id
+
                 }
+
             }
+
         }
+
     });
 
     if (!crop) {
         throw new Error("Crop not found.");
     }
 
-    const updatedCrop = await prisma.crop.update({
-        where: {
-            id: cropId
-        },
-        data: {
-            status: "COMPLETED"
-        }
-    });
+
+    const updatedCrop =
+        await prisma.crop.update({
+
+            where: {
+
+                id: cropId
+
+            },
+
+            data: {
+
+                status: "COMPLETED"
+
+            }
+
+        });
 
     return updatedCrop;
 
 };
 
-export const deleteCrop = async (userId, cropId) => {
+
+/*
+ * Delete Crop
+ */
+export const deleteCrop = async (
+    userId,
+    cropId
+) => {
 
     const farm = await prisma.farm.findFirst({
         where: {
@@ -288,27 +487,45 @@ export const deleteCrop = async (userId, cropId) => {
         throw new Error("Please create a farm first.");
     }
 
+
     const crop = await prisma.crop.findFirst({
+
         where: {
+
             id: cropId,
+
             tank: {
+
                 site: {
+
                     farmId: farm.id
+
                 }
+
             }
+
         }
+
     });
 
     if (!crop) {
         throw new Error("Crop not found.");
     }
+
 
     await prisma.crop.delete({
+
         where: {
+
             id: cropId
+
         }
+
     });
 
-    return { message: "Crop deleted successfully" };
 
-};
+    return {
+        message: "Crop deleted successfully"
+    };
+
+};

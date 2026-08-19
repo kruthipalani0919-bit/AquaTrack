@@ -1,27 +1,42 @@
 import { z } from "zod";
 
+
+/*
+ * Create Crop
+ *
+ * Only the fields required by the
+ * current Crop registration UI are accepted.
+ */
 export const createCropSchema = z.object({
 
-    tankId: z.string().min(1),
+    tankId: z
+        .string()
+        .min(1, "Tank is required"),
 
-    cropName: z.string().min(2),
+    stockingDate: z
+        .string()
+        .min(1, "Stocking date is required"),
 
-    seedVariety: z.string().min(2),
+    seedVariety: z
+        .string()
+        .min(2, "Seed variety is required"),
 
-    plCount: z.number().int().positive(),
+    batchNumber: z
+        .string()
+        .min(1, "Batch number is required"),
 
-    stockingDate: z.string(),
-
-    expectedHarvestDate: z.string(),
-
-    cropDuration: z.number().positive(),
-
-    expectedProduction: z.number().positive(),
-
-    expectedSellingPrice: z.number().positive(),
-
-    notes: z.string().optional()
+    notes: z
+        .string()
+        .optional()
 
 });
 
-export const updateCropSchema = createCropSchema.partial();
+
+/*
+ * Update Crop
+ *
+ * All Crop creation fields become optional
+ * during update.
+ */
+export const updateCropSchema =
+    createCropSchema.partial();

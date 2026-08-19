@@ -22,6 +22,7 @@ enum PaymentMode {
 enum StockCategory {
   FEED
   MEDICINE
+  SEED
 }
 
 model User {
@@ -87,6 +88,13 @@ model Stocking {
 
   unit String @default("kg")
 
+  /*
+   * Used for Seed stocking.
+   *
+   * Feed and Medicine can keep this as null.
+   */
+  costPerKg Float?
+
   farmId String
   farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
 
@@ -135,17 +143,27 @@ model Tank {
 model Crop {
   id String @id @default(cuid())
 
-  cropName    String
+  /*
+   * Legacy fields are optional because
+   * the current Crop registration UI
+   * does not collect them.
+   */
+  cropName String?
+
   seedVariety String
-  plCount     Int
 
-  stockingDate        DateTime
-  expectedHarvestDate DateTime
+  batchNumber String?
 
-  cropDuration Int
+  plCount Int?
 
-  expectedProduction   Float
-  expectedSellingPrice Float
+  stockingDate DateTime
+
+  expectedHarvestDate DateTime?
+
+  cropDuration Int?
+
+  expectedProduction   Float?
+  expectedSellingPrice Float?
 
   notes String?
 
