@@ -9,7 +9,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Droplets,
-  Layers,
   ClipboardList,
   ShieldAlert
 } from 'lucide-react';
@@ -22,16 +21,10 @@ import { Badge } from '../../components/Badge';
 
 import farmService from '../../services/farmService';
 
-// Zod Validation Schema strictly matching backend contract (POST /api/farms)
+// Zod Validation Schema for required frontend inputs
 const farmSetupSchema = z.object({
   farmName: z.string().min(1, 'Farm name is required').trim(),
   ownerName: z.string().min(1, 'Owner name is required').trim(),
-  location: z.string().min(1, 'Farm location is required').trim(),
-  district: z.string().min(1, 'District is required').trim(),
-  state: z.string().min(1, 'State is required').trim(),
-  totalAcres: z.coerce
-    .number({ invalid_type_error: 'Total farm area must be a number' })
-    .positive('Area must be greater than 0'),
 });
 
 export default function FarmSetup() {
@@ -40,6 +33,7 @@ export default function FarmSetup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [existingFarmId, setExistingFarmId] = useState(null);
+  const [existingFarmData, setExistingFarmData] = useState(null);
   const [apiError, setApiError] = useState('');
 
   const {
@@ -54,10 +48,6 @@ export default function FarmSetup() {
     defaultValues: {
       farmName: '',
       ownerName: '',
-      location: '',
-      district: '',
-      state: '',
-      totalAcres: '',
     },
     mode: 'onTouched',
   });
@@ -69,14 +59,12 @@ export default function FarmSetup() {
         const farm = res.data || res;
         if (farm && farm.id) {
           setExistingFarmId(farm.id);
+          setExistingFarmData(farm);
           reset({
             farmName: farm.farmName || '',
             ownerName: farm.ownerName || '',
-            location: farm.location || '',
-            district: farm.district || '',
-            state: farm.state || '',
-            totalAcres: farm.totalAcres || '',
           });
+          setIsCompleted(true);
         }
       } catch (err) {
         // Farm not found yet, normal for initial setup
@@ -90,18 +78,10 @@ export default function FarmSetup() {
       e.preventDefault();
     }
 
-    let fieldsToValidate = [];
-
-    if (currentStep === 1) {
-      fieldsToValidate = ['farmName', 'ownerName', 'location', 'district', 'state'];
-    } else if (currentStep === 2) {
-      fieldsToValidate = ['totalAcres'];
-    }
-
-    const isStepValid = await trigger(fieldsToValidate);
+    const isStepValid = await trigger(['farmName', 'ownerName']);
 
     if (isStepValid) {
-      setCurrentStep((prev) => Math.min(prev + 1, 3));
+      setCurrentStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -110,12 +90,12 @@ export default function FarmSetup() {
     if (e && e.preventDefault) {
       e.preventDefault();
     }
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    setCurrentStep(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const onSubmit = async (data) => {
-    if (currentStep < 3) {
+    if (currentStep < 2) {
       handleNext();
       return;
     }
@@ -123,27 +103,29 @@ export default function FarmSetup() {
     setIsSubmitting(true);
     setApiError('');
 
+    // Payload with internal fallback defaults for legacy backend schema fields
     const farmPayload = {
       farmName: data.farmName.trim(),
       ownerName: data.ownerName.trim(),
-      location: data.location.trim(),
-      district: data.district.trim(),
-      state: data.state.trim(),
-      totalAcres: parseFloat(data.totalAcres),
+      location: existingFarmData?.location || 'Farm Location',
+      district: existingFarmData?.district || 'District',
+      state: existingFarmData?.state || 'State',
+      totalAcres: existingFarmData?.totalAcres ? parseFloat(existingFarmData.totalAcres) : 10,
     };
 
     try {
       if (existingFarmId) {
-        await farmService.updateFarm(existingFarmId, farmPayload);
+        const updatedRes = await farmService.updateFarm(existingFarmId, farmPayload);
+        setExistingFarmData(updatedRes.data || updatedRes || farmPayload);
       } else {
-        await farmService.createFarm(farmPayload);
+        const createdRes = await farmService.createFarm(farmPayload);
+        const created = createdRes.data || createdRes;
+        setExistingFarmId(created?.id || 'new-farm');
+        setExistingFarmData(created || farmPayload);
       }
       setIsSubmitting(false);
       setIsCompleted(true);
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1200);
+      // NO AUTOMATIC REDIRECT TO /dashboard
     } catch (err) {
       setIsSubmitting(false);
       setApiError(err.message || 'Failed to save farm details.');
@@ -152,9 +134,11 @@ export default function FarmSetup() {
 
   const steps = [
     { number: 1, title: 'Farm Details', icon: Building2 },
-    { number: 2, title: 'Land Details', icon: Layers },
-    { number: 3, title: 'Review & Submit', icon: ClipboardList },
+    { number: 2, title: 'Review & Register', icon: ClipboardList },
   ];
+
+  const currentFarmName = getValues('farmName') || existingFarmData?.farmName || 'SAI AQUA';
+  const currentOwnerName = getValues('ownerName') || existingFarmData?.ownerName || 'Sai';
 
   return (
     <div className="min-h-screen bg-background text-text-primary font-sans flex flex-col">
@@ -174,76 +158,128 @@ export default function FarmSetup() {
           </div>
         </div>
 
-        <Badge variant="primary" size="sm" className="hidden sm:inline-flex">
-          Step {currentStep} of 3
-        </Badge>
+        {isCompleted ? (
+          <Badge variant="success" size="sm" className="hidden sm:inline-flex font-semibold">
+            Registered
+          </Badge>
+        ) : (
+          <Badge variant="primary" size="sm" className="hidden sm:inline-flex">
+            Step {currentStep} of 2
+          </Badge>
+        )}
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 sm:py-12">
+      <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-8 sm:py-12">
         <PageHeader
-          title="Farm Onboarding Wizard"
+          title="Farm Onboarding"
           subtitle="Configure your farm profile to initialize tracking metrics."
         />
 
-        {/* Stepper Progress Bar */}
-        <div className="mb-10">
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 relative">
-            {steps.map((step) => {
-              const Icon = step.icon;
-              const isCurrent = currentStep === step.number;
-              const isDone = currentStep > step.number;
+        {/* Stepper Progress Bar (Shown ONLY during setup flow) */}
+        {!isCompleted && (
+          <div className="mb-10">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 relative">
+              {steps.map((step) => {
+                const Icon = step.icon;
+                const isCurrent = currentStep === step.number;
+                const isDone = currentStep > step.number;
 
-              return (
-                <div
-                  key={step.number}
-                  className={`
-                    flex flex-col items-center text-center p-3 rounded-xl border transition-all duration-200
-                    ${isCurrent
-                      ? 'bg-surface border-primary shadow-sm ring-2 ring-primary/20'
-                      : isDone
-                        ? 'bg-primary-light/40 border-primary/30 text-primary'
-                        : 'bg-surface/50 border-border opacity-70'
-                    }
-                  `}
-                >
+                return (
                   <div
+                    key={step.number}
                     className={`
-                      w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold mb-2 transition-colors
-                      ${isDone
-                        ? 'bg-primary text-white'
-                        : isCurrent
-                          ? 'bg-primary text-white'
-                          : 'bg-background text-text-secondary border border-border'
+                      flex flex-col items-center text-center p-3.5 rounded-xl border transition-all duration-200
+                      ${isCurrent
+                        ? 'bg-surface border-primary shadow-sm ring-2 ring-primary/20'
+                        : isDone
+                          ? 'bg-primary-light/40 border-primary/30 text-primary'
+                          : 'bg-surface/50 border-border opacity-70'
                       }
                     `}
                   >
-                    {isDone ? <CheckCircle2 className="w-5 h-5" /> : step.number}
-                  </div>
+                    <div
+                      className={`
+                        w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold mb-2 transition-colors
+                        ${isDone
+                          ? 'bg-primary text-white'
+                          : isCurrent
+                            ? 'bg-primary text-white'
+                            : 'bg-background text-text-secondary border border-border'
+                        }
+                      `}
+                    >
+                      {isDone ? <CheckCircle2 className="w-5 h-5" /> : step.number}
+                    </div>
 
-                  <span className={`text-[11px] sm:text-xs font-semibold leading-tight ${isCurrent ? 'text-primary' : 'text-text-primary'}`}>
-                    {step.title}
-                  </span>
-                </div>
-              );
-            })}
+                    <span className={`text-[11px] sm:text-xs font-semibold leading-tight ${isCurrent ? 'text-primary' : 'text-text-primary'}`}>
+                      {step.title}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Wizard Form Card */}
         <Card padding="relaxed" className="shadow-lg border-border/80 bg-surface relative">
           {isCompleted ? (
-            <div className="py-12 text-center flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-success-light text-success flex items-center justify-center animate-bounce-slow">
-                <CheckCircle2 className="w-10 h-10" />
+            <div className="py-8 px-2 sm:px-6 flex flex-col items-center text-center space-y-6 animate-in fade-in duration-200">
+              {/* Header / Status */}
+              <div className="flex flex-col items-center space-y-2">
+                <div className="w-16 h-16 rounded-full bg-teal-50 border border-teal-200 text-primary flex items-center justify-center shadow-xs">
+                  <CheckCircle2 className="w-9 h-9 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold text-text-primary tracking-tight">
+                  Farm Registered Successfully
+                </h2>
+                <p className="text-xs sm:text-sm text-text-secondary max-w-md">
+                  Your farm <strong className="text-text-primary">{currentFarmName}</strong> has been registered successfully.
+                </p>
               </div>
-              <h2 className="text-2xl font-bold text-text-primary">Farm Setup Complete!</h2>
-              <p className="text-sm text-text-secondary max-w-md">
-                Your farm profile has been saved to the database. Redirecting to your dashboard...
-              </p>
-              <Button variant="primary" size="md" onClick={() => navigate('/dashboard')} className="mt-2">
-                Go to Dashboard
-              </Button>
+
+              {/* Summary Card */}
+              <div className="w-full max-w-md bg-background border border-border rounded-xl p-5 shadow-2xs text-left space-y-3">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-primary" /> Farm Summary
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    ● Registered
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
+                  <div className="bg-surface p-3 rounded-lg border border-border/50">
+                    <span className="text-[10px] text-text-secondary uppercase font-semibold block">Farm Name</span>
+                    <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                      {currentFarmName}
+                    </span>
+                  </div>
+
+                  <div className="bg-surface p-3 rounded-lg border border-border/50">
+                    <span className="text-[10px] text-text-secondary uppercase font-semibold block">Farm Owner</span>
+                    <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                      {currentOwnerName}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Single Primary Action */}
+              <div className="pt-2">
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => navigate('/dashboard')}
+                  icon={<ArrowRight className="w-4 h-4" />}
+                  iconPosition="right"
+                  className="font-semibold px-8 py-2.5 text-sm"
+                >
+                  Go to Dashboard →
+                </Button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -262,14 +298,14 @@ export default function FarmSetup() {
                       <Building2 className="w-5 h-5 text-primary" /> Step 1: Farm Details
                     </h2>
                     <p className="text-xs text-text-secondary mt-0.5">
-                      Enter general business and location details of your prawn farm.
+                      Enter general details of your prawn farm.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="Farm Name"
-                      placeholder="e.g. BlueWave Aqua Farm"
+                      placeholder="e.g. SAI AQUA"
                       required
                       error={errors.farmName?.message}
                       {...register('farmName')}
@@ -277,136 +313,42 @@ export default function FarmSetup() {
 
                     <Input
                       label="Owner Name"
-                      placeholder="e.g. Rajesh Kumar"
+                      placeholder="e.g. Sai"
                       required
                       error={errors.ownerName?.message}
                       {...register('ownerName')}
                     />
-
-                    <div className="md:col-span-2">
-                      <Input
-                        label="Farm Location / Address"
-                        placeholder="e.g. Survey No. 42, Coastal Road, Village X"
-                        required
-                        error={errors.location?.message}
-                        {...register('location')}
-                      />
-                    </div>
-
-                    <Input
-                      label="District"
-                      placeholder="e.g. Nellore"
-                      required
-                      error={errors.district?.message}
-                      {...register('district')}
-                    />
-
-                    <Input
-                      label="State"
-                      placeholder="e.g. Andhra Pradesh"
-                      required
-                      error={errors.state?.message}
-                      {...register('state')}
-                    />
                   </div>
                 </div>
               )}
 
-              {/* STEP 2: LAND DETAILS */}
+              {/* STEP 2: REVIEW & REGISTER */}
               {currentStep === 2 && (
                 <div className="flex flex-col gap-6 animate-in fade-in duration-200">
                   <div className="border-b border-border pb-3">
                     <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                      <Layers className="w-5 h-5 text-primary" /> Step 2: Land Details
+                      <ClipboardList className="w-5 h-5 text-primary" /> Step 2: Review & Register
                     </h2>
                     <p className="text-xs text-text-secondary mt-0.5">
-                      Specify the total land footprint of your farm in acres.
+                      Review farm details before registering.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Input
-                      label="Total Farm Area (Acres)"
-                      type="number"
-                      step="0.1"
-                      placeholder="e.g. 12.5"
-                      required
-                      helperText="Specify total land area including embankments"
-                      error={errors.totalAcres?.message}
-                      {...register('totalAcres')}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3: REVIEW & SUBMIT */}
-              {currentStep === 3 && (
-                <div className="flex flex-col gap-6 animate-in fade-in duration-200">
-                  <div className="border-b border-border pb-3">
-                    <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                      <ClipboardList className="w-5 h-5 text-primary" /> Step 3: Review & Submit
-                    </h2>
-                    <p className="text-xs text-text-secondary mt-0.5">
-                      Verify your farm information before finalizing setup.
-                    </p>
-                  </div>
-
-                  <div className="bg-background border border-border rounded-xl p-5">
-                    <div className="flex items-center justify-between mb-3 border-b border-border/60 pb-2">
+                  <div className="bg-background border border-border rounded-xl p-5 shadow-2xs">
+                    <div className="mb-3 border-b border-border/60 pb-2">
                       <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-primary" /> Farm & Owner Info
+                        <Building2 className="w-4 h-4 text-primary" /> Review Farm Details
                       </h3>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(1)}
-                        className="text-xs font-semibold text-primary hover:underline"
-                      >
-                        Edit
-                      </button>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div>
                         <span className="text-text-secondary block">Farm Name</span>
-                        <span className="font-semibold text-text-primary">{getValues('farmName')}</span>
+                        <span className="font-semibold text-text-primary text-sm">{getValues('farmName')}</span>
                       </div>
                       <div>
-                        <span className="text-text-secondary block">Owner Name</span>
-                        <span className="font-semibold text-text-primary">{getValues('ownerName')}</span>
-                      </div>
-                      <div>
-                        <span className="text-text-secondary block">Location</span>
-                        <span className="font-semibold text-text-primary">{getValues('location')}</span>
-                      </div>
-                      <div>
-                        <span className="text-text-secondary block">District</span>
-                        <span className="font-semibold text-text-primary">{getValues('district')}</span>
-                      </div>
-                      <div>
-                        <span className="text-text-secondary block">State</span>
-                        <span className="font-semibold text-text-primary">{getValues('state')}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-background border border-border rounded-xl p-5">
-                    <div className="flex items-center justify-between mb-3 border-b border-border/60 pb-2">
-                      <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-primary" /> Land & Capacity
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(2)}
-                        className="text-xs font-semibold text-primary hover:underline"
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <span className="text-text-secondary block">Total Farm Area</span>
-                        <span className="font-semibold text-text-primary">{getValues('totalAcres')} Acres</span>
+                        <span className="text-text-secondary block">Farm Owner</span>
+                        <span className="font-semibold text-text-primary text-sm">{getValues('ownerName')}</span>
                       </div>
                     </div>
                   </div>
@@ -422,11 +364,11 @@ export default function FarmSetup() {
                     onClick={handlePrevious}
                     icon={<ArrowLeft className="w-4 h-4" />}
                   >
-                    Previous
+                    Back
                   </Button>
                 ) : <div />}
 
-                {currentStep < 3 ? (
+                {currentStep < 2 ? (
                   <Button
                     type="button"
                     variant="primary"
@@ -434,7 +376,7 @@ export default function FarmSetup() {
                     icon={<ArrowRight className="w-4 h-4" />}
                     iconPosition="right"
                   >
-                    Next
+                    Continue →
                   </Button>
                 ) : (
                   <Button
@@ -443,9 +385,9 @@ export default function FarmSetup() {
                     isLoading={isSubmitting}
                     icon={<CheckCircle2 className="w-4 h-4" />}
                     iconPosition="right"
-                    className="bg-success hover:bg-green-600 focus:ring-success/40"
+                    className="bg-success hover:bg-green-600 focus:ring-success/40 font-semibold"
                   >
-                    Finish Setup
+                    Register Farm ✓
                   </Button>
                 )}
               </div>

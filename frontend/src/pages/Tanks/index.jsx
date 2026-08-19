@@ -3,14 +3,9 @@ import { useSearchParams, Link } from 'react-router-dom';
 import {
   Plus,
   Container,
-  CheckCircle2,
   Maximize2,
-  Waves,
-  Calendar,
-  Clock,
   Edit3,
   Trash2,
-  Layers,
   MapPin,
   ShieldAlert
 } from 'lucide-react';
@@ -37,8 +32,6 @@ export default function Tanks() {
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
   const [siteFilter, setSiteFilter] = useState(initialSiteId);
 
   // Modal Control States
@@ -57,7 +50,7 @@ export default function Tanks() {
     return list.filter((tank) => {
       if (!tank) return false;
       const nameStr = tank.name || tank.tankName || '';
-      const remarksStr = tank.remarks || '';
+      const remarksStr = tank.remarks || tank.notes || '';
       const query = (searchQuery || '').trim().toLowerCase();
 
       // Search query filter (matches name or remarks)
@@ -66,29 +59,21 @@ export default function Tanks() {
         nameStr.toLowerCase().includes(query) ||
         remarksStr.toLowerCase().includes(query);
 
-      // Status filter
-      const matchesStatus = statusFilter === '' || tank.status === statusFilter;
-
-      // Water source filter
-      const matchesSource = sourceFilter === '' || tank.waterSource === sourceFilter;
-
       // Site filter
       const matchesSite = siteFilter === '' || tank.siteId === siteFilter;
 
-      return matchesSearch && matchesStatus && matchesSource && matchesSite;
+      return matchesSearch && matchesSite;
     });
-  }, [tanks, searchQuery, statusFilter, sourceFilter, siteFilter]);
+  }, [tanks, searchQuery, siteFilter]);
 
   // Operational Metrics Summary Safely
   const stats = useMemo(() => {
     const list = tanks || [];
     const totalCount = list.length;
-    const activeCount = list.filter((t) => t && t.status === 'Active').length;
     const totalArea = list.reduce((acc, t) => acc + (parseFloat(t?.area) || 0), 0);
 
     return {
       totalCount,
-      activeCount,
       totalArea: totalArea.toFixed(1),
     };
   }, [tanks]);
@@ -150,8 +135,6 @@ export default function Tanks() {
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setStatusFilter('');
-    setSourceFilter('');
     setSiteFilter('');
     setSearchParams({});
   };
@@ -163,8 +146,8 @@ export default function Tanks() {
         title={selectedSite ? `Tanks in ${selectedSite.siteName}` : "Tank Management"}
         subtitle={
           selectedSite
-            ? `Viewing ponds belonging to ${selectedSite.siteName} (${selectedSite.location}, ${selectedSite.district})`
-            : "Monitor and manage farm ponds, dimensions, water sources, and stocking status."
+            ? `Viewing tanks belonging to ${selectedSite.siteName} (${selectedSite.location})`
+            : "Monitor and manage farm tanks, dimensions, and site allocation."
         }
         badge={<Badge variant="primary">{filteredTanks.length} Tanks</Badge>}
         actions={
@@ -204,8 +187,8 @@ export default function Tanks() {
         </Card>
       )}
 
-      {/* 2. OPERATIONAL SUMMARY METRICS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      {/* 2. OPERATIONAL SUMMARY METRICS (Total Tanks & Total Area) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
@@ -214,18 +197,6 @@ export default function Tanks() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Tanks</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalCount}</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Active Stocked</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.activeCount}</span>
             </div>
           </div>
         </Card>
@@ -247,10 +218,6 @@ export default function Tanks() {
       <TankFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        sourceFilter={sourceFilter}
-        onSourceChange={setSourceFilter}
         siteFilter={siteFilter}
         onSiteChange={(val) => {
           setSiteFilter(val);
@@ -279,15 +246,15 @@ export default function Tanks() {
           <EmptyState
             title="No Tanks Found"
             description={
-              searchQuery || statusFilter || sourceFilter || siteFilter
+              searchQuery || siteFilter
                 ? "No tanks match your current filter criteria. Try clearing filters or searching for a different term."
-                : "You haven't added any tanks yet. Click the button below to register your first pond."
+                : "You haven't added any tanks yet. Click the button below to register your first tank."
             }
             actionLabel={
-              searchQuery || statusFilter || sourceFilter || siteFilter ? "Reset Filters" : "Add First Tank"
+              searchQuery || siteFilter ? "Reset Filters" : "Add First Tank"
             }
             onAction={
-              searchQuery || statusFilter || sourceFilter || siteFilter ? handleResetFilters : handleOpenAdd
+              searchQuery || siteFilter ? handleResetFilters : handleOpenAdd
             }
           />
         </Card>
@@ -304,7 +271,7 @@ export default function Tanks() {
         description={
           editingTank
             ? `Update properties for ${editingTank.name || editingTank.tankName || 'Tank'}`
-            : 'Register a new aquaculture pond into your site setup.'
+            : 'Register a new tank into your site setup.'
         }
         size="lg"
       >
@@ -319,7 +286,7 @@ export default function Tanks() {
         />
       </Modal>
 
-      {/* 6. TANK DETAILS MODAL */}
+      {/* 6. TANK DETAILS MODAL (REGISTERED INFORMATION ONLY) */}
       {viewingTank && (
         <Modal
           isOpen={isDetailsOpen}
@@ -328,72 +295,44 @@ export default function Tanks() {
             setViewingTank(null);
           }}
           title={viewingTank.name || viewingTank.tankName || 'Tank Details'}
-          description="Detailed tank specifications and operating parameters"
+          description="Tank details"
           size="md"
         >
-          <div className="space-y-6">
-            {/* Header Badge & Status */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
-              <span className="text-xs font-semibold text-text-secondary">Current Operating Status</span>
-              <Badge
-                variant={
-                  viewingTank.status === 'Active'
-                    ? 'success'
-                    : viewingTank.status === 'Preparation'
-                    ? 'warning'
-                    : 'neutral'
-                }
-              >
-                {viewingTank.status || 'Active'}
-              </Badge>
-            </div>
-
-            {/* Spec Cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-3">
-                <Maximize2 className="w-5 h-5 text-primary shrink-0" />
-                <div>
-                  <span className="text-[10px] text-text-secondary uppercase font-semibold block">Area</span>
-                  <span className="text-sm font-bold text-text-primary">{viewingTank.area} Acres</span>
-                </div>
+          <div className="space-y-4">
+            {/* Information Card Container */}
+            <div className="p-4 rounded-xl bg-background border border-border space-y-3.5">
+              {/* SITE ROW */}
+              <div className="bg-surface p-3.5 rounded-lg border border-border/50">
+                <span className="text-[10px] text-text-secondary uppercase font-semibold tracking-wider block flex items-center gap-1.5 mb-1">
+                  <MapPin className="w-3.5 h-3.5 text-primary" /> Site
+                </span>
+                <span className="text-sm font-bold text-text-primary block">
+                  {viewingTank.site?.siteName || viewingTank.siteName || (sites.find((s) => s.id === viewingTank.siteId)?.siteName) || 'Not specified'}
+                </span>
               </div>
 
-              <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-3">
-                <Layers className="w-5 h-5 text-secondary shrink-0" />
-                <div>
-                  <span className="text-[10px] text-text-secondary uppercase font-semibold block">Depth</span>
-                  <span className="text-sm font-bold text-text-primary">{viewingTank.depth} Feet</span>
-                </div>
+              {/* AREA ROW */}
+              <div className="bg-surface p-3.5 rounded-lg border border-border/50">
+                <span className="text-[10px] text-text-secondary uppercase font-semibold tracking-wider block flex items-center gap-1.5 mb-1">
+                  <Maximize2 className="w-3.5 h-3.5 text-primary" /> Area
+                </span>
+                <span className="text-sm font-bold text-text-primary block">
+                  {viewingTank.area ? `${viewingTank.area} Acres` : 'Not specified'}
+                </span>
               </div>
 
-              <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-3">
-                <Waves className="w-5 h-5 text-accent shrink-0" />
-                <div>
-                  <span className="text-[10px] text-text-secondary uppercase font-semibold block">Water Source</span>
-                  <span className="text-sm font-bold text-text-primary">{viewingTank.waterSource}</span>
-                </div>
+              {/* REMARKS / NOTES ROW */}
+              <div className="bg-surface p-3.5 rounded-lg border border-border/50">
+                <span className="text-[10px] text-text-secondary uppercase font-semibold tracking-wider block mb-1">
+                  Remarks / Notes
+                </span>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  {viewingTank.remarks || viewingTank.notes || 'No remarks added.'}
+                </p>
               </div>
             </div>
 
-            {/* Dates Row */}
-            <div className="flex items-center justify-between text-xs text-text-secondary pt-2 border-t border-border/60">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-text-secondary" /> Registered: {viewingTank.createdAt ? new Date(viewingTank.createdAt).toLocaleDateString() : 'N/A'}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-text-secondary" /> Last Water Log: {viewingTank.lastTested || 'Recent'}
-              </span>
-            </div>
-
-            {/* Remarks Section */}
-            {viewingTank.remarks && (
-              <div className="p-3.5 rounded-xl bg-background border border-border">
-                <span className="text-xs font-bold text-text-primary block mb-1">Remarks & Operational Notes</span>
-                <p className="text-xs text-text-secondary leading-relaxed">{viewingTank.remarks}</p>
-              </div>
-            )}
-
-            {/* Footer Buttons */}
+            {/* Footer Action Buttons */}
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
               <Button
                 variant="outline"

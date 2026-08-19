@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, MapPin, Container, Building2, ShieldAlert } from 'lucide-react';
+import { Plus, MapPin, Container, Building2, ShieldAlert, Layers } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
@@ -19,9 +19,8 @@ export default function Sites() {
   const navigate = useNavigate();
   const { sites = [], addSite, updateSite, deleteSite, loading, error } = useSites();
 
-  // Search & Filter State
+  // Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [districtFilter, setDistrictFilter] = useState('');
 
   // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -33,16 +32,6 @@ export default function Sites() {
   const [deletingSite, setDeletingSite] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Distinct District Options for Filter
-  const districtOptions = useMemo(() => {
-    const list = sites || [];
-    const set = new Set();
-    list.forEach((s) => {
-      if (s?.district) set.add(s.district);
-    });
-    return Array.from(set).sort();
-  }, [sites]);
-
   // Filter Sites List
   const filteredSites = useMemo(() => {
     const list = sites || [];
@@ -50,30 +39,24 @@ export default function Sites() {
       if (!site) return false;
       const siteName = site.siteName || '';
       const location = site.location || '';
-      const district = site.district || '';
-      const state = site.state || '';
-      const remarks = site.remarks || '';
       const query = (searchQuery || '').trim().toLowerCase();
 
-      const matchesSearch =
+      return (
         query === '' ||
         siteName.toLowerCase().includes(query) ||
-        location.toLowerCase().includes(query) ||
-        district.toLowerCase().includes(query) ||
-        state.toLowerCase().includes(query) ||
-        remarks.toLowerCase().includes(query);
-
-      const matchesDistrict = districtFilter === '' || site.district === districtFilter;
-
-      return matchesSearch && matchesDistrict;
+        location.toLowerCase().includes(query)
+      );
     });
-  }, [sites, searchQuery, districtFilter]);
+  }, [sites, searchQuery]);
 
   // Operational Metrics Summary
   const stats = useMemo(() => {
     const list = sites || [];
     const totalSites = list.length;
-    const totalDistricts = districtOptions.length;
+    const totalLandArea = list.reduce((acc, s) => {
+      const area = parseFloat(s.landArea ?? s.area ?? s.totalArea) || 0;
+      return acc + area;
+    }, 0);
     const totalTanks = list.reduce((acc, s) => {
       const count = Array.isArray(s?.tanks) ? s.tanks.length : (s?._count?.tanks || 0);
       return acc + count;
@@ -81,10 +64,10 @@ export default function Sites() {
 
     return {
       totalSites,
-      totalDistricts,
+      totalLandArea,
       totalTanks,
     };
-  }, [sites, districtOptions]);
+  }, [sites]);
 
   // Form Handlers
   const handleOpenAdd = () => {
@@ -143,7 +126,6 @@ export default function Sites() {
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setDistrictFilter('');
   };
 
   const deleteWarningMessage = useMemo(() => {
@@ -195,11 +177,11 @@ export default function Sites() {
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <Building2 className="w-4 h-4" />
+              <Layers className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Districts</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalDistricts}</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Land Area</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalLandArea > 0 ? `${stats.totalLandArea.toFixed(1)} Acres` : 'N/A'}</span>
             </div>
           </div>
         </Card>
@@ -221,9 +203,6 @@ export default function Sites() {
       <SiteFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        districtFilter={districtFilter}
-        onDistrictChange={setDistrictFilter}
-        districtOptions={districtOptions}
         onReset={handleResetFilters}
       />
 
@@ -243,17 +222,17 @@ export default function Sites() {
         </Card>
       ) : filteredSites.length === 0 ? (
         <EmptyState
-          title={searchQuery || districtFilter ? "No matching sites found" : "No sites found"}
+          title={searchQuery ? "No matching sites found" : "No sites found"}
           description={
-            searchQuery || districtFilter
-              ? "Try adjusting your search terms or filters to find what you are looking for."
+            searchQuery
+              ? "Try adjusting your search terms to find what you are looking for."
               : "Create your first site to get started."
           }
-          actionLabel={searchQuery || districtFilter ? "Clear Filters" : "Add Site"}
-          onAction={searchQuery || districtFilter ? handleResetFilters : handleOpenAdd}
+          actionLabel={searchQuery ? "Reset Search" : "Add New Site"}
+          onAction={searchQuery ? handleResetFilters : handleOpenAdd}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredSites.map((site) => (
             <SiteCard
               key={site.id}
@@ -269,19 +248,25 @@ export default function Sites() {
       {/* 5. ADD / EDIT SITE MODAL */}
       <Modal
         isOpen={isFormOpen}
-        onClose={() => !isSubmitting && setIsFormOpen(false)}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingSite(null);
+        }}
         title={editingSite ? 'Edit Site' : 'Add New Site'}
         description={
           editingSite
-            ? 'Update location details and remarks for this site.'
-            : 'Register a new site location under your farm.'
+            ? `Update properties for ${editingSite.siteName || 'Site'}`
+            : 'Configure a new site location to manage tanks.'
         }
         size="md"
       >
         <SiteForm
           initialData={editingSite}
           onSubmit={handleSaveSite}
-          onCancel={() => setIsFormOpen(false)}
+          onCancel={() => {
+            setIsFormOpen(false);
+            setEditingSite(null);
+          }}
           isSubmitting={isSubmitting}
           error={modalError}
         />
@@ -290,13 +275,16 @@ export default function Sites() {
       {/* 6. DELETE CONFIRMATION DIALOG */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
-        onClose={() => !isDeleting && setIsDeleteOpen(false)}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setDeletingSite(null);
+        }}
         onConfirm={handleConfirmDelete}
         title="Delete Site"
         message={deleteWarningMessage}
-        confirmText="Yes, Delete Site"
+        confirmText="Delete Site"
         cancelText="Cancel"
-        variant="danger"
+        type="danger"
         isLoading={isDeleting}
       />
     </div>

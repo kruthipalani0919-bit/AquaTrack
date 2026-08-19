@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Building2,
-  MapPin,
-  Container,
-  Sprout,
   Boxes,
   UtensilsCrossed,
-  Stethoscope,
   Receipt,
-  Wheat,
   FileSpreadsheet,
   ArrowRight,
   Waves,
+  Sprout,
   IndianRupee
 } from 'lucide-react';
 
@@ -82,17 +77,11 @@ export default function Dashboard() {
     },
   ];
 
-  // Exact 10 Quick Actions Modules. ONLY Stocking Management, Expenses, & Reports get the subtle blue highlight.
+  // Exact 4 Quick Actions Modules. ALL 4 modules are highlighted with the active blue style.
   const quickActions = [
-    { label: 'Farm Setup', path: '/farm-setup', icon: Building2, isHighlighted: false },
-    { label: 'Sites', path: '/sites', icon: MapPin, isHighlighted: false },
-    { label: 'Tanks', path: '/tanks', icon: Container, isHighlighted: false },
-    { label: 'Crop Management', path: '/crops', icon: Sprout, isHighlighted: false },
     { label: 'Stocking Management', path: '/stocking', icon: Boxes, isHighlighted: true },
-    { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed, isHighlighted: false },
-    { label: 'Medicines', path: '/medicines', icon: Stethoscope, isHighlighted: false },
+    { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed, isHighlighted: true },
     { label: 'Expenses', path: '/expenses', icon: Receipt, isHighlighted: true },
-    { label: 'Harvest', path: '/harvest', icon: Wheat, isHighlighted: false },
     { label: 'Reports', path: '/reports', icon: FileSpreadsheet, isHighlighted: true },
   ];
 
@@ -136,38 +125,20 @@ export default function Dashboard() {
           <span className="text-[11px] text-text-secondary">Direct access to active modules</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
           {quickActions.map((action, idx) => {
             const Icon = action.icon;
-            const isHighlighted = action.isHighlighted;
-
             return (
               <button
                 key={idx}
                 type="button"
                 onClick={() => navigate(action.path)}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl transition-all text-center group cursor-pointer border ${
-                  isHighlighted
-                    ? 'bg-primary-light/30 border-primary/30 hover:border-primary/60 hover:bg-primary-light/50 shadow-2xs'
-                    : 'bg-background border-border/70 hover:border-primary/50 hover:bg-teal-50/30'
-                }`}
+                className="flex flex-col items-center justify-center p-3.5 rounded-xl transition-all text-center group cursor-pointer border bg-primary-light/30 border-primary/30 hover:border-primary/60 hover:bg-primary-light/50 shadow-2xs"
               >
-                <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 shadow-2xs border transition-transform group-hover:scale-105 ${
-                    isHighlighted
-                      ? 'bg-primary-light text-primary border-primary/30'
-                      : 'bg-surface text-primary border-border/50'
-                  }`}
-                >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-2 shadow-2xs border transition-transform group-hover:scale-105 bg-primary-light text-primary border-primary/30">
                   <Icon className="w-4 h-4" />
                 </div>
-                <span
-                  className={`text-xs leading-tight transition-colors ${
-                    isHighlighted
-                      ? 'font-bold text-primary'
-                      : 'font-semibold text-text-primary group-hover:text-primary'
-                  }`}
-                >
+                <span className="text-xs leading-tight transition-colors font-bold text-primary">
                   {action.label}
                 </span>
               </button>
