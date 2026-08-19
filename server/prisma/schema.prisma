@@ -63,8 +63,10 @@ model Site {
 
   siteName String
   location String
-  district String
-  state    String
+  area     Float?
+
+  district String?
+  state    String?
 
   gpsLocation String?
   remarks     String?

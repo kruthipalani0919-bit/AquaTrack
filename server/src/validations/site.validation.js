@@ -10,13 +10,9 @@ export const createSiteSchema = z.object({
         .string()
         .min(2, "Location is required"),
 
-    district: z
-        .string()
-        .min(2, "District is required"),
-
-    state: z
-        .string()
-        .min(2, "State is required"),
+    area: z
+        .number()
+        .positive("Area must be greater than 0"),
 
     gpsLocation: z
         .string()
