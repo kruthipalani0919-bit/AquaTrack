@@ -25,9 +25,13 @@ export const ExpenseCard = ({
     notes,
   } = expense;
 
-  const displayDescription = description || 'Farm Expense';
+  const displayDescription = description || category || 'Farm Expense';
   const displayCategory = category || 'General';
-  const displayTank = tankName || 'Tank';
+
+  // Format tank name to NEVER expose water source
+  const rawTank = tankName || expense?.tank?.name || expense?.tank?.tankName || 'Tank';
+  const displayTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+
   const displayPayment = paymentMode || 'Cash';
   const displayDate = date || 'Today';
   const numericAmount = parseFloat(amount) || 0;
@@ -84,11 +88,11 @@ export const ExpenseCard = ({
       {/* Actions Footer */}
       <div className="pt-3 flex items-center justify-between gap-2 mt-auto">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={() => onView && onView(expense)}
           icon={<Eye className="w-4 h-4 text-primary" />}
-          className="text-xs text-primary font-medium"
+          className="text-xs font-medium"
         >
           View Details
         </Button>
@@ -97,7 +101,7 @@ export const ExpenseCard = ({
           <button
             type="button"
             onClick={() => onEdit && onEdit(expense)}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors"
+            className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors cursor-pointer"
             title="Edit Expense"
             aria-label={`Edit ${displayDescription}`}
           >
@@ -107,7 +111,7 @@ export const ExpenseCard = ({
           <button
             type="button"
             onClick={() => onDelete && onDelete(expense)}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
+            className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors cursor-pointer"
             title="Delete Expense"
             aria-label={`Delete ${displayDescription}`}
           >

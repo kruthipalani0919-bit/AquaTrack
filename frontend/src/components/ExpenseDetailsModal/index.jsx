@@ -1,5 +1,5 @@
 import React from 'react';
-import { Receipt, Container, Calendar, CreditCard, Edit3, Trash2, Tag, IndianRupee } from 'lucide-react';
+import { Container, Calendar, CreditCard, Edit3, Trash2, Tag, IndianRupee } from 'lucide-react';
 import { Modal } from '../Modal';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
@@ -16,11 +16,14 @@ export const ExpenseDetailsModal = ({
 }) => {
   if (!expense) return null;
 
+  const rawTank = expense.tankName || expense.tank?.name || expense.tank?.tankName || 'Tank';
+  const displayTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={expense.description}
+      title={expense.description || expense.category || 'Expense Record'}
       description="Expense breakdown and payment details"
       size="md"
     >
@@ -28,7 +31,7 @@ export const ExpenseDetailsModal = ({
         {/* Header Category & Tank */}
         <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
           <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-            <Container className="w-4 h-4 text-primary" /> {expense.tankName || 'Tank 1'}
+            <Container className="w-4 h-4 text-primary" /> {displayTank}
           </span>
           <Badge variant="primary">
             {expense.category}

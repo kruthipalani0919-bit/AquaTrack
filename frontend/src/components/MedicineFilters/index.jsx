@@ -4,34 +4,28 @@ import { SearchBar } from '../SearchBar';
 import { Select } from '../Select';
 import { Input } from '../Input';
 import { Button } from '../Button';
-import { MEDICINE_CATEGORY_OPTIONS, MEDICINE_STATUS_OPTIONS } from '../../constants/medicineData';
-import { useCrops } from '../../context/CropContext';
+import { MEDICINE_CATEGORY_OPTIONS } from '../../constants/medicineData';
 import { useTanks } from '../../context/TankContext';
 
 /**
- * Reusable MedicineFilters component for search, category, crop, tank, status, and date filters.
+ * Reusable MedicineFilters component for search, category, tank, and date filters.
  */
 export const MedicineFilters = ({
   searchQuery = '',
   onSearchChange,
   categoryFilter = '',
   onCategoryChange,
-  cropFilter = '',
-  onCropChange,
   tankFilter = '',
   onTankChange,
-  statusFilter = '',
-  onStatusChange,
   dateFilter = '',
   onDateChange,
   onReset,
   className = '',
 }) => {
-  const { crops = [] } = useCrops();
   const { tanks = [] } = useTanks();
 
   const hasActiveFilters = Boolean(
-    searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter
+    searchQuery || categoryFilter || tankFilter || dateFilter
   );
 
   const categoryOptions = [
@@ -39,19 +33,14 @@ export const MedicineFilters = ({
     ...MEDICINE_CATEGORY_OPTIONS,
   ];
 
-  const cropOptions = [
-    { value: '', label: 'All Crops' },
-    ...(crops || []).map((c) => ({ value: c.id, label: c.cropName || 'Crop' })),
-  ];
-
+  // Clean tank names so water source is NEVER exposed
   const tankOptions = [
     { value: '', label: 'All Tanks' },
-    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
-  ];
-
-  const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    ...MEDICINE_STATUS_OPTIONS,
+    ...(tanks || []).map((t) => {
+      const rawName = t.name || t.tankName || 'Tank';
+      const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      return { value: t.id, label: cleanName };
+    }),
   ];
 
   return (
@@ -62,12 +51,12 @@ export const MedicineFilters = ({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onClear={() => onSearchChange('')}
-          placeholder="Search medicine name, purpose, crop or tank name..."
+          placeholder="Search medicine name, tank name, notes..."
         />
       </div>
 
       {/* Multi-Filter Dropdowns Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end pt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end pt-1">
         {/* Category */}
         <Select
           placeholder=""
@@ -77,30 +66,12 @@ export const MedicineFilters = ({
           fullWidth
         />
 
-        {/* Crop */}
-        <Select
-          placeholder=""
-          options={cropOptions}
-          value={cropFilter}
-          onChange={(e) => onCropChange(e.target.value)}
-          fullWidth
-        />
-
         {/* Tank */}
         <Select
           placeholder=""
           options={tankOptions}
           value={tankFilter}
           onChange={(e) => onTankChange(e.target.value)}
-          fullWidth
-        />
-
-        {/* Status */}
-        <Select
-          placeholder=""
-          options={statusOptions}
-          value={statusFilter}
-          onChange={(e) => onStatusChange(e.target.value)}
           fullWidth
         />
 

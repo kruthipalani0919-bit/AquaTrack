@@ -41,7 +41,7 @@ const expenseSchema = z.object({
 /**
  * Reusable ExpenseForm component with dynamic Tank dropdown from TankContext.
  * Displays user-essential fields ONLY: tankId, category, amount, paymentMode, date, notes.
- * Automatically populates description internally with category name for 100% backend API compatibility.
+ * Tank display NEVER includes water source (e.g. Borewell).
  */
 export const ExpenseForm = ({
   initialData = null,
@@ -52,10 +52,16 @@ export const ExpenseForm = ({
   const { tanks } = useTanks();
   const isEditing = Boolean(initialData?.id);
 
-  const tankSelectOptions = tanks.map((tank) => ({
-    value: tank.id,
-    label: `${tank.name} (${tank.area} Acres)`,
-  }));
+  // Clean tank labels so water source is NEVER exposed
+  const tankSelectOptions = tanks.map((tank) => {
+    const rawName = tank.name || tank.tankName || 'Tank';
+    const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+    const areaSuffix = tank.area ? ` (${tank.area} Acres)` : '';
+    return {
+      value: tank.id,
+      label: `${cleanName}${areaSuffix}`,
+    };
+  });
 
   const {
     register,
@@ -90,6 +96,8 @@ export const ExpenseForm = ({
 
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
+    const rawTankName = selectedTankObj ? selectedTankObj.name : 'Selected Pond';
+    const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
     // Backend Request Model: { tankId, category, description, amount, paymentMode, date, notes }
     const expensePayload = {
@@ -105,7 +113,7 @@ export const ExpenseForm = ({
     if (onSubmit) {
       onSubmit({
         ...expensePayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
+        tankName: cleanTankName,
       });
     }
   };

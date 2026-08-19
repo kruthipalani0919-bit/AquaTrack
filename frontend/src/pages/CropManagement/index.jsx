@@ -2,9 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Plus,
   Sprout,
-  Sparkles,
-  Weight,
-  IndianRupee
+  Container
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -26,7 +24,7 @@ export default function CropManagement() {
     addCrop,
     updateCrop,
     deleteCrop,
-    summaryMetrics = { activeCropsCount: 0, totalPlStocked: 0, expectedHarvestKg: 0, estimatedRevenueRupees: 0 },
+    summaryMetrics = { activeCropsCount: 0 },
     loading
   } = useCrops();
 
@@ -45,12 +43,11 @@ export default function CropManagement() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingCrop, setDeletingCrop] = useState(null);
 
-  const safeMetrics = {
-    activeCropsCount: summaryMetrics?.activeCropsCount || 0,
-    totalPlStocked: summaryMetrics?.totalPlStocked || 0,
-    expectedHarvestKg: summaryMetrics?.expectedHarvestKg || 0,
-    estimatedRevenueRupees: summaryMetrics?.estimatedRevenueRupees || 0,
-  };
+  const activeCropsCount = useMemo(() => {
+    return (crops || []).filter((c) => c && (c.status === 'Active' || c.status === 'ACTIVE')).length;
+  }, [crops]);
+
+  const totalCropsCount = (crops || []).length;
 
   // Filter Crops List Safely
   const filteredCrops = useMemo(() => {
@@ -59,14 +56,18 @@ export default function CropManagement() {
 
     return list.filter((crop) => {
       if (!crop) return false;
+      const batchStr = crop.batchNumber || '';
       const nameStr = crop.cropName || '';
       const varietyStr = crop.seedVariety || '';
+      const tankStr = crop.tankName || crop.tank?.tankName || '';
       const notesStr = crop.notes || '';
 
       const matchesSearch =
         query === '' ||
+        batchStr.toLowerCase().includes(query) ||
         nameStr.toLowerCase().includes(query) ||
         varietyStr.toLowerCase().includes(query) ||
+        tankStr.toLowerCase().includes(query) ||
         notesStr.toLowerCase().includes(query);
 
       const matchesStatus = statusFilter === '' || crop.status === statusFilter;
@@ -136,7 +137,7 @@ export default function CropManagement() {
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="Crop Management"
-        subtitle="Track and manage crop batches across your farm ponds."
+        subtitle="Track and manage crop batches across your farm tanks."
         actions={
           <Button
             variant="primary"
@@ -150,8 +151,8 @@ export default function CropManagement() {
         }
       />
 
-      {/* 2. TOP SUMMARY CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      {/* 2. TOP SUMMARY CARDS (Active Crops & Total Crops) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
@@ -159,7 +160,7 @@ export default function CropManagement() {
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Active Crops</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{safeMetrics.activeCropsCount} Batches</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{activeCropsCount} Batches</span>
             </div>
           </div>
         </Card>
@@ -167,41 +168,11 @@ export default function CropManagement() {
         <Card padding="compact" className="border-border/80 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
+              <Container className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total PL Stocked</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">
-                {(safeMetrics.totalPlStocked / 1000).toFixed(0)}k <span className="text-xs font-normal text-text-secondary">PL</span>
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Weight className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Expected Harvest</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">
-                {(safeMetrics.expectedHarvestKg / 1000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Tons</span>
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <IndianRupee className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Estimated Revenue</span>
-              <span className="text-lg font-bold text-emerald-700 tracking-tight">
-                ₹{(safeMetrics.estimatedRevenueRupees / 100000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Lakhs</span>
-              </span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Crops / Batches</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{totalCropsCount} Batches</span>
             </div>
           </div>
         </Card>
@@ -250,18 +221,18 @@ export default function CropManagement() {
         </Card>
       )}
 
-      {/* 5. REGISTER NEW CROP MODAL */}
+      {/* 5. ADD / EDIT CROP MODAL */}
       <Modal
         isOpen={isFormOpen}
         onClose={() => {
           setIsFormOpen(false);
           setEditingCrop(null);
         }}
-        title={editingCrop ? 'Edit Crop Batch' : 'Register New Crop'}
+        title={editingCrop ? 'Edit Crop Details' : 'Register New Crop'}
         description={
           editingCrop
-            ? `Update properties for ${editingCrop.cropName || 'Crop'}`
-            : 'Enter tank, seed variety, batch number, and stocking date.'
+            ? `Update details for Batch ${editingCrop.batchNumber || editingCrop.cropName || 'Crop'}`
+            : 'Register a new aquaculture crop batch into a farm tank.'
         }
         size="md"
       >
@@ -275,7 +246,7 @@ export default function CropManagement() {
         />
       </Modal>
 
-      {/* 6. CROP DETAILS MODAL */}
+      {/* 6. VIEW CROP PROGRESS MODAL */}
       <CropDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => {
@@ -298,7 +269,7 @@ export default function CropManagement() {
         title="Delete Crop Batch"
         message={
           deletingCrop
-            ? `Are you sure you want to delete "${deletingCrop.cropName || 'Crop'}"? This action cannot be undone.`
+            ? `Are you sure you want to delete crop batch "${deletingCrop.batchNumber || deletingCrop.cropName}"? This action cannot be undone.`
             : 'Are you sure you want to delete this crop batch?'
         }
         confirmText="Delete Crop"

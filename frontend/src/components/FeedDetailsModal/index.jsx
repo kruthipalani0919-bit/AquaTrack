@@ -1,16 +1,16 @@
 import React from 'react';
-import { UtensilsCrossed, Container, Sprout, Calendar, Clock, IndianRupee, Package, Edit3, Trash2 } from 'lucide-react';
+import { Edit3, Trash2 } from 'lucide-react';
 import { Modal } from '../Modal';
-import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Reusable FeedDetailsModal component displaying full feed log specifications.
+ * Simplified FeedDetailsModal component displaying ONLY recorded feed specifications:
+ * Feed Brand, Feed Type, Tank, Feeding Date, Quantity, Cost per Kg, Total Cost, and Notes.
  */
 export const FeedDetailsModal = ({
   isOpen = false,
   onClose,
-  feedLog,
+  feedLog = null,
   onEdit,
   onDelete,
 }) => {
@@ -18,97 +18,89 @@ export const FeedDetailsModal = ({
 
   const {
     id,
-    cropName,
     tankName,
     feedBrand,
     feedType,
+    quantity,
     quantityKg,
-    feedingDate,
-    feedingTime,
+    costPerKg,
+    pricePerKg,
     feedCost,
-    remainingStockKg,
-    status,
+    date,
+    feedingDate,
     notes,
   } = feedLog;
 
-  const statusVariantMap = {
-    Completed: 'success',
-    Scheduled: 'warning',
-    Missed: 'danger',
-  };
+  const displayBrand = feedBrand || 'Not specified';
+  const displayType = feedType || 'Not specified';
+
+  // Safely format tank name to NEVER display water source
+  const rawTank = tankName || feedLog?.tank?.name || feedLog?.tank?.tankName || 'Not assigned';
+  const displayTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+
+  const numericQty = parseFloat(quantity ?? quantityKg) || 0;
+  const numericCostPerKg = parseFloat(costPerKg ?? pricePerKg ?? (feedCost && numericQty ? feedCost / numericQty : 0)) || 0;
+  const totalCost = feedCost ? parseFloat(feedCost) : numericQty * numericCostPerKg;
+
+  const validDate = feedingDate || date;
+  const formattedDate = validDate
+    ? new Date(validDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'Not specified';
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`${feedBrand} (${feedType})`}
-      description={`Feed Ration Record for ${cropName}`}
+      title={displayBrand}
+      description={`Feed Record (${displayType})`}
       size="md"
     >
-      <div className="space-y-6">
-        {/* Status Badge Row */}
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
-          <span className="text-xs font-semibold text-text-secondary">Feeding Status</span>
-          <Badge variant={statusVariantMap[status] || 'primary'}>
-            {status}
-          </Badge>
-        </div>
-
-        {/* Location & Crop Info */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-2.5">
-            <Sprout className="w-5 h-5 text-emerald-600 shrink-0" />
-            <div className="min-w-0">
-              <span className="text-[10px] text-text-secondary uppercase font-semibold block">Crop Batch</span>
-              <span className="text-xs font-bold text-text-primary truncate block">{cropName}</span>
-            </div>
+      <div className="space-y-4">
+        {/* Specifications List */}
+        <div className="bg-background border border-border rounded-xl p-4 space-y-2 text-xs">
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Feed Brand</span>
+            <span className="font-bold text-text-primary">{displayBrand}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-2.5">
-            <Container className="w-5 h-5 text-primary shrink-0" />
-            <div className="min-w-0">
-              <span className="text-[10px] text-text-secondary uppercase font-semibold block">Pond / Tank</span>
-              <span className="text-xs font-bold text-text-primary truncate block">{tankName}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Key Specifications Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Ration Qty</span>
-            <span className="text-sm font-bold text-text-primary mt-0.5 block">{quantityKg} Kg</span>
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Feed Type</span>
+            <span className="font-bold text-text-primary">{displayType}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-            <span className="text-[10px] text-emerald-800 uppercase font-semibold block">Total Cost</span>
-            <span className="text-sm font-bold text-emerald-800 mt-0.5 block">₹{feedCost.toLocaleString()}</span>
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Tank</span>
+            <span className="font-bold text-text-primary">{displayTank}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Feeding Date</span>
-            <span className="text-xs font-bold text-text-primary mt-0.5 block">{feedingDate}</span>
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Feeding Date</span>
+            <span className="font-bold text-text-primary">{formattedDate}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Time Slot</span>
-            <span className="text-xs font-bold text-text-primary mt-0.5 block">{feedingTime}</span>
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Quantity</span>
+            <span className="font-bold text-text-primary">{numericQty} kg</span>
+          </div>
+
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Cost per Kg</span>
+            <span className="font-bold text-text-primary">₹{numericCostPerKg}</span>
+          </div>
+
+          <div className="flex justify-between py-1">
+            <span className="text-text-secondary font-medium">Total Cost</span>
+            <span className="font-bold text-emerald-700">₹{totalCost.toLocaleString()}</span>
           </div>
         </div>
 
-        {/* Inventory Stock Row */}
-        <div className="p-3.5 rounded-xl bg-background border border-border flex items-center justify-between">
-          <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-            <Package className="w-4 h-4 text-primary" /> Remaining Inventory Stock
-          </span>
-          <span className="text-sm font-bold text-text-primary">{remainingStockKg} Kg</span>
-        </div>
-
-        {/* Notes */}
+        {/* Notes (Only rendered if notes exist) */}
         {notes && (
-          <div className="p-3.5 rounded-xl bg-background border border-border">
-            <span className="text-xs font-bold text-text-primary block mb-1">Tray Check & Observations</span>
-            <p className="text-xs text-text-secondary leading-relaxed">{notes}</p>
+          <div className="bg-background border border-border rounded-xl p-3 text-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary block mb-1">
+              Notes
+            </span>
+            <p className="text-text-secondary leading-relaxed">{notes}</p>
           </div>
         )}
 
@@ -117,16 +109,16 @@ export const FeedDetailsModal = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onEdit(feedLog)}
+            onClick={() => onEdit && onEdit(feedLog)}
             icon={<Edit3 className="w-4 h-4" />}
           >
-            Edit Record
+            Edit Feed
           </Button>
 
           <Button
             variant="danger"
             size="sm"
-            onClick={() => onDelete(feedLog)}
+            onClick={() => onDelete && onDelete(feedLog)}
             icon={<Trash2 className="w-4 h-4" />}
           >
             Delete

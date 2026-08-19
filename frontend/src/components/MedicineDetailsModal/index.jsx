@@ -1,16 +1,17 @@
 import React from 'react';
-import { Stethoscope, Container, Sprout, Calendar, Clock, IndianRupee, Edit3, Trash2, ShieldAlert } from 'lucide-react';
+import { Edit3, Trash2 } from 'lucide-react';
 import { Modal } from '../Modal';
-import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Reusable MedicineDetailsModal component displaying complete treatment record specifications.
+ * Simplified MedicineDetailsModal component displaying ONLY recorded treatment parameters:
+ * Medicine / Chemical Name, Tank, Application Date, Quantity, Treatment Cost, and Notes (if present).
+ * Prevents any 'undefined • undefined' rendering.
  */
 export const MedicineDetailsModal = ({
   isOpen = false,
   onClose,
-  record,
+  record = null,
   onEdit,
   onDelete,
 }) => {
@@ -18,100 +19,73 @@ export const MedicineDetailsModal = ({
 
   const {
     id,
-    cropName,
     tankName,
     medicineName,
-    category,
-    dosage,
-    unit,
-    applicationDate,
-    applicationTime,
+    quantity,
     cost,
-    purpose,
-    status,
+    applicationDate,
+    date,
     notes,
   } = record;
 
-  const statusVariantMap = {
-    Completed: 'success',
-    Scheduled: 'warning',
-    Missed: 'danger',
-  };
+  const displayMedName = medicineName || 'Treatment Record';
+
+  // Safely format tank name to NEVER display water source
+  const rawTank = tankName || record?.tank?.name || record?.tank?.tankName || 'Not assigned';
+  const displayTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+
+  const numericQty = parseFloat(quantity) || 0;
+  const numericCost = parseFloat(cost) || 0;
+
+  const validDate = applicationDate || date;
+  const formattedDate = validDate
+    ? new Date(validDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'Not specified';
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={medicineName}
-      description={`${category} • ${cropName}`}
+      title={displayMedName}
+      description="Medicine Treatment Details"
       size="md"
     >
-      <div className="space-y-6">
-        {/* Status Badge Row */}
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
-          <span className="text-xs font-semibold text-text-secondary">Treatment Application Status</span>
-          <Badge variant={statusVariantMap[status] || 'primary'}>
-            {status}
-          </Badge>
-        </div>
-
-        {/* Location & Crop Info */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-2.5">
-            <Sprout className="w-5 h-5 text-emerald-600 shrink-0" />
-            <div className="min-w-0">
-              <span className="text-[10px] text-text-secondary uppercase font-semibold block">Crop Batch</span>
-              <span className="text-xs font-bold text-text-primary truncate block">{cropName}</span>
-            </div>
+      <div className="space-y-4">
+        {/* Specifications List */}
+        <div className="bg-background border border-border rounded-xl p-4 space-y-2 text-xs">
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Medicine / Chemical</span>
+            <span className="font-bold text-text-primary">{displayMedName}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border flex items-center gap-2.5">
-            <Container className="w-5 h-5 text-primary shrink-0" />
-            <div className="min-w-0">
-              <span className="text-[10px] text-text-secondary uppercase font-semibold block">Pond / Tank</span>
-              <span className="text-xs font-bold text-text-primary truncate block">{tankName}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Key Specifications Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Dosage Amount</span>
-            <span className="text-sm font-bold text-text-primary mt-0.5 block">{dosage} {unit}</span>
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Tank</span>
+            <span className="font-bold text-text-primary">{displayTank}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-            <span className="text-[10px] text-emerald-800 uppercase font-semibold block">Treatment Cost</span>
-            <span className="text-sm font-bold text-emerald-800 mt-0.5 block">
-              ₹{(parseFloat(cost) || 0).toLocaleString()}
-            </span>
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Application Date</span>
+            <span className="font-bold text-text-primary">{formattedDate}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Application Date</span>
-            <span className="text-xs font-bold text-text-primary mt-0.5 block">{applicationDate}</span>
+          <div className="flex justify-between py-1 border-b border-border/40">
+            <span className="text-text-secondary font-medium">Quantity</span>
+            <span className="font-bold text-text-primary">{numericQty}</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Time Slot</span>
-            <span className="text-xs font-bold text-text-primary mt-0.5 block">{applicationTime}</span>
+          <div className="flex justify-between py-1">
+            <span className="text-text-secondary font-medium">Treatment Cost</span>
+            <span className="font-bold text-emerald-700">₹{numericCost.toLocaleString()}</span>
           </div>
         </div>
 
-        {/* Purpose */}
-        {purpose && (
-          <div className="p-3.5 rounded-xl bg-background border border-border">
-            <span className="text-xs font-bold text-text-primary block mb-1">Treatment Purpose</span>
-            <p className="text-xs text-text-secondary leading-relaxed">{purpose}</p>
-          </div>
-        )}
-
-        {/* Notes */}
+        {/* Application Notes (Only rendered if notes exist) */}
         {notes && (
-          <div className="p-3.5 rounded-xl bg-background border border-border">
-            <span className="text-xs font-bold text-text-primary block mb-1">Application Notes & Observations</span>
-            <p className="text-xs text-text-secondary leading-relaxed">{notes}</p>
+          <div className="bg-background border border-border rounded-xl p-3 text-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary block mb-1">
+              Application Notes
+            </span>
+            <p className="text-text-secondary leading-relaxed">{notes}</p>
           </div>
         )}
 
@@ -120,7 +94,7 @@ export const MedicineDetailsModal = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onEdit(record)}
+            onClick={() => onEdit && onEdit(record)}
             icon={<Edit3 className="w-4 h-4" />}
           >
             Edit Record
@@ -129,7 +103,7 @@ export const MedicineDetailsModal = ({
           <Button
             variant="danger"
             size="sm"
-            onClick={() => onDelete(record)}
+            onClick={() => onDelete && onDelete(record)}
             icon={<Trash2 className="w-4 h-4" />}
           >
             Delete

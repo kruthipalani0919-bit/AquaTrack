@@ -22,6 +22,7 @@ export const SiteProvider = ({ children }) => {
       const siteList = res.data || res || [];
       const normalized = (Array.isArray(siteList) ? siteList : []).map((s) => ({
         ...s,
+        area: s.area ?? s.landArea ?? s.totalArea ?? null,
         landArea: s.landArea ?? s.area ?? s.totalArea ?? null,
       }));
       setSites(normalized);
@@ -38,36 +39,42 @@ export const SiteProvider = ({ children }) => {
   }, [fetchSites, token]);
 
   const addSite = async (newSiteData) => {
+    const areaVal = Number(newSiteData.landArea ?? newSiteData.area);
+
     const payload = {
       siteName: newSiteData.siteName?.trim(),
       location: newSiteData.location?.trim(),
-      district: newSiteData.district?.trim() || 'District',
-      state: newSiteData.state?.trim() || 'State',
+      area: areaVal,
     };
 
     const res = await siteService.createSite(payload);
     const created = res.data || res;
     const result = {
       ...created,
-      landArea: newSiteData.landArea ? parseFloat(newSiteData.landArea) : (created.landArea || created.area || null),
+      area: areaVal,
+      landArea: areaVal,
     };
     setSites((prev) => [result, ...prev]);
     return result;
   };
 
   const updateSite = async (siteId, updatedData) => {
+    const areaVal = (updatedData.landArea !== undefined || updatedData.area !== undefined)
+      ? Number(updatedData.landArea ?? updatedData.area)
+      : undefined;
+
     const payload = {
       ...(updatedData.siteName ? { siteName: updatedData.siteName.trim() } : {}),
       ...(updatedData.location ? { location: updatedData.location.trim() } : {}),
-      ...(updatedData.district ? { district: updatedData.district.trim() } : {}),
-      ...(updatedData.state ? { state: updatedData.state.trim() } : {}),
+      ...(areaVal !== undefined ? { area: areaVal } : {}),
     };
 
     const res = await siteService.updateSite(siteId, payload);
     const updated = res.data || res;
     const result = {
       ...updated,
-      landArea: updatedData.landArea !== undefined ? parseFloat(updatedData.landArea) : (updated.landArea || updated.area || null),
+      area: areaVal !== undefined ? areaVal : (updated.area ?? updated.landArea),
+      landArea: areaVal !== undefined ? areaVal : (updated.area ?? updated.landArea),
     };
     setSites((prev) =>
       prev.map((site) => (site.id === siteId ? { ...site, ...result } : site))

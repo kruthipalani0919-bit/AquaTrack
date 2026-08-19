@@ -10,7 +10,7 @@ import { Textarea } from '../Textarea';
 import { Button } from '../Button';
 import { useTanks } from '../../context/TankContext';
 
-// Zod Validation Schema matching frontend required fields
+// Zod Validation Schema matching required frontend fields
 const medicineSchema = z.object({
   tankId: z
     .string()
@@ -37,8 +37,7 @@ const medicineSchema = z.object({
 
 /**
  * Reusable MedicineForm component with dynamic Tank dropdown from TankContext.
- * Fields: Select Tank, Application Date, Medicine / Chemical Name, Quantity, Treatment Cost (₹), Application Notes.
- * Purpose of Treatment field is completely removed.
+ * Tank display NEVER includes water source (e.g. Borewell).
  */
 export const MedicineForm = ({
   initialData = null,
@@ -49,10 +48,16 @@ export const MedicineForm = ({
   const { tanks } = useTanks();
   const isEditing = Boolean(initialData?.id);
 
-  const tankSelectOptions = tanks.map((tank) => ({
-    value: tank.id,
-    label: `${tank.name} (${tank.area} Acres - ${tank.waterSource})`,
-  }));
+  // Format Tank label cleanly WITHOUT water source (e.g. A1 or A1 (5 Acres))
+  const tankSelectOptions = tanks.map((tank) => {
+    const rawName = tank.name || tank.tankName || 'Tank';
+    const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+    const areaSuffix = tank.area ? ` (${tank.area} Acres)` : '';
+    return {
+      value: tank.id,
+      label: `${cleanName}${areaSuffix}`,
+    };
+  });
 
   const {
     register,
@@ -87,6 +92,8 @@ export const MedicineForm = ({
 
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
+    const rawTankName = selectedTankObj ? selectedTankObj.name : 'Selected Tank';
+    const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
     // Backend Request Model: { tankId, medicineName, purpose, dosage, quantity, cost, date, notes }
     const medicinePayload = {
@@ -103,7 +110,7 @@ export const MedicineForm = ({
     if (onSubmit) {
       onSubmit({
         ...medicinePayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
+        tankName: cleanTankName,
         applicationDate: medicinePayload.date,
         status: initialData?.status || 'Completed',
       });
@@ -147,7 +154,7 @@ export const MedicineForm = ({
           <Input
             label="Medicine / Chemical Name"
             type="text"
-            placeholder="e.g. BKC 80% Sanitizer"
+            placeholder="e.g. Probiotic"
             required={true}
             icon={<Stethoscope className="w-4 h-4" />}
             error={errors.medicineName?.message}
@@ -159,7 +166,7 @@ export const MedicineForm = ({
       {/* SECTION 3: QUANTITY & COST */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-          <Package className="w-3.5 h-3.5" /> Quantity & Expenditure
+          <Package className="w-3.5 h-3.5" /> Quantity & Cost
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
@@ -176,7 +183,7 @@ export const MedicineForm = ({
           <Input
             label="Treatment Cost (₹)"
             type="number"
-            placeholder="e.g. 1750"
+            placeholder="e.g. 999"
             required={true}
             icon={<IndianRupee className="w-4 h-4 text-primary" />}
             error={errors.cost?.message}
@@ -189,7 +196,7 @@ export const MedicineForm = ({
       <div>
         <Textarea
           label="Application Notes (Optional)"
-          placeholder="Add details on dilution ratio, aerator broadcast instructions, post-treatment check..."
+          placeholder="Add any notes..."
           rows={2}
           error={errors.notes?.message}
           {...register('notes')}
@@ -213,7 +220,7 @@ export const MedicineForm = ({
           isLoading={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Treatment Record' : 'Save Treatment Record'}
+          {isEditing ? 'Update Treatment Record' : 'Save Treatment'}
         </Button>
       </div>
     </form>

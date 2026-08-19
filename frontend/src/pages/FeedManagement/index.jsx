@@ -3,7 +3,6 @@ import {
   Plus,
   UtensilsCrossed,
   Weight,
-  TrendingUp,
   IndianRupee
 } from 'lucide-react';
 
@@ -27,7 +26,7 @@ export default function FeedManagement() {
     addFeedLog,
     updateFeedLog,
     deleteFeedLog,
-    analytics = { todaysFeedKg: 0, totalFeedUsedKg: 0, avgFeedPerDayKg: 0, totalFeedCostRupees: 0 },
+    analytics = { todaysFeedKg: 0, totalFeedUsedKg: 0, totalFeedCostRupees: 0 },
     loading,
     error
   } = useFeed();
@@ -35,7 +34,6 @@ export default function FeedManagement() {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [cropFilter, setCropFilter] = useState('');
   const [tankFilter, setTankFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -52,7 +50,6 @@ export default function FeedManagement() {
   const safeAnalytics = {
     todaysFeedKg: analytics?.todaysFeedKg || 0,
     totalFeedUsedKg: analytics?.totalFeedUsedKg || 0,
-    avgFeedPerDayKg: analytics?.avgFeedPerDayKg || 0,
     totalFeedCostRupees: analytics?.totalFeedCostRupees || 0,
   };
 
@@ -64,25 +61,25 @@ export default function FeedManagement() {
     return list.filter((log) => {
       if (!log) return false;
       const brandStr = log.feedBrand || '';
-      const cropStr = log.cropName || '';
-      const tankStr = log.tankName || '';
+      const typeStr = log.feedType || '';
+      const rawTank = log.tankName || log.tank?.name || log.tank?.tankName || '';
+      const tankStr = rawTank.replace(/\s*\([^)]*\)/g, '').trim();
       const notesStr = log.notes || '';
 
       const matchesSearch =
         query === '' ||
         brandStr.toLowerCase().includes(query) ||
-        cropStr.toLowerCase().includes(query) ||
+        typeStr.toLowerCase().includes(query) ||
         tankStr.toLowerCase().includes(query) ||
         notesStr.toLowerCase().includes(query);
 
       const matchesType = typeFilter === '' || log.feedType === typeFilter;
-      const matchesCrop = cropFilter === '' || log.cropId === cropFilter;
       const matchesTank = tankFilter === '' || log.tankId === tankFilter;
-      const matchesDate = dateFilter === '' || log.feedingDate === dateFilter;
+      const matchesDate = dateFilter === '' || log.feedingDate === dateFilter || log.date === dateFilter;
 
-      return matchesSearch && matchesType && matchesCrop && matchesTank && matchesDate;
+      return matchesSearch && matchesType && matchesTank && matchesDate;
     });
-  }, [feedLogs, searchQuery, typeFilter, cropFilter, tankFilter, dateFilter]);
+  }, [feedLogs, searchQuery, typeFilter, tankFilter, dateFilter]);
 
   // Handlers
   const handleOpenAdd = () => {
@@ -136,7 +133,6 @@ export default function FeedManagement() {
   const handleResetFilters = () => {
     setSearchQuery('');
     setTypeFilter('');
-    setCropFilter('');
     setTankFilter('');
     setDateFilter('');
   };
@@ -146,7 +142,7 @@ export default function FeedManagement() {
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="Feed Management"
-        subtitle="Monitor daily feed distribution, ration costs, tray consumption logs, and inventory stock."
+        subtitle="Monitor daily feed distribution, ration logs, and total feed expenditure."
         badge={<Badge variant="primary">{(feedLogs || []).length} Records</Badge>}
         actions={
           <Button
@@ -161,8 +157,8 @@ export default function FeedManagement() {
         }
       />
 
-      {/* 2. TOP DASHBOARD SUMMARY CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      {/* 2. TOP DASHBOARD SUMMARY CARDS (Today's Feed, Total Feed Used, Total Feed Cost) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
@@ -193,20 +189,6 @@ export default function FeedManagement() {
 
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Avg Feed / Day</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">
-                {safeAnalytics.avgFeedPerDayKg} <span className="text-xs font-normal text-text-secondary">Kg</span>
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
               <IndianRupee className="w-4 h-4" />
             </div>
@@ -220,14 +202,12 @@ export default function FeedManagement() {
         </Card>
       </div>
 
-      {/* 3. SEARCH & MULTI-FILTERS */}
+      {/* 3. SEARCH & FILTERS */}
       <FeedFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         typeFilter={typeFilter}
         onTypeChange={setTypeFilter}
-        cropFilter={cropFilter}
-        onCropChange={setCropFilter}
         tankFilter={tankFilter}
         onTankChange={setTankFilter}
         dateFilter={dateFilter}
@@ -235,7 +215,7 @@ export default function FeedManagement() {
         onReset={handleResetFilters}
       />
 
-      {/* 5. FEED CARDS GRID OR EMPTY STATE */}
+      {/* 4. FEED CARDS GRID OR EMPTY STATE */}
       {filteredFeedLogs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredFeedLogs.map((log) => (
@@ -253,34 +233,34 @@ export default function FeedManagement() {
           <EmptyState
             title="No Feed Records Found"
             description={
-              searchQuery || typeFilter || cropFilter || tankFilter || dateFilter
-                ? "No feed records match your current filter selection. Try resetting filters or choosing a different date."
-                : "You haven't recorded any feed logs yet. Click the button below to log your first feeding ration."
+              searchQuery || typeFilter || tankFilter || dateFilter
+                ? "No feed logs match your filter criteria. Try resetting filters."
+                : "No feed records have been entered yet."
             }
             actionLabel={
-              searchQuery || typeFilter || cropFilter || tankFilter || dateFilter ? "Reset Filters" : "Record First Feed"
+              searchQuery || typeFilter || tankFilter || dateFilter ? "Reset Filters" : "Record Feed"
             }
             onAction={
-              searchQuery || typeFilter || cropFilter || tankFilter || dateFilter ? handleResetFilters : handleOpenAdd
+              searchQuery || typeFilter || tankFilter || dateFilter ? handleResetFilters : handleOpenAdd
             }
           />
         </Card>
       )}
 
-      {/* 6. ADD / EDIT FEED MODAL */}
+      {/* 5. ADD / EDIT FEED LOG MODAL */}
       <Modal
         isOpen={isFormOpen}
         onClose={() => {
           setIsFormOpen(false);
           setEditingFeedLog(null);
         }}
-        title={editingFeedLog ? 'Edit Feed Log' : 'Record New Feed Ration'}
+        title={editingFeedLog ? 'Edit Feed Log' : 'Record Feed'}
         description={
           editingFeedLog
-            ? `Update properties for ${editingFeedLog.feedBrand || 'Feed'} ration`
-            : 'Choose tank to log feed brand, type, quantity, and cost.'
+            ? `Update feed record for ${editingFeedLog.feedBrand || 'Feed'}`
+            : 'Record daily feed allocation for a farm tank.'
         }
-        size="lg"
+        size="md"
       >
         <FeedForm
           initialData={editingFeedLog}
@@ -292,7 +272,7 @@ export default function FeedManagement() {
         />
       </Modal>
 
-      {/* 7. FEED DETAILS MODAL */}
+      {/* 6. VIEW FEED LOG MODAL */}
       <FeedDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => {
@@ -304,7 +284,7 @@ export default function FeedManagement() {
         onDelete={handleOpenDelete}
       />
 
-      {/* 8. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE CONFIRMATION DIALOG */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
@@ -315,10 +295,10 @@ export default function FeedManagement() {
         title="Delete Feed Record"
         message={
           deletingFeedLog
-            ? `Are you sure you want to delete this feed log (${deletingFeedLog.quantityKg || 0} kg ${deletingFeedLog.feedBrand || 'Feed'})? This action cannot be undone.`
+            ? `Are you sure you want to delete feed record for "${deletingFeedLog.feedBrand || 'Feed'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this feed record?'
         }
-        confirmText="Delete Record"
+        confirmText="Delete Feed Record"
         cancelText="Cancel"
         type="danger"
       />

@@ -5,19 +5,16 @@ import { Select } from '../Select';
 import { Input } from '../Input';
 import { Button } from '../Button';
 import { FEED_TYPE_OPTIONS } from '../../constants/feedData';
-import { useCrops } from '../../context/CropContext';
 import { useTanks } from '../../context/TankContext';
 
 /**
- * Reusable FeedFilters component for search, date, crop, tank, and feed type filters.
+ * Reusable FeedFilters component for search, feed type, tank, and date filters.
  */
 export const FeedFilters = ({
   searchQuery = '',
   onSearchChange,
   typeFilter = '',
   onTypeChange,
-  cropFilter = '',
-  onCropChange,
   tankFilter = '',
   onTankChange,
   dateFilter = '',
@@ -25,11 +22,10 @@ export const FeedFilters = ({
   onReset,
   className = '',
 }) => {
-  const { crops = [] } = useCrops();
   const { tanks = [] } = useTanks();
 
   const hasActiveFilters = Boolean(
-    searchQuery || typeFilter || cropFilter || tankFilter || dateFilter
+    searchQuery || typeFilter || tankFilter || dateFilter
   );
 
   const typeOptions = [
@@ -37,14 +33,14 @@ export const FeedFilters = ({
     ...FEED_TYPE_OPTIONS,
   ];
 
-  const cropOptions = [
-    { value: '', label: 'All Crops' },
-    ...(crops || []).map((c) => ({ value: c.id, label: c.cropName || 'Crop' })),
-  ];
-
+  // Clean tank names so water source is NEVER exposed
   const tankOptions = [
     { value: '', label: 'All Tanks' },
-    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
+    ...(tanks || []).map((t) => {
+      const rawName = t.name || t.tankName || 'Tank';
+      const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      return { value: t.id, label: cleanName };
+    }),
   ];
 
   return (
@@ -55,27 +51,18 @@ export const FeedFilters = ({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onClear={() => onSearchChange('')}
-          placeholder="Search feed brand, notes, crop or tank name..."
+          placeholder="Search feed brand, type, tank name, notes..."
         />
       </div>
 
       {/* Dropdown Filters Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end pt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end pt-1">
         {/* Feed Type */}
         <Select
           placeholder=""
           options={typeOptions}
           value={typeFilter}
           onChange={(e) => onTypeChange(e.target.value)}
-          fullWidth
-        />
-
-        {/* Crop Select */}
-        <Select
-          placeholder=""
-          options={cropOptions}
-          value={cropFilter}
-          onChange={(e) => onCropChange(e.target.value)}
           fullWidth
         />
 
@@ -88,7 +75,7 @@ export const FeedFilters = ({
           fullWidth
         />
 
-        {/* Date Filter */}
+        {/* Date Filter & Reset */}
         <div className="flex items-center gap-2">
           <Input
             type="date"

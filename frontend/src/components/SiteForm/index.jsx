@@ -29,7 +29,6 @@ const siteSchema = z.object({
  * 1. SITE NAME *
  * 2. LAND DETAILS (Land Area in Acres *)
  * 3. LOCATION *
- * District, State, and Remarks are completely removed.
  */
 export const SiteForm = ({
   initialData = null,
@@ -78,10 +77,9 @@ export const SiteForm = ({
       if (onSubmit) {
         await onSubmit({
           siteName: data.siteName.trim(),
-          landArea: parseFloat(data.landArea),
+          landArea: Number(data.landArea),
+          area: Number(data.landArea),
           location: data.location.trim(),
-          district: initialData?.district || 'District',
-          state: initialData?.state || 'State',
         });
       }
     } catch (err) {

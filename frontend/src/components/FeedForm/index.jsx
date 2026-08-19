@@ -41,9 +41,7 @@ const feedSchema = z.object({
 
 /**
  * Reusable FeedForm component with dynamic Tank dropdown from TankContext.
- * Contains user customizable text inputs for Feed Brand and Feed Type.
- * Feed Size / Pellet Size field is completely removed.
- * Internal fallback feedSize is provided to maintain 100% backend API contract compatibility.
+ * Tank display NEVER includes water source (e.g. Borewell).
  */
 export const FeedForm = ({
   initialData = null,
@@ -54,10 +52,16 @@ export const FeedForm = ({
   const { tanks } = useTanks();
   const isEditing = Boolean(initialData?.id);
 
-  const tankSelectOptions = tanks.map((tank) => ({
-    value: tank.id,
-    label: `${tank.name} (${tank.area} Acres - ${tank.waterSource})`,
-  }));
+  // Format Tank label cleanly WITHOUT water source (e.g., A1 or A1 (5 Acres))
+  const tankSelectOptions = tanks.map((tank) => {
+    const rawName = tank.name || tank.tankName || 'Tank';
+    const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+    const areaSuffix = tank.area ? ` (${tank.area} Acres)` : '';
+    return {
+      value: tank.id,
+      label: `${cleanName}${areaSuffix}`,
+    };
+  });
 
   const {
     register,
@@ -94,6 +98,8 @@ export const FeedForm = ({
 
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
+    const rawTankName = selectedTankObj ? selectedTankObj.name : 'Selected Tank';
+    const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
     // Backend Request Model: { tankId, date, feedType, feedBrand, feedSize, quantity, costPerKg, notes }
     const feedPayload = {
@@ -110,7 +116,7 @@ export const FeedForm = ({
     if (onSubmit) {
       onSubmit({
         ...feedPayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
+        tankName: cleanTankName,
         quantityKg: feedPayload.quantity,
         feedingDate: feedPayload.date,
         feedCost: feedPayload.quantity * feedPayload.costPerKg,
@@ -175,7 +181,7 @@ export const FeedForm = ({
         </div>
       </div>
 
-      {/* SECTION 3: QUANTITY & COST (Prominent Section) */}
+      {/* SECTION 3: QUANTITY & COST */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
           <UtensilsCrossed className="w-3.5 h-3.5" /> Quantity & Cost

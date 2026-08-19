@@ -22,7 +22,11 @@ export const ExpenseFilters = ({
 
   const tankOptions = [
     { value: '', label: 'All Tanks / Ponds' },
-    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
+    ...(tanks || []).map((t) => {
+      const rawName = t.name || t.tankName || 'Tank';
+      const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      return { value: t.id, label: cleanName };
+    }),
   ];
 
   const categoryOptions = [

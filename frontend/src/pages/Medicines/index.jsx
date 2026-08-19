@@ -34,9 +34,7 @@ export default function Medicines() {
   // Search & Multi-Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [cropFilter, setCropFilter] = useState('');
   const [tankFilter, setTankFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
   // Modal Control States
@@ -50,9 +48,9 @@ export default function Medicines() {
   const [deletingRecord, setDeletingRecord] = useState(null);
 
   const safeAnalytics = {
-    totalTreatments: analytics?.totalTreatments || 0,
+    totalTreatments: analytics?.totalTreatments || (medicineRecords || []).length,
     medicinesUsedToday: analytics?.medicinesUsedToday || 0,
-    totalMedicineCostRupees: analytics?.totalMedicineCostRupees || 0,
+    totalMedicineCostRupees: analytics?.totalMedicineCostRupees || (medicineRecords || []).reduce((acc, r) => acc + (parseFloat(r.cost) || 0), 0),
   };
 
   // Multi-Filter Logic Safely
@@ -63,28 +61,23 @@ export default function Medicines() {
     return list.filter((rec) => {
       if (!rec) return false;
       const medStr = rec.medicineName || '';
-      const cropStr = rec.cropName || '';
-      const tankStr = rec.tankName || '';
-      const purposeStr = rec.purpose || '';
+      const rawTank = rec.tankName || rec.tank?.name || rec.tank?.tankName || '';
+      const tankStr = rawTank.replace(/\s*\([^)]*\)/g, '').trim();
       const notesStr = rec.notes || '';
 
       const matchesSearch =
         query === '' ||
         medStr.toLowerCase().includes(query) ||
-        cropStr.toLowerCase().includes(query) ||
         tankStr.toLowerCase().includes(query) ||
-        purposeStr.toLowerCase().includes(query) ||
         notesStr.toLowerCase().includes(query);
 
       const matchesCategory = categoryFilter === '' || rec.category === categoryFilter;
-      const matchesCrop = cropFilter === '' || rec.cropId === cropFilter;
       const matchesTank = tankFilter === '' || rec.tankId === tankFilter;
-      const matchesStatus = statusFilter === '' || rec.status === statusFilter;
-      const matchesDate = dateFilter === '' || rec.applicationDate === dateFilter;
+      const matchesDate = dateFilter === '' || rec.applicationDate === dateFilter || rec.date === dateFilter;
 
-      return matchesSearch && matchesCategory && matchesCrop && matchesTank && matchesStatus && matchesDate;
+      return matchesSearch && matchesCategory && matchesTank && matchesDate;
     });
-  }, [medicineRecords, searchQuery, categoryFilter, cropFilter, tankFilter, statusFilter, dateFilter]);
+  }, [medicineRecords, searchQuery, categoryFilter, tankFilter, dateFilter]);
 
   // Handlers
   const handleOpenAdd = () => {
@@ -138,9 +131,7 @@ export default function Medicines() {
   const handleResetFilters = () => {
     setSearchQuery('');
     setCategoryFilter('');
-    setCropFilter('');
     setTankFilter('');
-    setStatusFilter('');
     setDateFilter('');
   };
 
@@ -149,8 +140,8 @@ export default function Medicines() {
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="Medicine & Health Management"
-        subtitle="Track pond treatments, disease prevention, probiotic applications, and medicine expenditure."
-        badge={<Badge variant="primary">{(medicineRecords || []).length} Treatment Records</Badge>}
+        subtitle="Track pond treatments, probiotics, and treatment expenditure."
+        badge={<Badge variant="primary">{(medicineRecords || []).length} Records</Badge>}
         actions={
           <Button
             variant="primary"
@@ -164,7 +155,7 @@ export default function Medicines() {
         }
       />
 
-      {/* 2. TOP DASHBOARD SUMMARY CARDS */}
+      {/* 2. TOP DASHBOARD SUMMARY CARDS (Total Treatments, Used Today, Total Cost) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {/* Card 1: Total Treatments */}
         <Card padding="compact" className="border-border/80">
@@ -179,7 +170,7 @@ export default function Medicines() {
           </div>
         </Card>
 
-        {/* Card 2: Medicines Used Today */}
+        {/* Card 2: Used Today */}
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
@@ -192,7 +183,7 @@ export default function Medicines() {
           </div>
         </Card>
 
-        {/* Card 3: Total Medicine Cost */}
+        {/* Card 3: Total Cost */}
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -201,31 +192,27 @@ export default function Medicines() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Cost</span>
               <span className="text-lg font-bold text-emerald-700 tracking-tight">
-                ₹{(safeAnalytics.totalMedicineCostRupees / 1000).toFixed(1)}k <span className="text-xs font-normal text-text-secondary">Total</span>
+                ₹{safeAnalytics.totalMedicineCostRupees.toLocaleString()}
               </span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* 3. SEARCH & MULTI-FILTERS */}
+      {/* 3. SEARCH & FILTERS */}
       <MedicineFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         categoryFilter={categoryFilter}
         onCategoryChange={setCategoryFilter}
-        cropFilter={cropFilter}
-        onCropChange={setCropFilter}
         tankFilter={tankFilter}
         onTankChange={setTankFilter}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
         dateFilter={dateFilter}
         onDateChange={setDateFilter}
         onReset={handleResetFilters}
       />
 
-      {/* 5. MEDICINE CARDS GRID OR EMPTY STATE */}
+      {/* 4. MEDICINE CARDS GRID OR EMPTY STATE */}
       {filteredRecords.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredRecords.map((rec) => (
@@ -243,21 +230,21 @@ export default function Medicines() {
           <EmptyState
             title="No Treatment Records Found"
             description={
-              searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter
-                ? "No medicine logs match your current filter selection. Try clearing filters or choosing another category."
+              searchQuery || categoryFilter || tankFilter || dateFilter
+                ? "No medicine logs match your current filter selection. Try clearing filters or resetting search."
                 : "You haven't logged any medicine or probiotic applications yet. Click the button below to add your first treatment record."
             }
             actionLabel={
-              searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter ? "Reset Filters" : "Add First Treatment"
+              searchQuery || categoryFilter || tankFilter || dateFilter ? "Reset Filters" : "Add Treatment Record"
             }
             onAction={
-              searchQuery || categoryFilter || cropFilter || tankFilter || statusFilter || dateFilter ? handleResetFilters : handleOpenAdd
+              searchQuery || categoryFilter || tankFilter || dateFilter ? handleResetFilters : handleOpenAdd
             }
           />
         </Card>
       )}
 
-      {/* 6. ADD / EDIT MEDICINE RECORD MODAL */}
+      {/* 5. ADD / EDIT MEDICINE LOG MODAL */}
       <Modal
         isOpen={isFormOpen}
         onClose={() => {
@@ -267,10 +254,10 @@ export default function Medicines() {
         title={editingRecord ? 'Edit Treatment Record' : 'Add New Treatment Record'}
         description={
           editingRecord
-            ? `Update properties for ${editingRecord.medicineName || 'Medicine'}`
-            : 'Select tank to log medicine dosage, category, and cost.'
+            ? `Update details for ${editingRecord.medicineName || 'Treatment'}`
+            : 'Record a medicine or probiotic application for a farm tank.'
         }
-        size="lg"
+        size="md"
       >
         <MedicineForm
           initialData={editingRecord}
@@ -282,7 +269,7 @@ export default function Medicines() {
         />
       </Modal>
 
-      {/* 7. MEDICINE DETAILS MODAL */}
+      {/* 6. VIEW MEDICINE LOG MODAL */}
       <MedicineDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => {
@@ -294,7 +281,7 @@ export default function Medicines() {
         onDelete={handleOpenDelete}
       />
 
-      {/* 8. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE CONFIRMATION DIALOG */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
@@ -305,10 +292,10 @@ export default function Medicines() {
         title="Delete Treatment Record"
         message={
           deletingRecord
-            ? `Are you sure you want to delete the treatment record for "${deletingRecord.medicineName || 'Medicine'}"? This action cannot be undone.`
+            ? `Are you sure you want to delete treatment record for "${deletingRecord.medicineName || 'Treatment'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this treatment record?'
         }
-        confirmText="Delete Record"
+        confirmText="Delete Treatment Record"
         cancelText="Cancel"
         type="danger"
       />

@@ -29,7 +29,7 @@ export const CropFilters = ({
   ];
 
   const tankOptions = [
-    { value: '', label: 'All Ponds / Tanks' },
+    { value: '', label: 'All Tanks' },
     ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
   ];
 
@@ -41,7 +41,7 @@ export const CropFilters = ({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onClear={() => onSearchChange('')}
-          placeholder="Search crop name, variety, notes..."
+          placeholder="Search batch number, seed variety, tank name, notes..."
         />
       </div>
 
