@@ -20,7 +20,7 @@ const cropSchema = z.object({
     .min(1, 'Stocking Date is required'),
   seedVariety: z
     .string()
-    .min(1, 'Seed Variety is required')
+    .min(2, 'Seed Variety must be at least 2 characters')
     .trim(),
   batchNumber: z
     .string()
@@ -37,8 +37,7 @@ const cropSchema = z.object({
  * - Row 1 (side-by-side): Tank & Stocking Date
  * - Highlighted "Crop Specifications" section: Seed Variety (full width) stacked above Batch Number (full width)
  * - Row 3: Notes (Optional)
- * Computes internal fallback defaults for plCount, expectedHarvestDate, expectedProduction, and expectedSellingPrice
- * to preserve 100% backend API contract compatibility.
+ * Sends exact required payload (tankId, stockingDate, seedVariety, batchNumber, notes) matching backend createCropSchema.
  */
 export const CropForm = ({
   initialData = null,
@@ -86,34 +85,20 @@ export const CropForm = ({
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
 
-    // Compute internal fallback defaults to ensure backend API request compliance
-    const stockingTime = data.stockingDate ? new Date(data.stockingDate).getTime() : Date.now();
-    const computedHarvestDate = new Date(stockingTime + 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const parsedPl = initialData?.plCount || 100000;
-    const computedProduction = initialData?.expectedProduction || Math.round(parsedPl * 0.015);
-    const computedSellingPrice = initialData?.expectedSellingPrice || 350;
-
-    // Full Backend Payload
+    // Exact Backend Payload matching createCropSchema: { tankId, stockingDate, seedVariety, batchNumber, notes }
     const cropPayload = {
       tankId: data.tankId,
-      cropName: data.batchNumber.trim(),
-      seedVariety: data.seedVariety.trim(),
-      plCount: parsedPl,
       stockingDate: data.stockingDate,
-      expectedHarvestDate: initialData?.expectedHarvestDate || computedHarvestDate,
-      cropDuration: 120,
-      expectedProduction: computedProduction,
-      expectedSellingPrice: computedSellingPrice,
-      notes: data.notes ? data.notes.trim() : '',
+      seedVariety: data.seedVariety.trim(),
+      batchNumber: data.batchNumber.trim(),
+      notes: data.notes ? data.notes.trim() : undefined,
     };
 
     if (onSubmit) {
       onSubmit({
         ...cropPayload,
-        batchNumber: data.batchNumber.trim(),
+        cropName: cropPayload.batchNumber,
         tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
-        expectedProductionKg: cropPayload.expectedProduction,
-        expectedSellingPricePerKg: cropPayload.expectedSellingPrice,
         status: initialData?.status || 'Active',
       });
     }
