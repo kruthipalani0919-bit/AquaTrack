@@ -2,31 +2,23 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Stethoscope, Calendar, IndianRupee, Package, Activity, Container } from 'lucide-react';
+import { Stethoscope, Calendar, IndianRupee, Package, Container } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
 import { Button } from '../Button';
-
 import { useTanks } from '../../context/TankContext';
 
-// Zod Validation Schema matching backend contract (POST /api/medicines)
+// Zod Validation Schema matching frontend required fields
 const medicineSchema = z.object({
   tankId: z
     .string()
-    .min(1, 'Please select a Tank / Pond'),
+    .min(1, 'Please select a Tank'),
   medicineName: z
     .string()
     .min(1, 'Medicine Name is required')
     .trim(),
-  purpose: z
-    .string()
-    .optional()
-    .or(z.literal('')),
-  dosage: z
-    .string()
-    .optional(),
   quantity: z
     .coerce
     .number({ invalid_type_error: 'Quantity must be a number' })
@@ -45,7 +37,8 @@ const medicineSchema = z.object({
 
 /**
  * Reusable MedicineForm component with dynamic Tank dropdown from TankContext.
- * Contains ONLY backend-supported fields: tankId, medicineName, purpose, quantity, cost, date, notes.
+ * Fields: Select Tank, Application Date, Medicine / Chemical Name, Quantity, Treatment Cost (₹), Application Notes.
+ * Purpose of Treatment field is completely removed.
  */
 export const MedicineForm = ({
   initialData = null,
@@ -71,8 +64,6 @@ export const MedicineForm = ({
     defaultValues: {
       tankId: '',
       medicineName: '',
-      purpose: '',
-      dosage: '',
       quantity: '',
       cost: '',
       date: new Date().toISOString().split('T')[0],
@@ -86,8 +77,6 @@ export const MedicineForm = ({
       reset({
         tankId: initialData.tankId || '',
         medicineName: initialData.medicineName || '',
-        purpose: initialData.purpose || '',
-        dosage: initialData.dosage ? String(initialData.dosage) : '',
         quantity: initialData.quantity || '',
         cost: initialData.cost || '',
         date: initialData.date || initialData.applicationDate || '',
@@ -103,7 +92,7 @@ export const MedicineForm = ({
     const medicinePayload = {
       tankId: data.tankId,
       medicineName: data.medicineName.trim(),
-      purpose: data.purpose ? data.purpose.trim() : '',
+      purpose: initialData?.purpose || 'Water treatment',
       dosage: initialData?.dosage || 'As required',
       quantity: parseFloat(data.quantity),
       cost: parseFloat(data.cost),
@@ -111,12 +100,10 @@ export const MedicineForm = ({
       notes: data.notes ? data.notes.trim() : '',
     };
 
-    console.log('Backend Medicine Payload:', medicinePayload);
-
     if (onSubmit) {
       onSubmit({
         ...medicinePayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Pond',
+        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
         applicationDate: medicinePayload.date,
         status: initialData?.status || 'Completed',
       });
@@ -132,9 +119,9 @@ export const MedicineForm = ({
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
-            label="Select Pond / Tank"
+            label="Select Tank"
             required={true}
-            placeholder="Choose pond..."
+            placeholder="Select tank..."
             options={tankSelectOptions}
             error={errors.tankId?.message}
             {...register('tankId')}
@@ -151,12 +138,12 @@ export const MedicineForm = ({
         </div>
       </div>
 
-      {/* SECTION 2: MEDICINE & PURPOSE */}
+      {/* SECTION 2: MEDICINE DETAILS */}
       <div className="space-y-3">
         <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
           <Stethoscope className="w-3.5 h-3.5 text-primary" /> Treatment Details
         </h4>
-        <div className="flex flex-col gap-4">
+        <div>
           <Input
             label="Medicine / Chemical Name"
             type="text"
@@ -166,20 +153,10 @@ export const MedicineForm = ({
             error={errors.medicineName?.message}
             {...register('medicineName')}
           />
-
-          <Input
-            label="Purpose of Treatment (Optional)"
-            type="text"
-            placeholder="Optional (e.g. Water sanitization, bacterial control)"
-            required={false}
-            icon={<Activity className="w-4 h-4" />}
-            error={errors.purpose?.message}
-            {...register('purpose')}
-          />
         </div>
       </div>
 
-      {/* SECTION 3: QUANTITY & COST (GROUPED NUMERIC FIELDS) */}
+      {/* SECTION 3: QUANTITY & COST */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
           <Package className="w-3.5 h-3.5" /> Quantity & Expenditure

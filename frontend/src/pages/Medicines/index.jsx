@@ -268,7 +268,7 @@ export default function Medicines() {
         description={
           editingRecord
             ? `Update properties for ${editingRecord.medicineName || 'Medicine'}`
-            : 'Select active crop to auto-fill pond and log medicine dosage, category, purpose, and cost.'
+            : 'Select tank to log medicine dosage, category, and cost.'
         }
         size="lg"
       >

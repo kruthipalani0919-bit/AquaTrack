@@ -19,6 +19,7 @@ export const CropCard = ({
     id,
     tankName,
     cropName,
+    batchNumber,
     seedVariety,
     plCount,
     stockingDate,
@@ -26,16 +27,21 @@ export const CropCard = ({
     expectedProductionKg,
     expectedSellingPricePerKg,
     status,
-  } = crop;
+  } = crop || {};
 
-  const displayName = cropName || 'Culture Batch';
-  const displayTank = tankName || 'Tank';
-  const displayVariety = seedVariety || 'Vannamei';
+  const displayName = cropName || (batchNumber ? `Batch ${batchNumber}` : 'Culture Batch');
+  const displayTank = tankName || crop?.tank?.tankName || 'Tank';
+  const displayVariety = seedVariety || 'Standard';
 
   // 1. Calculate Days of Culture (DOC) & Duration Safely
   const now = new Date();
-  const start = stockingDate ? new Date(stockingDate) : now;
-  const end = expectedHarvestDate ? new Date(expectedHarvestDate) : new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000);
+  const validStockingDate = stockingDate ? new Date(stockingDate) : null;
+  const start = validStockingDate && !isNaN(validStockingDate.getTime()) ? validStockingDate : now;
+
+  const validHarvestDate = expectedHarvestDate ? new Date(expectedHarvestDate) : null;
+  const end = validHarvestDate && !isNaN(validHarvestDate.getTime())
+    ? validHarvestDate
+    : new Date(start.getTime() + 120 * 24 * 60 * 60 * 1000);
 
   const diffTimeDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
   const doc = Math.max(0, diffTimeDays);

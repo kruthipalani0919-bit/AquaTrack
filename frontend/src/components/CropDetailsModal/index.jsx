@@ -8,7 +8,9 @@ import {
   Sparkles,
   TrendingUp,
   Edit3,
-  Trash2
+  Trash2,
+  Tag,
+  MapPin
 } from 'lucide-react';
 
 import { Modal } from '../Modal';
@@ -18,12 +20,12 @@ import { CropTimeline } from '../CropTimeline';
 
 /**
  * Reusable CropDetailsModal component displaying full specs, DOC progress,
- * financial projections, and visual culture timeline.
+ * financial projections, and visual culture timeline with 100% safe null-checks.
  */
 export const CropDetailsModal = ({
   isOpen = false,
   onClose,
-  crop,
+  crop = null,
   onEdit,
   onDelete,
 }) => {
@@ -33,6 +35,7 @@ export const CropDetailsModal = ({
     id,
     tankName,
     cropName,
+    batchNumber,
     seedVariety,
     plCount,
     stockingDate,
@@ -43,24 +46,37 @@ export const CropDetailsModal = ({
     notes,
   } = crop;
 
-  // Calculate DOC & Duration
+  const displayName = cropName || (batchNumber ? `Batch ${batchNumber}` : seedVariety ? `Variety: ${seedVariety}` : 'Crop Batch');
+  const displayTank = tankName || crop.tank?.tankName || 'Tank';
+  const displayVariety = seedVariety || 'Standard';
+  const displayBatch = batchNumber || cropName || 'N/A';
+
+  // Safe Date & DOC calculation
   const now = new Date();
-  const start = new Date(stockingDate);
-  const end = new Date(expectedHarvestDate);
+  const validStockingDate = stockingDate ? new Date(stockingDate) : null;
+  const start = validStockingDate && !isNaN(validStockingDate.getTime()) ? validStockingDate : now;
+
+  const validHarvestDate = expectedHarvestDate ? new Date(expectedHarvestDate) : null;
+  const end = validHarvestDate && !isNaN(validHarvestDate.getTime())
+    ? validHarvestDate
+    : new Date(start.getTime() + 120 * 24 * 60 * 60 * 1000);
 
   const doc = Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
   const totalDurationDays = Math.max(1, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
   const progressPercent = Math.min(100, Math.max(0, Math.round((doc / totalDurationDays) * 100)));
 
-  // Financial calculation
-  const totalRevenue = (parseFloat(expectedProductionKg) || 0) * (parseFloat(expectedSellingPricePerKg) || 0);
+  // Safe numerical calculations
+  const numericPl = parseFloat(plCount) || 0;
+  const numericProd = parseFloat(expectedProductionKg || crop.expectedProduction) || 0;
+  const numericPrice = parseFloat(expectedSellingPricePerKg || crop.expectedSellingPrice) || 0;
+  const totalRevenue = numericProd * numericPrice;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={cropName}
-      description={`Culture Batch in ${tankName}`}
+      title={displayName}
+      description={`${displayVariety} Batch in ${displayTank}`}
       size="lg"
     >
       <div className="space-y-6">
@@ -78,7 +94,7 @@ export const CropDetailsModal = ({
                 : 'danger'
             }
           >
-            {status}
+            {status || 'Active'}
           </Badge>
         </div>
 
@@ -99,43 +115,51 @@ export const CropDetailsModal = ({
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-text-secondary pt-1">
-            <span>Stocked: {stockingDate}</span>
-            <span>Target Harvest: {expectedHarvestDate} ({totalDurationDays} Days Total)</span>
+            <span>Stocked: {stockingDate ? new Date(stockingDate).toLocaleDateString() : 'N/A'}</span>
+            <span>Target Harvest: {expectedHarvestDate ? new Date(expectedHarvestDate).toLocaleDateString() : 'Est. 120 Days'} ({totalDurationDays} Days Total)</span>
           </div>
         </div>
 
         {/* Specifications Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">PL Stocked</span>
-            <span className="text-sm font-bold text-text-primary mt-0.5 block">
-              {(plCount / 1000).toFixed(0)}k PL
+            <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+              <Tag className="w-3 h-3 text-primary" /> Batch Number
             </span>
-            <span className="text-[10px] text-text-secondary">({plCount.toLocaleString()} units)</span>
+            <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={displayBatch}>
+              {displayBatch}
+            </span>
+            <span className="text-[10px] text-text-secondary">Batch Identifier</span>
           </div>
 
           <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Target Yield</span>
-            <span className="text-sm font-bold text-text-primary mt-0.5 block">
-              {expectedProductionKg} kg
+            <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+              <Sprout className="w-3 h-3 text-primary" /> Seed Variety
             </span>
-            <span className="text-[10px] text-text-secondary">({(expectedProductionKg / 1000).toFixed(2)} Tons)</span>
+            <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={displayVariety}>
+              {displayVariety}
+            </span>
+            <span className="text-[10px] text-text-secondary">Species Strain</span>
           </div>
 
           <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Target Price</span>
-            <span className="text-sm font-bold text-text-primary mt-0.5 block">
-              ₹{expectedSellingPricePerKg}/kg
+            <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+              <Container className="w-3 h-3 text-primary" /> Location Tank
             </span>
-            <span className="text-[10px] text-text-secondary">Est. Market Rate</span>
+            <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={displayTank}>
+              {displayTank}
+            </span>
+            <span className="text-[10px] text-text-secondary">Pond / Tank</span>
           </div>
 
-          <div className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200">
-            <span className="text-[10px] text-emerald-800 uppercase font-semibold block">Est. Revenue</span>
-            <span className="text-sm font-bold text-emerald-800 mt-0.5 block">
-              ₹{(totalRevenue / 100000).toFixed(2)} Lakhs
+          <div className="p-3 rounded-lg bg-surface border border-border">
+            <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-primary" /> Stocking Date
             </span>
-            <span className="text-[10px] text-emerald-700">₹{totalRevenue.toLocaleString()}</span>
+            <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+              {stockingDate ? new Date(stockingDate).toLocaleDateString() : 'N/A'}
+            </span>
+            <span className="text-[10px] text-text-secondary">Initial Date</span>
           </div>
         </div>
 
@@ -157,7 +181,7 @@ export const CropDetailsModal = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onEdit(crop)}
+            onClick={() => onEdit && onEdit(crop)}
             icon={<Edit3 className="w-4 h-4" />}
           >
             Edit Crop
@@ -166,7 +190,7 @@ export const CropDetailsModal = ({
           <Button
             variant="danger"
             size="sm"
-            onClick={() => onDelete(crop)}
+            onClick={() => onDelete && onDelete(crop)}
             icon={<Trash2 className="w-4 h-4" />}
           >
             Delete
