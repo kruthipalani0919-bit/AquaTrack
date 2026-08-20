@@ -13,10 +13,12 @@ import { Button } from '../Button';
 export const ExpenseCard = ({
   expense = {},
   onView,
+  onViewDetails,
   onEdit,
   onDelete,
   className = '',
 }) => {
+  const handleView = onViewDetails || onView;
   const {
     id,
     tankName,
@@ -99,7 +101,7 @@ export const ExpenseCard = ({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onView && onView(expense)}
+          onClick={() => handleView && handleView(expense)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs font-medium"
         >

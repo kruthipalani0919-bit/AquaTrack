@@ -13,10 +13,12 @@ import { Button } from '../Button';
 export const FeedCard = ({
   feedLog = {},
   onView,
+  onViewDetails,
   onEdit,
   onDelete,
   className = '',
 }) => {
+  const handleView = onViewDetails || onView;
   const {
     id,
     tankName,
@@ -121,7 +123,7 @@ export const FeedCard = ({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onView && onView(feedLog)}
+          onClick={() => handleView && handleView(feedLog)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs font-medium"
         >
