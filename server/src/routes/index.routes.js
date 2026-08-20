@@ -13,11 +13,13 @@ import dashboardRoutes from "./dashboard.routes.js";
 import reportRoutes from "./report.routes.js";
 import siteRoutes from "./site.routes.js";
 import stockingRoutes from "./stocking.routes.js";
+import forgotPasswordRoutes from "../forgot-password/forgotPassword.routes.js";
 const router = Router();
 
 router.get("/health", healthCheck);
 
 router.use("/auth", authRoutes);
+router.use("/forgot-password", forgotPasswordRoutes);
 
 router.use("/farms", farmRoutes);
 
