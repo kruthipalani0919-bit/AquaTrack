@@ -16,6 +16,7 @@ export const Sidebar = ({
   onToggleCollapse,
   className = '',
   onLogout,
+  farmName = '',
 }) => {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -57,8 +58,13 @@ export const Sidebar = ({
             <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold shadow-xs shrink-0">
               <Droplets className="w-5 h-5" />
             </div>
-            <span className={`font-bold text-lg text-primary tracking-tight transition-opacity ${isCollapsed ? 'lg:hidden' : 'block'}`}>
-              AquaTrack
+            <span
+              className={`font-bold text-lg text-primary tracking-tight transition-opacity truncate ${
+                isCollapsed ? 'lg:hidden' : 'block'
+              }`}
+              title={farmName || 'Farm'}
+            >
+              {farmName || 'Farm'}
             </span>
           </NavLink>
 
