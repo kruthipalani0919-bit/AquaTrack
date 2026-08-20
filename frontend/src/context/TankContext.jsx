@@ -44,6 +44,8 @@ export const TankProvider = ({ children }) => {
       area: parseFloat(newTankData.area),
       depth: parseFloat(newTankData.depth),
       waterSource: newTankData.waterSource,
+      hatcheryName: newTankData.hatcheryName !== undefined ? newTankData.hatcheryName : undefined,
+      hatcheryUnit: newTankData.hatcheryUnit !== undefined ? newTankData.hatcheryUnit : undefined,
       remarks: newTankData.remarks || undefined,
     };
 
@@ -64,6 +66,8 @@ export const TankProvider = ({ children }) => {
       ...(updatedData.area ? { area: parseFloat(updatedData.area) } : {}),
       ...(updatedData.depth ? { depth: parseFloat(updatedData.depth) } : {}),
       ...(updatedData.waterSource ? { waterSource: updatedData.waterSource } : {}),
+      ...(updatedData.hatcheryName !== undefined ? { hatcheryName: updatedData.hatcheryName } : {}),
+      ...(updatedData.hatcheryUnit !== undefined ? { hatcheryUnit: updatedData.hatcheryUnit } : {}),
       ...(updatedData.remarks !== undefined ? { remarks: updatedData.remarks } : {}),
     };
 

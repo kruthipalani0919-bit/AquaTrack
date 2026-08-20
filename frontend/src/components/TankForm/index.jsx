@@ -21,6 +21,12 @@ const tankSchema = z.object({
     .coerce
     .number({ invalid_type_error: 'Area must be a number' })
     .positive('Area must be greater than 0'),
+  hatcheryName: z
+    .string()
+    .optional(),
+  hatcheryUnit: z
+    .string()
+    .optional(),
   remarks: z
     .string()
     .optional(),
@@ -30,7 +36,7 @@ const tankSchema = z.object({
  * Reusable TankForm component for Add & Edit tank operations.
  * - Select Site dropdown formats site label cleanly as `${s.siteName} (${s.location})`
  *   without district or null strings.
- * - Blue highlighted container (Tank Details) contains ONLY Tank Name and Area (Acres) stacked vertically.
+ * - Blue highlighted container (Tank Details) contains Tank Name, Area (Acres), Hatchery Name, and Hatchery Unit.
  * - Remarks / Notes is BELOW the blue container.
  * Computes internal fallbacks for depth and waterSource for 100% backend API contract safety.
  */
@@ -65,6 +71,8 @@ export const TankForm = ({
       siteId: '',
       tankName: '',
       area: '',
+      hatcheryName: '',
+      hatcheryUnit: '',
       remarks: '',
     },
     mode: 'onTouched',
@@ -76,6 +84,8 @@ export const TankForm = ({
         siteId: initialData.siteId || defaultSiteId || (sites.length === 1 ? sites[0].id : ''),
         tankName: initialData.tankName || initialData.name || '',
         area: initialData.area || '',
+        hatcheryName: initialData.hatcheryName || '',
+        hatcheryUnit: initialData.hatcheryUnit || '',
         remarks: initialData.remarks || '',
       });
     } else {
@@ -83,20 +93,24 @@ export const TankForm = ({
         siteId: defaultSiteId || (sites.length === 1 ? sites[0].id : ''),
         tankName: '',
         area: '',
+        hatcheryName: '',
+        hatcheryUnit: '',
         remarks: '',
       });
     }
   }, [initialData, defaultSiteId, sites, reset]);
 
   const handleFormSubmit = (data) => {
-    // Backend Tank Request Model: { siteId, tankName, area, depth, waterSource, remarks }
+    // Backend Tank Request Model: { siteId, tankName, area, depth, waterSource, hatcheryName, hatcheryUnit, remarks }
     const tankPayload = {
       siteId: data.siteId,
       tankName: data.tankName.trim(),
       area: parseFloat(data.area),
       depth: parseFloat(initialData?.depth || 6),
       waterSource: initialData?.waterSource || 'Borewell',
-      remarks: data.remarks ? data.remarks.trim() : undefined,
+      hatcheryName: data.hatcheryName ? data.hatcheryName.trim() : null,
+      hatcheryUnit: data.hatcheryUnit ? data.hatcheryUnit.trim() : null,
+      remarks: data.remarks ? data.remarks.trim() : null,
     };
 
     if (onSubmit) {
@@ -117,7 +131,7 @@ export const TankForm = ({
         {...register('siteId')}
       />
 
-      {/* 2. TANK DETAILS CARD (BLUE HIGHLIGHTED CONTAINER FOR TANK NAME & AREA) */}
+      {/* 2. TANK DETAILS CARD (BLUE HIGHLIGHTED CONTAINER) */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-4 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary border-b border-primary/20 pb-1.5">
           Tank Details
@@ -141,6 +155,26 @@ export const TankForm = ({
             error={errors.area?.message}
             {...register('area')}
           />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Hatchery Name (Optional)"
+              type="text"
+              placeholder="e.g. Blue Aqua Hatchery"
+              required={false}
+              error={errors.hatcheryName?.message}
+              {...register('hatcheryName')}
+            />
+
+            <Input
+              label="Hatchery Unit (Optional)"
+              type="text"
+              placeholder="e.g. Unit 4A"
+              required={false}
+              error={errors.hatcheryUnit?.message}
+              {...register('hatcheryUnit')}
+            />
+          </div>
         </div>
       </div>
 

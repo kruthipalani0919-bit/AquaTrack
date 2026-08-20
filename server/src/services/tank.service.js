@@ -38,6 +38,10 @@ export const createTank = async (
 
             remarks: tankData.remarks ?? null,
 
+            hatcheryName: tankData.hatcheryName ? tankData.hatcheryName.trim() : null,
+
+            hatcheryUnit: tankData.hatcheryUnit ? tankData.hatcheryUnit.trim() : null,
+
             siteId: site.id
 
         },
@@ -162,6 +166,14 @@ export const updateTank = async (
 
         updateData.siteId = site.id;
 
+    }
+
+    if (updateData.hatcheryName !== undefined) {
+        updateData.hatcheryName = updateData.hatcheryName && typeof updateData.hatcheryName === "string" && updateData.hatcheryName.trim() !== "" ? updateData.hatcheryName.trim() : null;
+    }
+
+    if (updateData.hatcheryUnit !== undefined) {
+        updateData.hatcheryUnit = updateData.hatcheryUnit && typeof updateData.hatcheryUnit === "string" && updateData.hatcheryUnit.trim() !== "" ? updateData.hatcheryUnit.trim() : null;
     }
 
     const updatedTank = await prisma.tank.update({

@@ -28,6 +28,16 @@ export const createTankSchema = z.object({
 
     remarks: z
         .string()
+        .optional(),
+
+    hatcheryName: z
+        .string()
+        .nullable()
+        .optional(),
+
+    hatcheryUnit: z
+        .string()
+        .nullable()
         .optional()
 
 });
@@ -65,6 +75,16 @@ export const updateTankSchema = z.object({
 
     remarks: z
         .string()
+        .optional(),
+
+    hatcheryName: z
+        .string()
+        .nullable()
+        .optional(),
+
+    hatcheryUnit: z
+        .string()
+        .nullable()
         .optional()
 
 });

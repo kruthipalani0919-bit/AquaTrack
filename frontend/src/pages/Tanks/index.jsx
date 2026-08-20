@@ -8,7 +8,9 @@ import {
   Trash2,
   MapPin,
   ShieldAlert,
-  FileText
+  FileText,
+  Building2,
+  Layers
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -52,13 +54,17 @@ export default function Tanks() {
       if (!tank) return false;
       const nameStr = tank.name || tank.tankName || '';
       const remarksStr = tank.remarks || tank.notes || '';
+      const hatcheryNameStr = tank.hatcheryName || '';
+      const hatcheryUnitStr = tank.hatcheryUnit || '';
       const query = (searchQuery || '').trim().toLowerCase();
 
-      // Search query filter (matches name or remarks)
+      // Search query filter (matches name, remarks, or hatchery details)
       const matchesSearch =
         query === '' ||
         nameStr.toLowerCase().includes(query) ||
-        remarksStr.toLowerCase().includes(query);
+        remarksStr.toLowerCase().includes(query) ||
+        hatcheryNameStr.toLowerCase().includes(query) ||
+        hatcheryUnitStr.toLowerCase().includes(query);
 
       // Site filter
       const matchesSite = siteFilter === '' || tank.siteId === siteFilter;
@@ -337,6 +343,30 @@ export default function Tanks() {
                       {displayAreaStr}
                     </span>
                   </div>
+
+                  {/* HATCHERY NAME (IF AVAILABLE) */}
+                  {viewingTank.hatcheryName ? (
+                    <div className="bg-surface p-3 rounded-lg border border-border/50">
+                      <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                        <Building2 className="w-3 h-3 text-primary" /> Hatchery Name
+                      </span>
+                      <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={viewingTank.hatcheryName}>
+                        {viewingTank.hatcheryName}
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {/* HATCHERY UNIT (IF AVAILABLE) */}
+                  {viewingTank.hatcheryUnit ? (
+                    <div className="bg-surface p-3 rounded-lg border border-border/50">
+                      <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                        <Layers className="w-3 h-3 text-primary" /> Hatchery Unit
+                      </span>
+                      <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={viewingTank.hatcheryUnit}>
+                        {viewingTank.hatcheryUnit}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

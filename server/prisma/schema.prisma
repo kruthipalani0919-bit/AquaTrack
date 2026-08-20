@@ -90,11 +90,6 @@ model Stocking {
 
   unit String @default("kg")
 
-  /*
-   * Used for Seed stocking.
-   *
-   * Feed and Medicine can keep this as null.
-   */
   costPerKg Float?
 
   farmId String
@@ -132,6 +127,9 @@ model Tank {
   gpsLocation String?
   remarks     String?
 
+  hatcheryName String?
+  hatcheryUnit String?
+
   siteId String
   site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
@@ -145,11 +143,6 @@ model Tank {
 model Crop {
   id String @id @default(cuid())
 
-  /*
-   * Legacy fields are optional because
-   * the current Crop registration UI
-   * does not collect them.
-   */
   cropName String?
 
   seedVariety String
@@ -250,13 +243,17 @@ model Harvest {
 
   harvestDate DateTime
 
+  /*
+   * Production is optional.
+   * It can store null if not collected.
+   */
   production Float?
 
   /*
    * Shrimp count entered by the user.
    *
    * Example:
-   * 60 count = approximately 16.67 grams ABW
+   * 60 count → approximately 16.67 grams ABW
    */
   shrimpCount Float?
 
@@ -276,9 +273,7 @@ model Harvest {
 
   /*
    * No longer collected from the UI.
-   *
-   * Existing records can retain their values,
-   * while new records can store null.
+   * Can be null.
    */
   transportationCost Float?
 
