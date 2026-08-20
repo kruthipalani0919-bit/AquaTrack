@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,17 +28,11 @@ const loginSchema = z.object({
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login: authLogin, isAuthenticated } = useAuth();
+  const { login: authLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [apiError, setApiError] = useState('');
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
 
   const {
     register,
@@ -185,16 +179,12 @@ export default function Login() {
                   <span>Remember me</span>
                 </label>
 
-                <a
-                  href="#forgot-password"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert('Password reset functionality will be enabled upon backend integration.');
-                  }}
+                <Link
+                  to="/forgot-password"
                   className="font-semibold text-primary hover:text-primary-hover hover:underline transition-colors"
                 >
                   Forgot Password?
-                </a>
+                </Link>
               </div>
 
               {/* Login Button */}
