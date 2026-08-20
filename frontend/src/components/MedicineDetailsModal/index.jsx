@@ -1,12 +1,13 @@
 import React from 'react';
-import { Edit3, Trash2 } from 'lucide-react';
+import { Stethoscope, Container, Calendar, Scale, IndianRupee, Edit3, Trash2, FileText, Pill } from 'lucide-react';
 import { Modal } from '../Modal';
 import { Button } from '../Button';
 
 /**
- * Simplified MedicineDetailsModal component displaying ONLY recorded treatment parameters:
- * Medicine / Chemical Name, Tank, Application Date, Quantity, Treatment Cost, and Notes (if present).
- * Prevents any 'undefined • undefined' rendering.
+ * Redesigned MedicineDetailsModal component featuring clean visual sectioning:
+ * SECTION: 🩺 TREATMENT DETAILS (Medicine/Chemical, Tank, Application Date, Quantity, Treatment Cost)
+ * Modal title: <medicineName>
+ * Subtitle: "Medicine Treatment Details"
  */
 export const MedicineDetailsModal = ({
   isOpen = false,
@@ -50,52 +51,79 @@ export const MedicineDetailsModal = ({
       description="Medicine Treatment Details"
       size="md"
     >
-      <div className="space-y-4">
-        {/* Specifications List */}
-        <div className="bg-background border border-border rounded-xl p-4 space-y-2 text-xs">
-          <div className="flex justify-between py-1 border-b border-border/40">
-            <span className="text-text-secondary font-medium">Medicine / Chemical</span>
-            <span className="font-bold text-text-primary">{displayMedName}</span>
-          </div>
+      <div className="space-y-5">
+        {/* SECTION — TREATMENT DETAILS */}
+        <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-2">
+            <Stethoscope className="w-4 h-4 text-primary" /> Treatment Details
+          </h4>
 
-          <div className="flex justify-between py-1 border-b border-border/40">
-            <span className="text-text-secondary font-medium">Tank</span>
-            <span className="font-bold text-text-primary">{displayTank}</span>
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Pill className="w-3 h-3 text-primary" /> Medicine / Chemical
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {displayMedName}
+              </span>
+            </div>
 
-          <div className="flex justify-between py-1 border-b border-border/40">
-            <span className="text-text-secondary font-medium">Application Date</span>
-            <span className="font-bold text-text-primary">{formattedDate}</span>
-          </div>
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Container className="w-3 h-3 text-primary" /> Tank
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {displayTank}
+              </span>
+            </div>
 
-          <div className="flex justify-between py-1 border-b border-border/40">
-            <span className="text-text-secondary font-medium">Quantity</span>
-            <span className="font-bold text-text-primary">{numericQty}</span>
-          </div>
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-primary" /> Application Date
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {formattedDate}
+              </span>
+            </div>
 
-          <div className="flex justify-between py-1">
-            <span className="text-text-secondary font-medium">Treatment Cost</span>
-            <span className="font-bold text-emerald-700">₹{numericCost.toLocaleString()}</span>
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Scale className="w-3 h-3 text-primary" /> Quantity
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {numericQty}
+              </span>
+            </div>
+
+            <div className="bg-surface p-3 rounded-lg border border-primary/30 bg-primary-light/20 sm:col-span-2">
+              <span className="text-[10px] text-primary uppercase font-bold block flex items-center gap-1">
+                <IndianRupee className="w-3 h-3 text-primary" /> Treatment Cost
+              </span>
+              <span className="text-base font-extrabold text-primary mt-0.5 block truncate">
+                ₹{numericCost.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Application Notes (Only rendered if notes exist) */}
         {notes && (
-          <div className="bg-background border border-border rounded-xl p-3 text-xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary block mb-1">
-              Application Notes
+          <div className="p-3.5 rounded-xl bg-background border border-border/60 text-xs shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1 mb-1">
+              <FileText className="w-3.5 h-3.5 text-primary" /> Application Notes
             </span>
             <p className="text-text-secondary leading-relaxed">{notes}</p>
           </div>
         )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
           <Button
             variant="outline"
             size="sm"
             onClick={() => onEdit && onEdit(record)}
             icon={<Edit3 className="w-4 h-4" />}
+            className="font-semibold"
           >
             Edit Record
           </Button>
@@ -105,6 +133,7 @@ export const MedicineDetailsModal = ({
             size="sm"
             onClick={() => onDelete && onDelete(record)}
             icon={<Trash2 className="w-4 h-4" />}
+            className="font-semibold"
           >
             Delete
           </Button>

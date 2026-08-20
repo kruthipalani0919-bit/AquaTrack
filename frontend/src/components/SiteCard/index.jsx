@@ -27,7 +27,9 @@ export const SiteCard = ({
   } = site;
 
   const tankCount = Array.isArray(tanks) ? tanks.length : (_count?.tanks || 0);
-  const displayLandArea = landArea ?? area ?? totalArea ?? null;
+
+  const numArea = parseFloat(landArea ?? area ?? totalArea);
+  const hasArea = !isNaN(numArea) && numArea > 0;
 
   return (
     <Card
@@ -65,7 +67,7 @@ export const SiteCard = ({
             <Layers className="w-3 h-3 text-primary" /> Land Area
           </span>
           <span className="text-xs font-bold text-primary mt-0.5 truncate w-full">
-            {displayLandArea ? `${displayLandArea} Acres` : 'N/A'}
+            {hasArea ? `${numArea} Acres` : 'N/A'}
           </span>
         </div>
 

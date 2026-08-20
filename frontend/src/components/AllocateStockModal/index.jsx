@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MapPin, ShieldAlert, Package, Scale } from 'lucide-react';
+import { MapPin, ShieldAlert, Package, Scale, Layers } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -34,6 +34,12 @@ const UNIT_OPTIONS = [
   { value: 'units', label: 'Units' },
 ];
 
+/**
+ * Reusable AllocateStockForm component styled consistently with AquaTrack registration modals:
+ * - Visually highlighted Allocation Details section card
+ * - Stock Category *, Select Site *, Allocated Quantity *, Unit * fields with icons
+ * - Bottom right action buttons: Cancel, Allocate Stock
+ */
 export const AllocateStockForm = ({
   onSubmit,
   onCancel,
@@ -43,10 +49,15 @@ export const AllocateStockForm = ({
   const { sites = [], loading: sitesLoading } = useSites();
   const [formError, setFormError] = useState('');
 
-  const siteOptions = sites.map((s) => ({
-    value: s.id,
-    label: `${s.siteName} (${s.location}, ${s.district})`,
-  }));
+  // Clean Site label formatting without district or null
+  const siteOptions = sites.map((s) => {
+    const siteName = s.siteName || 'Site';
+    const locationSuffix = s.location ? ` (${s.location})` : '';
+    return {
+      value: s.id,
+      label: `${siteName}${locationSuffix}`,
+    };
+  });
 
   const {
     register,
@@ -101,56 +112,64 @@ export const AllocateStockForm = ({
         </div>
       )}
 
-      {/* Stock Category */}
-      <Select
-        label="Stock Category"
-        required={true}
-        options={CATEGORY_OPTIONS}
-        error={errors.category?.message}
-        disabled={isSubmitting}
-        onChange={handleCategoryChange}
-        value={selectedCategory}
-      />
+      {/* ALLOCATION DETAILS SECTION */}
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-4 shadow-2xs">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-1.5">
+          <Layers className="w-3.5 h-3.5 text-primary" /> Allocation Details
+        </h4>
 
-      {/* Site Selection */}
-      <Select
-        label="Site"
-        required={true}
-        placeholder={sitesLoading ? 'Loading sites...' : 'Choose target site...'}
-        options={siteOptions}
-        disabled={sites.length === 0 || isSubmitting}
-        error={errors.siteId?.message}
-        icon={<MapPin className="w-4 h-4" />}
-        {...register('siteId')}
-      />
-
-      {/* Quantity & Unit Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label="Allocated Quantity"
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="e.g. 1000"
-          required={true}
-          icon={<Package className="w-4 h-4" />}
-          error={errors.allocatedQuantity?.message}
-          disabled={sites.length === 0 || isSubmitting}
-          {...register('allocatedQuantity')}
-        />
-
+        {/* Stock Category Select */}
         <Select
-          label="Unit"
+          label="Stock Category"
           required={true}
-          options={UNIT_OPTIONS}
-          error={errors.unit?.message}
-          disabled={sites.length === 0 || isSubmitting}
-          icon={<Scale className="w-4 h-4" />}
-          {...register('unit')}
+          placeholder="Select category..."
+          options={CATEGORY_OPTIONS}
+          error={errors.category?.message}
+          value={selectedCategory}
+          onChange={handleCategoryChange}
+          disabled={isSubmitting}
         />
+
+        {/* Site Select */}
+        <Select
+          label="Select Site"
+          required={true}
+          placeholder="Choose site location..."
+          options={siteOptions}
+          disabled={sitesLoading || isSubmitting}
+          error={errors.siteId?.message}
+          icon={<MapPin className="w-4 h-4 text-primary" />}
+          {...register('siteId')}
+        />
+
+        {/* Quantity and Unit */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Allocated Quantity"
+            type="number"
+            step="0.1"
+            placeholder="e.g. 100"
+            required={true}
+            icon={<Package className="w-4 h-4 text-primary" />}
+            error={errors.allocatedQuantity?.message}
+            disabled={isSubmitting}
+            {...register('allocatedQuantity')}
+          />
+
+          <Select
+            label="Unit"
+            required={true}
+            placeholder="Select unit..."
+            options={UNIT_OPTIONS}
+            error={errors.unit?.message}
+            disabled={isSubmitting}
+            icon={<Scale className="w-4 h-4 text-primary" />}
+            {...register('unit')}
+          />
+        </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Bottom Action Buttons */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
         <Button
           type="button"
@@ -165,7 +184,6 @@ export const AllocateStockForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
-          disabled={sites.length === 0}
           className="font-semibold"
         >
           Allocate Stock

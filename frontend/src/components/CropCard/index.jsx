@@ -1,18 +1,18 @@
 import React from 'react';
-import { Sprout, Calendar, Eye, Edit3, Trash2, Container } from 'lucide-react';
+import { Sprout, Eye, Edit3, Trash2, Container } from 'lucide-react';
 import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Simplified CropCard component displaying:
- * - Batch Number / Crop identifier
+ * Simplified CropCard component displaying ONLY user-registered crop details:
+ * - Batch Number / Crop Identifier
  * - Status Badge
- * - Tank name
+ * - Tank Name
  * - Seed Variety
  * - Stocking Date
- * - Simple DOC progress bar
- * - View Progress, Edit, Delete triggers
+ * - Action buttons (View Details, Edit, Delete)
+ * All progress bars, DOC calculations, and culture milestone bars are completely removed.
  */
 export const CropCard = ({
   crop = {},
@@ -28,30 +28,17 @@ export const CropCard = ({
     batchNumber,
     seedVariety,
     stockingDate,
-    expectedHarvestDate,
     status,
   } = crop || {};
 
   const displayName = batchNumber ? `Batch ${batchNumber}` : cropName || 'Crop Batch';
-  const displayTank = tankName || crop?.tank?.tankName || 'Tank';
   const displayVariety = seedVariety || 'Not specified';
 
-  // Safe Date & DOC calculation
-  const now = new Date();
+  // Format tank name cleanly to NEVER display water source
+  const rawTank = tankName || crop?.tank?.name || crop?.tank?.tankName || 'Tank';
+  const displayTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+
   const validStockingDate = stockingDate ? new Date(stockingDate) : null;
-  const start = validStockingDate && !isNaN(validStockingDate.getTime()) ? validStockingDate : now;
-
-  const validHarvestDate = expectedHarvestDate ? new Date(expectedHarvestDate) : null;
-  const end = validHarvestDate && !isNaN(validHarvestDate.getTime())
-    ? validHarvestDate
-    : new Date(start.getTime() + 120 * 24 * 60 * 60 * 1000);
-
-  const diffTimeDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  const doc = Math.max(0, diffTimeDays);
-
-  const totalDurationDays = Math.max(1, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
-  const progressPercent = Math.min(100, Math.max(0, Math.round((doc / totalDurationDays) * 100)));
-
   const formattedStockingDate = validStockingDate && !isNaN(validStockingDate.getTime())
     ? validStockingDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : 'Not specified';
@@ -72,9 +59,9 @@ export const CropCard = ({
             <h3 className="font-bold text-base text-text-primary truncate tracking-tight" title={displayName}>
               {displayName}
             </h3>
-            <span className="text-xs text-text-secondary flex items-center gap-1 mt-0.5">
+            <span className="text-xs text-text-secondary flex items-center gap-1 mt-0.5 font-medium">
               <Container className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="truncate font-medium">{displayTank}</span>
+              <span className="truncate">Tank: {displayTank}</span>
             </span>
           </div>
         </div>
@@ -96,24 +83,6 @@ export const CropCard = ({
         </div>
       </div>
 
-      {/* Simple Progress Indicator (DOC & Progress Bar) */}
-      <div className="py-3 border-b border-border/60 space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-text-primary flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-primary" /> DOC: {doc} Days
-          </span>
-          <span className="text-[11px] font-medium text-text-secondary">
-            {progressPercent}% Complete
-          </span>
-        </div>
-        <div className="w-full bg-background rounded-full h-2 overflow-hidden border border-border/40">
-          <div
-            className="bg-gradient-to-r from-primary to-teal-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </div>
-
       {/* Actions Footer */}
       <div className="pt-3 flex items-center justify-between gap-2 mt-auto">
         <Button
@@ -121,9 +90,9 @@ export const CropCard = ({
           size="sm"
           onClick={() => onView && onView(crop)}
           icon={<Eye className="w-4 h-4 text-primary" />}
-          className="text-xs text-primary font-medium"
+          className="text-xs font-medium"
         >
-          View Progress
+          View Details
         </Button>
 
         <div className="flex items-center gap-1">

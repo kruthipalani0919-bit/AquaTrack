@@ -31,9 +31,7 @@ export default function FeedManagement() {
     error
   } = useFeed();
 
-  // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  // Filter State (Tank & Date filters retained)
   const [tankFilter, setTankFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -53,33 +51,18 @@ export default function FeedManagement() {
     totalFeedCostRupees: analytics?.totalFeedCostRupees || 0,
   };
 
-  // Multi-Filter Logic Safely
+  // Filter Logic (Tank & Date matching)
   const filteredFeedLogs = useMemo(() => {
     const list = feedLogs || [];
-    const query = (searchQuery || '').trim().toLowerCase();
 
     return list.filter((log) => {
       if (!log) return false;
-      const brandStr = log.feedBrand || '';
-      const typeStr = log.feedType || '';
-      const rawTank = log.tankName || log.tank?.name || log.tank?.tankName || '';
-      const tankStr = rawTank.replace(/\s*\([^)]*\)/g, '').trim();
-      const notesStr = log.notes || '';
-
-      const matchesSearch =
-        query === '' ||
-        brandStr.toLowerCase().includes(query) ||
-        typeStr.toLowerCase().includes(query) ||
-        tankStr.toLowerCase().includes(query) ||
-        notesStr.toLowerCase().includes(query);
-
-      const matchesType = typeFilter === '' || log.feedType === typeFilter;
       const matchesTank = tankFilter === '' || log.tankId === tankFilter;
       const matchesDate = dateFilter === '' || log.feedingDate === dateFilter || log.date === dateFilter;
 
-      return matchesSearch && matchesType && matchesTank && matchesDate;
+      return matchesTank && matchesDate;
     });
-  }, [feedLogs, searchQuery, typeFilter, tankFilter, dateFilter]);
+  }, [feedLogs, tankFilter, dateFilter]);
 
   // Handlers
   const handleOpenAdd = () => {
@@ -131,19 +114,16 @@ export default function FeedManagement() {
   };
 
   const handleResetFilters = () => {
-    setSearchQuery('');
-    setTypeFilter('');
     setTankFilter('');
     setDateFilter('');
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. PAGE HEADER */}
+      {/* 1. PAGE HEADER (Records badge removed as requested) */}
       <PageHeader
         title="Feed Management"
         subtitle="Monitor daily feed distribution, ration logs, and total feed expenditure."
-        badge={<Badge variant="primary">{(feedLogs || []).length} Records</Badge>}
         actions={
           <Button
             variant="primary"
@@ -165,24 +145,8 @@ export default function FeedManagement() {
               <UtensilsCrossed className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Today's Feed</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">
-                {safeAnalytics.todaysFeedKg} <span className="text-xs font-normal text-text-secondary">Kg</span>
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0">
-              <Weight className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Used</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">
-                {(safeAnalytics.totalFeedUsedKg / 1000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Tons</span>
-              </span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Used Today</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.todaysFeedKg} kg</span>
             </div>
           </div>
         </Card>
@@ -190,24 +154,30 @@ export default function FeedManagement() {
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <Weight className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Used</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.totalFeedUsedKg} kg</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card padding="compact" className="border-border/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
               <IndianRupee className="w-4 h-4" />
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Cost</span>
-              <span className="text-lg font-bold text-emerald-700 tracking-tight">
-                ₹{(safeAnalytics.totalFeedCostRupees / 100000).toFixed(2)} <span className="text-xs font-normal text-text-secondary">Lakhs</span>
-              </span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">₹{safeAnalytics.totalFeedCostRupees.toLocaleString()}</span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* 3. SEARCH & FILTERS */}
+      {/* 3. FILTERS AREA (All Tanks & Date Picker) */}
       <FeedFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        typeFilter={typeFilter}
-        onTypeChange={setTypeFilter}
         tankFilter={tankFilter}
         onTankChange={setTankFilter}
         dateFilter={dateFilter}
@@ -222,32 +192,32 @@ export default function FeedManagement() {
             <FeedCard
               key={log.id}
               feedLog={log}
-              onView={handleOpenDetails}
+              onViewDetails={handleOpenDetails}
               onEdit={handleOpenEdit}
               onDelete={handleOpenDelete}
             />
           ))}
         </div>
       ) : (
-        <Card padding="relaxed" className="border-border/80">
+        <Card padding="relaxed" className="border-border/80 shadow-2xs">
           <EmptyState
             title="No Feed Records Found"
             description={
-              searchQuery || typeFilter || tankFilter || dateFilter
-                ? "No feed logs match your filter criteria. Try resetting filters."
-                : "No feed records have been entered yet."
+              tankFilter || dateFilter
+                ? "No feed distribution logs match your current filter criteria. Try resetting filters."
+                : "No feed distribution logs recorded yet."
             }
             actionLabel={
-              searchQuery || typeFilter || tankFilter || dateFilter ? "Reset Filters" : "Record Feed"
+              tankFilter || dateFilter ? "Reset Filters" : "Record Feed"
             }
             onAction={
-              searchQuery || typeFilter || tankFilter || dateFilter ? handleResetFilters : handleOpenAdd
+              tankFilter || dateFilter ? handleResetFilters : handleOpenAdd
             }
           />
         </Card>
       )}
 
-      {/* 5. ADD / EDIT FEED LOG MODAL */}
+      {/* 5. ADD / EDIT FEED MODAL */}
       <Modal
         isOpen={isFormOpen}
         onClose={() => {
@@ -258,7 +228,7 @@ export default function FeedManagement() {
         description={
           editingFeedLog
             ? `Update feed record for ${editingFeedLog.feedBrand || 'Feed'}`
-            : 'Record daily feed allocation for a farm tank.'
+            : 'Record daily feed distribution into a tank.'
         }
         size="md"
       >
@@ -272,7 +242,7 @@ export default function FeedManagement() {
         />
       </Modal>
 
-      {/* 6. VIEW FEED LOG MODAL */}
+      {/* 6. VIEW FEED DETAILS MODAL */}
       <FeedDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => {

@@ -1,10 +1,7 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Container, Maximize2, MapPin, ShieldAlert } from 'lucide-react';
-
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
@@ -31,10 +28,10 @@ const tankSchema = z.object({
 
 /**
  * Reusable TankForm component for Add & Edit tank operations.
- * - Select Site is ABOVE the blue highlighted container.
+ * - Select Site dropdown formats site label cleanly as `${s.siteName} (${s.location})`
+ *   without district or null strings.
  * - Blue highlighted container (Tank Details) contains ONLY Tank Name and Area (Acres) stacked vertically.
  * - Remarks / Notes is BELOW the blue container.
- * - Depth and Water Source are removed from UI.
  * Computes internal fallbacks for depth and waterSource for 100% backend API contract safety.
  */
 export const TankForm = ({
@@ -47,10 +44,15 @@ export const TankForm = ({
   const isEditing = Boolean(initialData?.id);
   const { sites = [], loading: sitesLoading } = useSites();
 
-  const siteOptions = sites.map((s) => ({
-    value: s.id,
-    label: `${s.siteName} (${s.location}, ${s.district})`,
-  }));
+  // Clean Site label formatting without district or null
+  const siteOptions = sites.map((s) => {
+    const siteName = s.siteName || 'Site';
+    const locationSuffix = s.location ? ` (${s.location})` : '';
+    return {
+      value: s.id,
+      label: `${siteName}${locationSuffix}`,
+    };
+  });
 
   const {
     register,
@@ -97,84 +99,57 @@ export const TankForm = ({
       remarks: data.remarks ? data.remarks.trim() : undefined,
     };
 
-    console.log('Tank Payload with siteId:', tankPayload);
-
     if (onSubmit) {
-      onSubmit({
-        ...tankPayload,
-        name: tankPayload.tankName,
-      });
+      onSubmit(tankPayload);
     }
   };
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
-      {/* Empty Site Warning Banner */}
-      {!sitesLoading && sites.length === 0 && (
-        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-amber-700 font-medium">
-            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600" />
-            <span>No sites found. You must create a Site before adding a Tank.</span>
-          </div>
-          <Link to="/sites" className="underline font-bold text-primary hover:text-primary-dark shrink-0">
-            + Create Site
-          </Link>
-        </div>
-      )}
-
-      {/* 1. SELECT SITE (ABOVE BLUE CONTAINER) */}
+      {/* 1. SELECT SITE */}
       <Select
         label="Select Site"
         required={true}
-        placeholder={sitesLoading ? 'Loading sites...' : 'Choose site location...'}
+        placeholder="Choose site location..."
         options={siteOptions}
-        disabled={sites.length === 0 || isSubmitting}
+        disabled={sitesLoading}
         error={errors.siteId?.message}
-        icon={<MapPin className="w-4 h-4" />}
         {...register('siteId')}
       />
 
-      {/* 2. HIGHLIGHTED CONTAINER: TANK DETAILS (ONLY TANK NAME + AREA) */}
-      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-1.5">
-          <Container className="w-3.5 h-3.5 text-primary" /> Tank Details
+      {/* 2. TANK DETAILS CARD (BLUE HIGHLIGHTED CONTAINER FOR TANK NAME & AREA) */}
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-4 shadow-2xs">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-primary border-b border-primary/20 pb-1.5">
+          Tank Details
         </h4>
-        <div className="flex flex-col gap-3">
-          {/* Tank Name */}
+        <div className="flex flex-col gap-4">
           <Input
             label="Tank Name"
             type="text"
-            placeholder="e.g. Pond P-1 (Vannamei Main)"
+            placeholder="e.g. Tank 1"
             required={true}
-            icon={<Container className="w-4 h-4 text-primary" />}
             error={errors.tankName?.message}
-            disabled={sites.length === 0 || isSubmitting}
             {...register('tankName')}
           />
 
-          {/* Area (Acres) */}
           <Input
             label="Area (Acres)"
             type="number"
-            step="0.1"
-            min="0.1"
+            step="0.01"
             placeholder="e.g. 2.5"
             required={true}
-            icon={<Maximize2 className="w-4 h-4 text-primary" />}
             error={errors.area?.message}
-            disabled={sites.length === 0 || isSubmitting}
             {...register('area')}
           />
         </div>
       </div>
 
-      {/* 3. REMARKS / NOTES (BELOW BLUE CONTAINER) */}
+      {/* 3. REMARKS / NOTES (OPTIONAL) */}
       <Textarea
         label="Remarks / Notes (Optional)"
-        placeholder="Add details on PL stocking count, soil treatment, aerators, etc."
-        rows={3}
+        placeholder="Add any operational notes or remarks..."
+        rows={2}
         error={errors.remarks?.message}
-        disabled={sites.length === 0 || isSubmitting}
         {...register('remarks')}
       />
 
@@ -193,7 +168,6 @@ export const TankForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
-          disabled={sites.length === 0}
           className="font-semibold"
         >
           {isEditing ? 'Update Tank' : 'Save Tank'}
