@@ -250,7 +250,7 @@ model Harvest {
 
   harvestDate DateTime
 
-  production Float
+  production Float?
 
   /*
    * Shrimp count entered by the user.

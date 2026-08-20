@@ -150,7 +150,6 @@ export default function Tanks() {
             ? `Viewing tanks belonging to ${selectedSite.siteName} (${selectedSite.location})`
             : "Monitor and manage farm tanks, dimensions, and site allocation."
         }
-        badge={<Badge variant="primary">{stats.totalCount} Tanks</Badge>}
         actions={
           <Button
             variant="primary"

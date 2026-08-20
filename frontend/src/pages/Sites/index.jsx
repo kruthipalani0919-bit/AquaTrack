@@ -150,7 +150,6 @@ export default function Sites() {
       <PageHeader
         title="Site Management"
         subtitle="Manage the locations and sites within your farm."
-        badge={<Badge variant="primary">{stats.totalSites} Sites</Badge>}
         actions={
           <Button
             variant="primary"

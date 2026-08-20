@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Wheat, Calendar, Weight, IndianRupee, User, Truck, Container } from 'lucide-react';
+import { Wheat, Calendar, Weight, IndianRupee, User, Container } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -11,28 +11,17 @@ import { Button } from '../Button';
 import { useTanks } from '../../context/TankContext';
 
 // Zod Validation Schema matching backend contract (POST /api/harvests)
-// Rule: Do NOT include revenue or profit fields
 const harvestSchema = z.object({
   tankId: z
     .string()
-    .min(1, 'Please select a Tank / Pond'),
+    .min(1, 'Please select a Tank'),
   harvestDate: z
     .string()
     .min(1, 'Harvest Date is required'),
-  production: z
+  shrimpCount: z
     .coerce
-    .number({ invalid_type_error: 'Production must be a number' })
-    .positive('Production must be greater than 0'),
-  averageWeight: z
-    .coerce
-    .number({ invalid_type_error: 'Average Weight must be a number' })
-    .positive('Average Weight must be greater than 0')
-    .optional()
-    .or(z.literal('')),
-  survivalRate: z
-    .coerce
-    .number()
-    .optional(),
+    .number({ invalid_type_error: 'Shrimp Count must be a number' })
+    .positive('Shrimp Count must be greater than 0'),
   sellingPrice: z
     .coerce
     .number({ invalid_type_error: 'Selling Price must be a number' })
@@ -41,10 +30,6 @@ const harvestSchema = z.object({
     .string()
     .min(1, 'Buyer Name is required')
     .trim(),
-  transportationCost: z
-    .coerce
-    .number({ invalid_type_error: 'Transportation Cost must be a number' })
-    .min(0, 'Transportation Cost cannot be negative'),
   harvestExpense: z
     .coerce
     .number({ invalid_type_error: 'Harvest Expense must be a number' })
@@ -56,9 +41,9 @@ const harvestSchema = z.object({
 
 /**
  * Reusable HarvestForm component with dynamic Tank dropdown from TankContext.
- * Contains ONLY backend-supported fields: tankId, harvestDate, production, averageWeight,
- * survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense, notes.
- * Rule: Does NOT include or calculate revenue or profit.
+ * Fields:
+ * BASIC INFORMATION: Tank *, Harvest Date *, Buyer Name *, Selling Price (₹/kg) *
+ * HARVEST DETAILS: Shrimp Count *, Average Weight (ABW in grams) [Auto-calculated], Harvest Expense (₹) *
  */
 export const HarvestForm = ({
   initialData = null,
@@ -66,47 +51,53 @@ export const HarvestForm = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const { tanks } = useTanks();
+  const { tanks = [] } = useTanks();
   const isEditing = Boolean(initialData?.id);
 
-  const tankSelectOptions = tanks.map((tank) => ({
-    value: tank.id,
-    label: `${tank.name} (${tank.area} Acres - ${tank.waterSource})`,
-  }));
+  // Clean tank labels without water source string
+  const tankSelectOptions = tanks.map((tank) => {
+    const rawName = tank.name || tank.tankName || 'Tank';
+    const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+    const areaSuffix = tank.area ? ` (${tank.area} Acres)` : '';
+    return {
+      value: tank.id,
+      label: `${cleanName}${areaSuffix}`,
+    };
+  });
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(harvestSchema),
     defaultValues: {
       tankId: '',
       harvestDate: new Date().toISOString().split('T')[0],
-      production: '',
-      averageWeight: '',
-      survivalRate: '85',
+      shrimpCount: '',
       sellingPrice: '',
       buyerName: '',
-      transportationCost: '0',
       harvestExpense: '0',
       notes: '',
     },
     mode: 'onTouched',
   });
 
+  // Watch shrimpCount for auto ABW calculation
+  const shrimpCountVal = watch('shrimpCount');
+  const numericShrimpCount = parseFloat(shrimpCountVal) || 0;
+  const calculatedAbw = numericShrimpCount > 0 ? (1000 / numericShrimpCount).toFixed(2) : '';
+
   useEffect(() => {
     if (initialData) {
       reset({
         tankId: initialData.tankId || '',
-        harvestDate: initialData.harvestDate || '',
-        production: initialData.production || '',
-        averageWeight: initialData.averageWeight || '',
-        survivalRate: initialData.survivalRate || '85',
+        harvestDate: initialData.harvestDate || new Date().toISOString().split('T')[0],
+        shrimpCount: initialData.shrimpCount || initialData.production || '',
         sellingPrice: initialData.sellingPrice || '',
         buyerName: initialData.buyerName || '',
-        transportationCost: initialData.transportationCost || '0',
         harvestExpense: initialData.harvestExpense || '0',
         notes: initialData.notes || '',
       });
@@ -115,45 +106,49 @@ export const HarvestForm = ({
 
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
+    const rawTankName = selectedTankObj ? selectedTankObj.name || selectedTankObj.tankName : 'Selected Tank';
+    const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
-    // Backend Request Model: { tankId, harvestDate, production, averageWeight, survivalRate, sellingPrice, buyerName, transportationCost, harvestExpense, notes }
+    const numericCount = parseFloat(data.shrimpCount);
+    const autoAbw = numericCount > 0 ? parseFloat((1000 / numericCount).toFixed(2)) : 0;
+
+    // Backend Request Model: { tankId, harvestDate, shrimpCount, production, averageWeight, sellingPrice, buyerName, transportationCost, harvestExpense, notes }
     const harvestPayload = {
       tankId: data.tankId,
       harvestDate: data.harvestDate,
-      production: parseFloat(data.production),
-      averageWeight: data.averageWeight ? parseFloat(data.averageWeight) : 0,
-      survivalRate: parseFloat(data.survivalRate) || 85,
+      shrimpCount: numericCount,
+      production: numericCount, // Map to production for complete backward compatibility
+      averageWeight: autoAbw,
+      survivalRate: 85,
       sellingPrice: parseFloat(data.sellingPrice),
       buyerName: data.buyerName.trim(),
-      transportationCost: parseFloat(data.transportationCost),
-      harvestExpense: parseFloat(data.harvestExpense),
+      transportationCost: 0,
+      harvestExpense: parseFloat(data.harvestExpense || 0),
       notes: data.notes ? data.notes.trim() : '',
     };
-
-    console.log('Backend Harvest Payload:', harvestPayload);
 
     if (onSubmit) {
       onSubmit({
         ...harvestPayload,
-        tankName: selectedTankObj ? selectedTankObj.name : 'Selected Tank',
+        tankName: cleanTankName,
       });
     }
   };
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
-      {/* SECTION 1: BASIC INFORMATION */}
+      {/* BASIC INFORMATION SECTION */}
       <div className="space-y-3">
         <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
           <Container className="w-3.5 h-3.5 text-primary" /> Basic Information
         </h4>
 
-        {/* Row 1: Pond / Tank & Harvest Date */}
+        {/* Row 1: Tank & Harvest Date */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
-            label="Pond / Tank"
+            label="Tank"
             required={true}
-            placeholder="Choose pond..."
+            placeholder="Choose tank..."
             options={tankSelectOptions}
             error={errors.tankId?.message}
             {...register('tankId')}
@@ -169,23 +164,23 @@ export const HarvestForm = ({
           />
         </div>
 
-        {/* Buyer / Trader Name */}
+        {/* Buyer Name */}
         <Input
-          label="Buyer / Trader Name"
+          label="Buyer Name"
           type="text"
-          placeholder="e.g. Coastal Seafood Traders"
+          placeholder="Enter buyer name..."
           required={true}
           icon={<User className="w-4 h-4" />}
           error={errors.buyerName?.message}
           {...register('buyerName')}
         />
 
-        {/* Selling Price (₹ / Kg) */}
+        {/* Selling Price (₹/kg) */}
         <Input
           label="Selling Price (₹/kg)"
           type="number"
           step="1"
-          placeholder="e.g. 420"
+          placeholder="Enter price per kg..."
           required={true}
           icon={<IndianRupee className="w-4 h-4" />}
           error={errors.sellingPrice?.message}
@@ -193,67 +188,53 @@ export const HarvestForm = ({
         />
       </div>
 
-      {/* SECTION 2: HARVEST DETAILS */}
+      {/* HARVEST DETAILS SECTION */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-          <Wheat className="w-3.5 h-3.5" /> Harvest Details
+          <Wheat className="w-3.5 h-3.5 text-primary" /> Harvest Details
         </h4>
 
-        {/* Production (Kg) */}
+        {/* Shrimp Count */}
         <Input
-          label="Production (kg)"
+          label="Shrimp Count"
           type="number"
-          step="0.1"
-          placeholder="e.g. 3500"
+          step="1"
+          placeholder="Enter number of shrimp"
           required={true}
           icon={<Wheat className="w-4 h-4 text-primary" />}
-          error={errors.production?.message}
-          {...register('production')}
+          error={errors.shrimpCount?.message}
+          {...register('shrimpCount')}
         />
 
-        {/* Average Body Weight (Optional) */}
+        {/* Average Weight (ABW) - Read-only / Auto-calculated */}
         <Input
           label="Average Weight (ABW in grams)"
-          type="number"
-          step="0.1"
-          placeholder="Optional (e.g. 18.5)"
-          required={false}
+          type="text"
+          value={calculatedAbw ? `${calculatedAbw} g` : ''}
+          placeholder="Auto-calculated"
+          disabled={true}
           icon={<Weight className="w-4 h-4 text-primary" />}
-          error={errors.averageWeight?.message}
-          {...register('averageWeight')}
+          className="bg-surface cursor-not-allowed opacity-90 font-medium"
         />
 
-        {/* Transportation Cost & Harvest Expense */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Transportation Cost (₹)"
-            type="number"
-            step="1"
-            placeholder="e.g. 1500"
-            required={true}
-            icon={<Truck className="w-4 h-4 text-primary" />}
-            error={errors.transportationCost?.message}
-            {...register('transportationCost')}
-          />
-
-          <Input
-            label="Harvest Expense (₹)"
-            type="number"
-            step="1"
-            placeholder="e.g. 3000"
-            required={true}
-            icon={<IndianRupee className="w-4 h-4 text-primary" />}
-            error={errors.harvestExpense?.message}
-            {...register('harvestExpense')}
-          />
-        </div>
+        {/* Harvest Expense (₹) */}
+        <Input
+          label="Harvest Expense (₹)"
+          type="number"
+          step="1"
+          placeholder="0"
+          required={true}
+          icon={<IndianRupee className="w-4 h-4 text-primary" />}
+          error={errors.harvestExpense?.message}
+          {...register('harvestExpense')}
+        />
       </div>
 
-      {/* SECTION 3: NOTES (OPTIONAL) */}
+      {/* NOTES (OPTIONAL) */}
       <div>
         <Textarea
           label="Notes (Optional)"
-          placeholder="Add buyer details, harvest quality, transportation remarks or any additional notes..."
+          placeholder="Add buyer details, harvest quality, or remarks..."
           rows={2}
           error={errors.notes?.message}
           {...register('notes')}

@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Wheat, Weight, IndianRupee, TrendingUp } from 'lucide-react';
+import { Plus, Wheat, Weight, IndianRupee } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { EmptyState } from '../../components/EmptyState';
@@ -18,8 +17,7 @@ import { useHarvests } from '../../context/HarvestContext';
 export default function Harvest() {
   const { harvests = [], addHarvest, updateHarvest, deleteHarvest, loading, error } = useHarvests();
 
-  // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState('');
+  // Filter State
   const [tankFilter, setTankFilter] = useState('');
 
   // Modal Controls
@@ -35,29 +33,18 @@ export default function Harvest() {
   // Filter Harvest List Safely
   const filteredHarvests = useMemo(() => {
     const list = harvests || [];
-    const query = (searchQuery || '').trim().toLowerCase();
 
     return list.filter((harv) => {
       if (!harv) return false;
-      const buyerStr = harv.buyerName || '';
-      const tankStr = harv.tankName || '';
-
-      const matchesSearch =
-        query === '' ||
-        buyerStr.toLowerCase().includes(query) ||
-        tankStr.toLowerCase().includes(query);
-
-      const matchesTank = tankFilter === '' || harv.tankId === tankFilter;
-
-      return matchesSearch && matchesTank;
+      return tankFilter === '' || harv.tankId === tankFilter;
     });
-  }, [harvests, searchQuery, tankFilter]);
+  }, [harvests, tankFilter]);
 
   // Operational Metrics Summary Safely
   const stats = useMemo(() => {
     const list = harvests || [];
     const totalCount = list.length;
-    const totalProductionKg = list.reduce((acc, h) => acc + (parseFloat(h?.production) || 0), 0);
+    const totalProductionKg = list.reduce((acc, h) => acc + (parseFloat(h?.production || h?.shrimpCount) || 0), 0);
     const avgAbwGrams = totalCount > 0
       ? (list.reduce((acc, h) => acc + (parseFloat(h?.averageWeight) || 0), 0) / totalCount).toFixed(1)
       : 0;
@@ -123,17 +110,15 @@ export default function Harvest() {
   };
 
   const handleResetFilters = () => {
-    setSearchQuery('');
     setTankFilter('');
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. PAGE HEADER */}
+      {/* 1. PAGE HEADER (Harvest Logs badge removed) */}
       <PageHeader
         title="Harvest Management"
         subtitle="Log pond harvest yields, body weights (ABW), selling prices, and buyer details."
-        badge={<Badge variant="accent">{stats.totalCount} Harvest Logs</Badge>}
         actions={
           <Button
             variant="primary"
@@ -148,7 +133,7 @@ export default function Harvest() {
       />
 
       {/* 2. OPERATIONAL METRICS SUMMARY */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
@@ -156,7 +141,7 @@ export default function Harvest() {
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Production</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalProductionKg.toLocaleString()} kg</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalProductionKg.toLocaleString()}</span>
             </div>
           </div>
         </Card>
@@ -175,65 +160,51 @@ export default function Harvest() {
 
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Avg Selling Price</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">₹{stats.avgPricePerKg}/kg</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
               <IndianRupee className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Logs</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalCount} Batches</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Avg Price / kg</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">₹{stats.avgPricePerKg}</span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* 3. FILTERS */}
+      {/* 3. FILTERS AREA (Select Tank Dropdown) */}
       <HarvestFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         tankFilter={tankFilter}
         onTankChange={setTankFilter}
         onReset={handleResetFilters}
       />
 
-      {/* 4. HARVEST GRID OR EMPTY STATE */}
+      {/* 4. HARVEST CARDS GRID OR EMPTY STATE */}
       {filteredHarvests.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {filteredHarvests.map((harvest) => (
+          {filteredHarvests.map((harv) => (
             <HarvestCard
-              key={harvest.id}
-              harvest={harvest}
-              onView={handleOpenDetails}
+              key={harv.id}
+              harvest={harv}
+              onViewDetails={handleOpenDetails}
               onEdit={handleOpenEdit}
               onDelete={handleOpenDelete}
             />
           ))}
         </div>
       ) : (
-        <Card padding="relaxed" className="border-border/80">
+        <Card padding="relaxed" className="border-border/80 shadow-2xs">
           <EmptyState
-            title="No Harvest Records Found"
+            title="No Harvest Logs Found"
             description={
-              searchQuery || tankFilter
-                ? "No harvest logs match your search or tank filter criteria. Try clearing filters."
-                : "You haven't registered any pond harvest events yet. Click below to add your first record."
+              tankFilter
+                ? "No harvest logs match your selected tank filter. Try resetting filters."
+                : "Register pond harvest yields to track production revenue."
             }
             actionLabel={
-              searchQuery || tankFilter ? "Reset Filters" : "Register Harvest"
+              tankFilter ? "Reset Filters" : "Register New Harvest"
             }
             onAction={
-              searchQuery || tankFilter ? handleResetFilters : handleOpenAdd
+              tankFilter ? handleResetFilters : handleOpenAdd
             }
           />
         </Card>
@@ -249,10 +220,10 @@ export default function Harvest() {
         title={editingHarvest ? 'Edit Harvest Record' : 'Register New Harvest'}
         description={
           editingHarvest
-            ? `Update harvest parameters for ${editingHarvest.tankName || 'Tank'}`
-            : 'Record yield, body weight, selling price, and buyer details for completed crop.'
+            ? `Update harvest details for ${editingHarvest.buyerName || 'Harvest'}`
+            : 'Register a new harvest log with buyer details and count.'
         }
-        size="lg"
+        size="md"
       >
         <HarvestForm
           initialData={editingHarvest}
@@ -264,7 +235,7 @@ export default function Harvest() {
         />
       </Modal>
 
-      {/* 6. HARVEST DETAILS MODAL */}
+      {/* 6. VIEW HARVEST DETAILS MODAL */}
       <HarvestDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => {
@@ -287,10 +258,10 @@ export default function Harvest() {
         title="Delete Harvest Record"
         message={
           deletingHarvest
-            ? `Are you sure you want to delete the harvest record for "${deletingHarvest.tankName || 'Tank'}"? This action cannot be undone.`
+            ? `Are you sure you want to delete the harvest record for "${deletingHarvest.buyerName || 'Harvest'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this harvest record?'
         }
-        confirmText="Delete Harvest"
+        confirmText="Delete Harvest Record"
         cancelText="Cancel"
         type="danger"
       />

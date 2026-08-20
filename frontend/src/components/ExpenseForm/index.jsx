@@ -127,9 +127,9 @@ export const ExpenseForm = ({
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
-            label="Pond / Tank"
+            label="Tank"
             required={true}
-            placeholder="Choose pond..."
+            placeholder="Choose tank..."
             options={tankSelectOptions}
             error={errors.tankId?.message}
             {...register('tankId')}

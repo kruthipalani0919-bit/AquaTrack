@@ -1,18 +1,15 @@
 import React from 'react';
-import { Sprout, Eye, Edit3, Trash2, Container } from 'lucide-react';
+import { Sprout, Eye, Edit3, Trash2 } from 'lucide-react';
 import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Simplified CropCard component displaying ONLY user-registered crop details:
- * - Batch Number / Crop Identifier
- * - Status Badge
- * - Tank Name
- * - Seed Variety
- * - Stocking Date
- * - Action buttons (View Details, Edit, Delete)
- * All progress bars, DOC calculations, and culture milestone bars are completely removed.
+ * Reusable CropCard component matching the exact visual language, structure,
+ * padding, icon container, typography, and button styling of TankCard:
+ * - Header: Sprout icon in pastel container, Batch Title (e.g. Batch 53), Tank Subtitle (e.g. Tank A1) directly below, Status Badge (Active) top right.
+ * - Information Area: Single specification box displaying Seed Variety & Stocking Date.
+ * - Footer Actions: View Details (primary outline button), Edit & Delete icon triggers.
  */
 export const CropCard = ({
   crop = {},
@@ -34,9 +31,10 @@ export const CropCard = ({
   const displayName = batchNumber ? `Batch ${batchNumber}` : cropName || 'Crop Batch';
   const displayVariety = seedVariety || 'Not specified';
 
-  // Format tank name cleanly to NEVER display water source
-  const rawTank = tankName || crop?.tank?.name || crop?.tank?.tankName || 'Tank';
-  const displayTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+  // Format tank name cleanly: e.g. "Tank A1" without "Tank: A1" prefix or water source string
+  const rawTank = tankName || crop?.tank?.name || crop?.tank?.tankName || 'A1';
+  const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+  const tankLabel = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
 
   const validStockingDate = stockingDate ? new Date(stockingDate) : null;
   const formattedStockingDate = validStockingDate && !isNaN(validStockingDate.getTime())
@@ -49,41 +47,51 @@ export const CropCard = ({
       padding="normal"
       className={`flex flex-col justify-between border-border/80 bg-surface shadow-xs transition-all ${className}`}
     >
-      {/* Header Row: Batch Name, Status Badge */}
+      {/* 1. TOP HEADER ROW: Icon, Batch Title, Tank Subtitle & Status Badge */}
       <div className="flex items-start justify-between gap-3 pb-3 border-b border-border/60">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 shadow-xs">
             <Sprout className="w-5 h-5" />
           </div>
           <div className="min-w-0">
             <h3 className="font-bold text-base text-text-primary truncate tracking-tight" title={displayName}>
               {displayName}
             </h3>
-            <span className="text-xs text-text-secondary flex items-center gap-1 mt-0.5 font-medium">
-              <Container className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="truncate">Tank: {displayTank}</span>
+            <span className="text-xs text-text-secondary block truncate mt-0.5 font-medium" title={tankLabel}>
+              {tankLabel}
             </span>
           </div>
         </div>
 
-        <Badge variant={status === 'Active' ? 'success' : 'primary'} size="sm" className="shrink-0">
+        <Badge variant={status === 'Active' ? 'success' : 'primary'} size="sm" className="shrink-0 font-medium">
           {status || 'Active'}
         </Badge>
       </div>
 
-      {/* Details: Seed Variety & Stocking Date */}
-      <div className="py-3 border-b border-border/60 space-y-1.5 text-xs text-text-secondary">
-        <div className="flex items-center justify-between">
-          <span>Seed Variety:</span>
-          <span className="font-semibold text-text-primary">{displayVariety}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Stocking Date:</span>
-          <span className="font-semibold text-text-primary">{formattedStockingDate}</span>
+      {/* 2. INFORMATION SPECIFICATION BOX */}
+      <div className="py-4 border-b border-border/60">
+        <div className="flex flex-col items-start p-3 rounded-lg bg-background/60 border border-border/40 space-y-2">
+          <div className="w-full flex items-center justify-between">
+            <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
+              Seed Variety
+            </span>
+            <span className="text-xs font-bold text-text-primary truncate ml-2">
+              {displayVariety}
+            </span>
+          </div>
+
+          <div className="w-full flex items-center justify-between pt-1.5 border-t border-border/40">
+            <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
+              Stocking Date
+            </span>
+            <span className="text-xs font-bold text-text-primary truncate ml-2">
+              {formattedStockingDate}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Actions Footer */}
+      {/* 3. CARD ACTIONS FOOTER */}
       <div className="pt-3 flex items-center justify-between gap-2 mt-auto">
         <Button
           variant="outline"
