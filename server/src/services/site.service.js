@@ -21,7 +21,7 @@ export const createSite = async (userId, siteData) => {
             location: siteData.location,
 
             area: siteData.area,
-
+            
             gpsLocation: siteData.gpsLocation ?? null,
 
             remarks: siteData.remarks ?? null,

@@ -6,128 +6,235 @@ import {
     getActiveCrop
 } from "../utils/farm.helpers.js";
 
-export const createHarvest = async (userId, harvestData) => {
 
-    const farm = await getUserFarm(userId);
+/*
+ * Create Harvest
+ */
+export const createHarvest = async (
+    userId,
+    harvestData
+) => {
 
-    const tank = await getUserTank(
-        farm.id,
-        harvestData.tankId
-    );
+    const farm =
+        await getUserFarm(userId);
 
-    const crop = await getActiveCrop(
-        tank.id
-    );
 
-    // Revenue
+    const tank =
+        await getUserTank(
+            farm.id,
+            harvestData.tankId
+        );
+
+
+    const crop =
+        await getActiveCrop(
+            tank.id
+        );
+
+
+    /*
+     * Calculate Average Body Weight (ABW)
+     *
+     * Formula:
+     * ABW = 1000 / Shrimp Count
+     *
+     * Example:
+     * 60 count = 16.67 grams
+     */
+    const averageWeight =
+        1000 / harvestData.shrimpCount;
+
+
+    /*
+     * Revenue
+     */
     const revenue =
         harvestData.production *
         harvestData.sellingPrice;
 
-    // Feed Cost
-    const feedEntries = await prisma.feedEntry.findMany({
-    where: {
-        cropId: crop.id
-    }
-});
 
-    const feedCost = feedEntries.reduce(
-        (sum, item) => sum + item.totalCost,
-        0
-    );
+    /*
+     * Feed Cost
+     */
+    const feedEntries =
+        await prisma.feedEntry.findMany({
 
-    // Expense Cost
-    const expenses = await prisma.expense.findMany({
-        where: {
-            cropId: crop.id
-        }
-    });
+            where: {
+                cropId: crop.id
+            }
 
-    const expenseCost = expenses.reduce(
-        (sum, item) => sum + item.amount,
-        0
-    );
+        });
 
-    // Medicine Cost
-    const medicines = await prisma.medicine.findMany({
-        where: {
-            tankId: tank.id
-        }
-    });
 
-    const medicineCost = medicines.reduce(
-        (sum, item) => sum + item.cost,
-        0
-    );
+    const feedCost =
+        feedEntries.reduce(
+            (sum, item) =>
+                sum + item.totalCost,
+            0
+        );
 
+
+    /*
+     * Expense Cost
+     */
+    const expenses =
+        await prisma.expense.findMany({
+
+            where: {
+                cropId: crop.id
+            }
+
+        });
+
+
+    const expenseCost =
+        expenses.reduce(
+            (sum, item) =>
+                sum + item.amount,
+            0
+        );
+
+
+    /*
+     * Medicine Cost
+     */
+    const medicines =
+        await prisma.medicine.findMany({
+
+            where: {
+                tankId: tank.id
+            }
+
+        });
+
+
+    const medicineCost =
+        medicines.reduce(
+            (sum, item) =>
+                sum + item.cost,
+            0
+        );
+
+
+    /*
+     * Total Expense
+     *
+     * Transportation cost is no longer used.
+     */
     const totalExpense =
         feedCost +
         expenseCost +
         medicineCost +
-        harvestData.transportationCost +
         harvestData.harvestExpense;
 
+
+    /*
+     * Profit
+     */
     const profit =
         revenue -
         totalExpense;
 
-    const harvest = await prisma.harvest.create({
 
-        data: {
+    /*
+     * Create Harvest
+     */
+    const harvest =
+        await prisma.harvest.create({
 
-            cropId: crop.id,
+            data: {
 
-            harvestDate: new Date(
-                harvestData.harvestDate
-            ),
+                cropId:
+                    crop.id,
 
-            production: harvestData.production,
+                harvestDate:
+                    new Date(
+                        harvestData.harvestDate
+                    ),
 
-            averageWeight: harvestData.averageWeight,
+                production:
+                    harvestData.production,
 
-            survivalRate: harvestData.survivalRate,
 
-            sellingPrice: harvestData.sellingPrice,
+                /*
+                 * Store user-entered shrimp count
+                 */
+                shrimpCount:
+                    harvestData.shrimpCount,
 
-            buyerName: harvestData.buyerName,
 
-            transportationCost:
-                harvestData.transportationCost,
+                /*
+                 * Store automatically calculated ABW
+                 */
+                averageWeight,
 
-            harvestExpense:
-                harvestData.harvestExpense,
 
-            revenue,
+                survivalRate:
+                    harvestData.survivalRate,
 
-            profit
+                sellingPrice:
+                    harvestData.sellingPrice,
 
-        }
+                buyerName:
+                    harvestData.buyerName,
 
-    });
 
+                /*
+                 * No longer collected from frontend
+                 */
+                transportationCost:
+                    null,
+
+
+                harvestExpense:
+                    harvestData.harvestExpense,
+
+                revenue,
+
+                profit
+
+            }
+
+        });
+
+
+    /*
+     * Mark Crop as Completed
+     */
     await prisma.crop.update({
 
         where: {
 
-            id: crop.id
+            id:
+                crop.id
 
         },
 
         data: {
 
-            status: "COMPLETED"
+            status:
+                "COMPLETED"
 
         }
 
     });
 
+
     return harvest;
 
 };
 
-export const getHarvests = async (userId) => {
 
-    const farm = await getUserFarm(userId);
+/*
+ * Get all Harvests
+ */
+export const getHarvests = async (
+    userId
+) => {
+
+    const farm =
+        await getUserFarm(userId);
+
 
     return await prisma.harvest.findMany({
 
@@ -139,7 +246,8 @@ export const getHarvests = async (userId) => {
 
                     site: {
 
-                        farmId: farm.id
+                        farmId:
+                            farm.id
 
                     }
 
@@ -155,7 +263,8 @@ export const getHarvests = async (userId) => {
 
                 include: {
 
-                    tank: true
+                    tank:
+                        true
 
                 }
 
@@ -165,7 +274,8 @@ export const getHarvests = async (userId) => {
 
         orderBy: {
 
-            harvestDate: "desc"
+            harvestDate:
+                "desc"
 
         }
 
@@ -173,26 +283,52 @@ export const getHarvests = async (userId) => {
 
 };
 
+
+/*
+ * Get Harvest by ID
+ */
 export const getHarvestById = async (
     userId,
     harvestId
 ) => {
 
-    const farm = await getUserFarm(userId);
+    const farm =
+        await getUserFarm(userId);
 
-    const harvest = await prisma.harvest.findFirst({
 
-        where: {
+    const harvest =
+        await prisma.harvest.findFirst({
 
-            id: harvestId,
+            where: {
 
-            crop: {
+                id:
+                    harvestId,
 
-                tank: {
+                crop: {
 
-                    site: {
+                    tank: {
 
-                        farmId: farm.id
+                        site: {
+
+                            farmId:
+                                farm.id
+
+                        }
+
+                    }
+
+                }
+
+            },
+
+            include: {
+
+                crop: {
+
+                    include: {
+
+                        tank:
+                            true
 
                     }
 
@@ -200,34 +336,26 @@ export const getHarvestById = async (
 
             }
 
-        },
+        });
 
-        include: {
-
-            crop: {
-
-                include: {
-
-                    tank: true
-
-                }
-
-            }
-
-        }
-
-    });
 
     if (!harvest) {
 
-        throw new Error("Harvest not found.");
+        throw new Error(
+            "Harvest not found."
+        );
 
     }
+
 
     return harvest;
 
 };
 
+
+/*
+ * Delete Harvest
+ */
 export const deleteHarvest = async (
     userId,
     harvestId
@@ -238,24 +366,32 @@ export const deleteHarvest = async (
         harvestId
     );
 
+
     await prisma.harvest.delete({
 
         where: {
 
-            id: harvestId
+            id:
+                harvestId
 
         }
 
     });
 
+
     return {
 
-        message: "Harvest deleted successfully."
+        message:
+            "Harvest deleted successfully."
 
     };
 
 };
 
+
+/*
+ * Get Harvest Summary
+ */
 export const getHarvestSummary = async (
     userId
 ) => {
@@ -263,27 +399,35 @@ export const getHarvestSummary = async (
     const harvests =
         await getHarvests(userId);
 
+
     const totalProduction =
         harvests.reduce(
-            (sum, item) => sum + item.production,
+            (sum, item) =>
+                sum + item.production,
             0
         );
+
 
     const totalRevenue =
         harvests.reduce(
-            (sum, item) => sum + item.revenue,
+            (sum, item) =>
+                sum + item.revenue,
             0
         );
+
 
     const totalProfit =
         harvests.reduce(
-            (sum, item) => sum + item.profit,
+            (sum, item) =>
+                sum + item.profit,
             0
         );
 
+
     return {
 
-        totalHarvests: harvests.length,
+        totalHarvests:
+            harvests.length,
 
         totalProduction,
 

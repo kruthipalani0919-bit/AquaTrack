@@ -8,7 +8,14 @@ export const createHarvestSchema = z.object({
 
     production: z.number().positive(),
 
-    averageWeight: z.number().positive(),
+    /*
+     * User enters shrimp count.
+     *
+     * Example:
+     * 60 count -> ABW = 1000 / 60
+     * -> approximately 16.67 grams
+     */
+    shrimpCount: z.number().positive(),
 
     survivalRate: z.number().min(0).max(100),
 
@@ -16,11 +23,10 @@ export const createHarvestSchema = z.object({
 
     buyerName: z.string().min(2),
 
-    transportationCost: z.number().min(0),
-
     harvestExpense: z.number().min(0)
 
 });
+
 
 export const updateHarvestSchema =
     createHarvestSchema.partial();

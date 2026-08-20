@@ -252,6 +252,20 @@ model Harvest {
 
   production Float
 
+  /*
+   * Shrimp count entered by the user.
+   *
+   * Example:
+   * 60 count = approximately 16.67 grams ABW
+   */
+  shrimpCount Float?
+
+  /*
+   * Automatically calculated from shrimpCount.
+   *
+   * Formula:
+   * ABW = 1000 / shrimpCount
+   */
   averageWeight Float
 
   survivalRate Float
@@ -260,7 +274,13 @@ model Harvest {
 
   buyerName String
 
-  transportationCost Float
+  /*
+   * No longer collected from the UI.
+   *
+   * Existing records can retain their values,
+   * while new records can store null.
+   */
+  transportationCost Float?
 
   harvestExpense Float
 
