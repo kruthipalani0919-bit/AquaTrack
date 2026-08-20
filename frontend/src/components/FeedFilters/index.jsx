@@ -1,20 +1,15 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { SearchBar } from '../SearchBar';
 import { Select } from '../Select';
 import { Input } from '../Input';
 import { Button } from '../Button';
-import { FEED_TYPE_OPTIONS } from '../../constants/feedData';
 import { useTanks } from '../../context/TankContext';
 
 /**
- * Reusable FeedFilters component for search, feed type, tank, and date filters.
+ * Reusable FeedFilters component displaying ONLY All Tanks dropdown and Date picker.
+ * Search bar and Feed Type filter dropdown have been removed completely.
  */
 export const FeedFilters = ({
-  searchQuery = '',
-  onSearchChange,
-  typeFilter = '',
-  onTypeChange,
   tankFilter = '',
   onTankChange,
   dateFilter = '',
@@ -24,14 +19,7 @@ export const FeedFilters = ({
 }) => {
   const { tanks = [] } = useTanks();
 
-  const hasActiveFilters = Boolean(
-    searchQuery || typeFilter || tankFilter || dateFilter
-  );
-
-  const typeOptions = [
-    { value: '', label: 'All Feed Types' },
-    ...FEED_TYPE_OPTIONS,
-  ];
+  const hasActiveFilters = Boolean(tankFilter || dateFilter);
 
   // Clean tank names so water source is NEVER exposed
   const tankOptions = [
@@ -44,39 +32,22 @@ export const FeedFilters = ({
   ];
 
   return (
-    <div className={`flex flex-col gap-3 bg-surface border border-border rounded-xl p-4 shadow-xs ${className}`}>
-      {/* Top Search Bar */}
-      <div className="w-full">
-        <SearchBar
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          onClear={() => onSearchChange('')}
-          placeholder="Search feed brand, type, tank name, notes..."
-        />
-      </div>
-
-      {/* Dropdown Filters Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end pt-1">
-        {/* Feed Type */}
-        <Select
-          placeholder=""
-          options={typeOptions}
-          value={typeFilter}
-          onChange={(e) => onTypeChange(e.target.value)}
-          fullWidth
-        />
-
+    <div className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface border border-border rounded-xl p-4 shadow-xs ${className}`}>
+      {/* Filter Controls: All Tanks & Date */}
+      <div className="flex flex-wrap items-center gap-3 flex-1">
         {/* Tank Select */}
-        <Select
-          placeholder=""
-          options={tankOptions}
-          value={tankFilter}
-          onChange={(e) => onTankChange(e.target.value)}
-          fullWidth
-        />
+        <div className="w-48 sm:w-56">
+          <Select
+            placeholder=""
+            options={tankOptions}
+            value={tankFilter}
+            onChange={(e) => onTankChange(e.target.value)}
+            fullWidth
+          />
+        </div>
 
-        {/* Date Filter & Reset */}
-        <div className="flex items-center gap-2">
+        {/* Date Filter */}
+        <div className="w-44 sm:w-48">
           <Input
             type="date"
             value={dateFilter}
@@ -84,20 +55,21 @@ export const FeedFilters = ({
             placeholder="Select Date"
             className="text-xs"
           />
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              icon={<X className="w-4 h-4 text-danger" />}
-              className="text-xs text-danger font-medium hover:bg-danger-light/50 shrink-0"
-              title="Reset Filters"
-            >
-              Reset
-            </Button>
-          )}
         </div>
+
+        {/* Reset Button */}
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onReset}
+            icon={<X className="w-4 h-4 text-danger" />}
+            className="text-xs text-danger font-medium hover:bg-danger-light/50 shrink-0"
+            title="Reset Filters"
+          >
+            Reset
+          </Button>
+        )}
       </div>
     </div>
   );

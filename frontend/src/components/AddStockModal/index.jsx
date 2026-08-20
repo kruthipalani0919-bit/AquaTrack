@@ -10,7 +10,7 @@ import { Button } from '../Button';
 
 const addStockSchema = z.object({
   category: z.enum(['FEED', 'MEDICINE'], {
-    errorMap: () => ({ message: 'Please select a valid Category (Feed or Medicine)' }),
+    errorMap: () => ({ message: 'Please select a valid Stock Category' }),
   }),
   totalQuantity: z
     .coerce
@@ -35,6 +35,12 @@ const UNIT_OPTIONS = [
   { value: 'units', label: 'Units' },
 ];
 
+/**
+ * Reusable AddStockForm component styled consistently with AquaTrack registration modals:
+ * - Visually highlighted Stock Information section card
+ * - Category *, Total Quantity *, Unit * fields with icons & clear placeholders
+ * - Bottom right action buttons: Cancel, Add Stock
+ */
 export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
   const [formError, setFormError] = useState('');
 
@@ -81,50 +87,59 @@ export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
       {formError && (
-        <div className="p-3.5 rounded-xl bg-danger-light/30 border border-danger/30 flex items-center gap-2.5 text-danger text-xs font-medium">
+        <div className="p-3 rounded-xl bg-danger-light/30 border border-danger/30 flex items-center gap-2.5 text-danger text-xs font-medium">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span>{formError}</span>
         </div>
       )}
 
-      {/* Category */}
-      <Select
-        label="Category"
-        required={true}
-        options={CATEGORY_OPTIONS}
-        error={errors.category?.message}
-        disabled={isSubmitting}
-        onChange={handleCategoryChange}
-        value={selectedCategory}
-      />
+      {/* STOCK INFORMATION SECTION */}
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-4 shadow-2xs">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-1.5">
+          <Package className="w-3.5 h-3.5 text-primary" /> Stock Information
+        </h4>
 
-      {/* Quantity & Unit Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label="Total Quantity"
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="e.g. 5000"
-          required={true}
-          icon={<Package className="w-4 h-4" />}
-          error={errors.totalQuantity?.message}
-          disabled={isSubmitting}
-          {...register('totalQuantity')}
-        />
-
+        {/* Category */}
         <Select
-          label="Unit"
+          label="Category"
           required={true}
-          options={UNIT_OPTIONS}
-          error={errors.unit?.message}
+          placeholder="Select stock type..."
+          options={CATEGORY_OPTIONS}
+          error={errors.category?.message}
           disabled={isSubmitting}
-          icon={<Scale className="w-4 h-4" />}
-          {...register('unit')}
+          onChange={handleCategoryChange}
+          value={selectedCategory}
         />
+
+        {/* Quantity & Unit Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Total Quantity"
+            type="number"
+            step="0.01"
+            min="0.01"
+            placeholder="Enter quantity..."
+            required={true}
+            icon={<Package className="w-4 h-4 text-primary" />}
+            error={errors.totalQuantity?.message}
+            disabled={isSubmitting}
+            {...register('totalQuantity')}
+          />
+
+          <Select
+            label="Unit"
+            required={true}
+            placeholder="Select unit..."
+            options={UNIT_OPTIONS}
+            error={errors.unit?.message}
+            disabled={isSubmitting}
+            icon={<Scale className="w-4 h-4 text-primary" />}
+            {...register('unit')}
+          />
+        </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Bottom Action Buttons */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
         <Button
           type="button"

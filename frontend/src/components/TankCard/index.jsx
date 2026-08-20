@@ -6,14 +6,17 @@ import { Button } from '../Button';
 /**
  * Reusable TankCard component displaying registered tank details:
  * Tank Name, Site Name, Area (Acres), and Action Triggers.
+ * Supports both `onView` and `onViewDetails` click handlers for robust connection.
  */
 export const TankCard = ({
   tank = {},
   onView,
+  onViewDetails,
   onEdit,
   onDelete,
   className = '',
 }) => {
+  const handleView = onViewDetails || onView;
   const { name, tankName, area, site, siteName } = tank;
   const displayName = name || tankName || 'Tank';
   const displaySite = site?.siteName || siteName || 'Site';
@@ -58,7 +61,7 @@ export const TankCard = ({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onView && onView(tank)}
+          onClick={() => handleView && handleView(tank)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs font-medium"
         >

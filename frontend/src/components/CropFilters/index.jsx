@@ -3,17 +3,15 @@ import { X } from 'lucide-react';
 import { SearchBar } from '../SearchBar';
 import { Select } from '../Select';
 import { Button } from '../Button';
-import { CROP_STATUS_OPTIONS } from '../../constants/cropData';
 import { useTanks } from '../../context/TankContext';
 
 /**
- * Reusable CropFilters component for search & multi-dropdown filtering.
+ * Reusable CropFilters component for search & tank filtering.
+ * "All Statuses" filter has been completely removed.
  */
 export const CropFilters = ({
   searchQuery = '',
   onSearchChange,
-  statusFilter = '',
-  onStatusChange,
   tankFilter = '',
   onTankChange,
   onReset,
@@ -21,45 +19,34 @@ export const CropFilters = ({
 }) => {
   const { tanks = [] } = useTanks();
 
-  const hasActiveFilters = Boolean(searchQuery || statusFilter || tankFilter);
+  const hasActiveFilters = Boolean(searchQuery || tankFilter);
 
-  const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    ...CROP_STATUS_OPTIONS,
-  ];
-
+  // Clean tank labels to never expose water source
   const tankOptions = [
     { value: '', label: 'All Tanks' },
-    ...(tanks || []).map((t) => ({ value: t.id, label: t.name || t.tankName || 'Tank' })),
+    ...(tanks || []).map((t) => {
+      const rawName = t.name || t.tankName || 'Tank';
+      const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      return { value: t.id, label: cleanName };
+    }),
   ];
 
   return (
-    <div className={`flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface border border-border rounded-xl p-4 shadow-xs ${className}`}>
+    <div className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface border border-border rounded-xl p-4 shadow-xs ${className}`}>
       {/* Search Bar Input */}
       <div className="flex-1 max-w-md">
         <SearchBar
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onClear={() => onSearchChange('')}
-          placeholder="Search batch number, seed variety, tank name, notes..."
+          placeholder="Search batch, seed variety or tank..."
         />
       </div>
 
-      {/* Filter Dropdowns */}
-      <div className="flex flex-wrap items-center gap-3 shrink-0">
-        {/* Status Dropdown */}
-        <div className="w-36 sm:w-44">
-          <Select
-            placeholder=""
-            options={statusOptions}
-            value={statusFilter}
-            onChange={(e) => onStatusChange(e.target.value)}
-            fullWidth
-          />
-        </div>
-
+      {/* Filter Dropdown & Reset */}
+      <div className="flex items-center gap-3 shrink-0">
         {/* Tank Dropdown */}
-        <div className="w-40 sm:w-48">
+        <div className="w-44 sm:w-48">
           <Select
             placeholder=""
             options={tankOptions}
@@ -76,9 +63,10 @@ export const CropFilters = ({
             size="sm"
             onClick={onReset}
             icon={<X className="w-4 h-4 text-danger" />}
-            className="text-xs text-danger font-medium hover:bg-danger-light/50"
+            className="text-xs text-danger font-medium hover:bg-danger-light/50 shrink-0"
+            title="Reset Filters"
           >
-            Reset Filters
+            Reset
           </Button>
         )}
       </div>

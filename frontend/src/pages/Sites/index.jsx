@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, MapPin, Container, Building2, ShieldAlert, Layers } from 'lucide-react';
+import { Plus, MapPin, Container, ShieldAlert, Layers, RotateCcw } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
@@ -17,7 +17,7 @@ import { useSites } from '../../context/SiteContext';
 
 export default function Sites() {
   const navigate = useNavigate();
-  const { sites = [], addSite, updateSite, deleteSite, loading, error } = useSites();
+  const { sites = [], fetchSites, addSite, updateSite, deleteSite, loading, error } = useSites();
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,6 +140,10 @@ export default function Sites() {
     return 'Are you sure you want to delete this site?';
   }, [deletingSite]);
 
+  const displayTotalAreaStr = stats.totalLandArea > 0
+    ? `${Number.isInteger(stats.totalLandArea) ? stats.totalLandArea : stats.totalLandArea.toFixed(1)} Acres`
+    : '0 Acres';
+
   return (
     <div className="space-y-6">
       {/* 1. PAGE HEADER */}
@@ -181,7 +185,7 @@ export default function Sites() {
             </div>
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Land Area</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalLandArea > 0 ? `${stats.totalLandArea.toFixed(1)} Acres` : 'N/A'}</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{displayTotalAreaStr}</span>
             </div>
           </div>
         </Card>
@@ -207,42 +211,73 @@ export default function Sites() {
       />
 
       {/* 4. MAIN CONTENT AREA */}
-      {loading ? (
+      {loading && sites.length === 0 ? (
         <div className="py-16 flex flex-col items-center justify-center text-center">
           <Loader size="lg" color="primary" />
           <span className="text-xs font-medium text-text-secondary mt-3">Loading farm sites...</span>
         </div>
-      ) : error ? (
+      ) : error && sites.length === 0 ? (
         <Card padding="normal" className="border-danger/30 bg-danger-light/10 text-center py-8">
           <div className="w-12 h-12 rounded-full bg-danger-light/30 text-danger flex items-center justify-center mx-auto mb-3">
             <ShieldAlert className="w-6 h-6" />
           </div>
           <h3 className="font-bold text-sm text-text-primary mb-1">Failed to Load Sites</h3>
-          <p className="text-xs text-text-secondary max-w-md mx-auto">{error}</p>
+          <p className="text-xs text-text-secondary max-w-md mx-auto mb-4">{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchSites()}
+            icon={<RotateCcw className="w-3.5 h-3.5" />}
+            className="mx-auto text-xs"
+          >
+            Retry Loading Sites
+          </Button>
         </Card>
-      ) : filteredSites.length === 0 ? (
-        <EmptyState
-          title={searchQuery ? "No matching sites found" : "No sites found"}
-          description={
-            searchQuery
-              ? "Try adjusting your search terms to find what you are looking for."
-              : "Create your first site to get started."
-          }
-          actionLabel={searchQuery ? "Reset Search" : "Add New Site"}
-          onAction={searchQuery ? handleResetFilters : handleOpenAdd}
-        />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {filteredSites.map((site) => (
-            <SiteCard
-              key={site.id}
-              site={site}
-              onViewTanks={handleViewTanks}
-              onEdit={handleOpenEdit}
-              onDelete={handleOpenDelete}
+        <>
+          {error && sites.length > 0 && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-800">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Could not refresh site data ({error}). Displaying latest saved sites.</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchSites(true)}
+                icon={<RotateCcw className="w-3.5 h-3.5" />}
+                className="text-amber-900 hover:bg-amber-100 shrink-0"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {filteredSites.length === 0 ? (
+            <EmptyState
+              title={searchQuery ? "No matching sites found" : "No sites found"}
+              description={
+                searchQuery
+                  ? "Try adjusting your search terms to find what you are looking for."
+                  : "Create your first site to get started."
+              }
+              actionLabel={searchQuery ? "Reset Search" : "Add New Site"}
+              onAction={searchQuery ? handleResetFilters : handleOpenAdd}
             />
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {filteredSites.map((site) => (
+                <SiteCard
+                  key={site.id}
+                  site={site}
+                  onViewTanks={handleViewTanks}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleOpenDelete}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* 5. ADD / EDIT SITE MODAL */}
@@ -251,13 +286,10 @@ export default function Sites() {
         onClose={() => {
           setIsFormOpen(false);
           setEditingSite(null);
+          setModalError('');
         }}
         title={editingSite ? 'Edit Site' : 'Add New Site'}
-        description={
-          editingSite
-            ? `Update properties for ${editingSite.siteName || 'Site'}`
-            : 'Configure a new site location to manage tanks.'
-        }
+        description={editingSite ? `Update details for ${editingSite.siteName}` : 'Register a new site location for your farm.'}
         size="md"
       >
         <SiteForm
@@ -266,6 +298,7 @@ export default function Sites() {
           onCancel={() => {
             setIsFormOpen(false);
             setEditingSite(null);
+            setModalError('');
           }}
           isSubmitting={isSubmitting}
           error={modalError}

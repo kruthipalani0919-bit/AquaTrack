@@ -1,16 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Package,
   Plus,
   ArrowUpRight,
   UtensilsCrossed,
   Stethoscope,
   MapPin,
   Boxes,
-  CheckCircle2,
-  AlertCircle,
-  PieChart,
-  Layers
+  AlertCircle
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -137,9 +133,8 @@ export default function Stocking() {
       <PageHeader
         title="Stocking Management"
         subtitle="Manage farm-level stock inventory and allocate feed and medicine to your sites."
-        badge={<Badge variant="primary"><Boxes className="w-3.5 h-3.5 mr-1" /> Inventory Overview</Badge>}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               variant="outline"
               size="sm"
@@ -164,9 +159,9 @@ export default function Stocking() {
         }
       />
 
-      {/* ERROR DISPLAY */}
+      {/* COMPACT ERROR DISPLAY BANNER */}
       {error && (
-        <Card padding="compact" className="border-danger/30 bg-danger-light/20 text-danger text-xs flex items-center gap-2">
+        <Card padding="compact" className="border-danger/30 bg-danger-light/20 text-danger text-xs flex items-center gap-2 shadow-2xs">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </Card>
@@ -181,70 +176,75 @@ export default function Stocking() {
         <>
           {/* 2. FARM STOCK OVERVIEW SECTION */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-text-primary flex items-center gap-2">
-                <Boxes className="w-4 h-4 text-primary" /> Farm Stock Overview
-              </h3>
-              <span className="text-xs text-text-secondary">Farm-wide aggregated inventory</span>
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <div>
+                <h3 className="font-bold text-base text-text-primary flex items-center gap-2">
+                  <Boxes className="w-4.5 h-4.5 text-primary" /> Farm Stock Overview
+                </h3>
+                <span className="text-xs text-text-secondary">Farm-wide aggregated inventory</span>
+              </div>
             </div>
 
             {hasAnyStock ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 {/* FEED STOCK CARD */}
                 <Card padding="normal" className="border-border/80 bg-surface shadow-xs flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <div className="space-y-4">
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between pb-3 border-b border-border/60">
                       <div className="flex items-center gap-2.5">
                         <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 shadow-xs">
                           <UtensilsCrossed className="w-5 h-5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-base text-text-primary">Feed Stock</h4>
+                          <h4 className="font-bold text-base text-text-primary tracking-tight">Feed Stock</h4>
                           <span className="text-xs text-text-secondary">Pellets & Feed Additives</span>
                         </div>
                       </div>
-                      <Badge variant={farmStockOverview.feed ? 'success' : 'neutral'}>
+                      <Badge variant={farmStockOverview.feed ? 'success' : 'neutral'} size="sm">
                         {farmStockOverview.feed ? 'In Stock' : 'No Stock'}
                       </Badge>
                     </div>
 
                     {farmStockOverview.feed ? (
-                      <div className="mt-4 space-y-3">
-                        <div className="grid grid-cols-2 gap-2 text-center">
-                          <div className="p-2.5 rounded-xl bg-background border border-border/60">
-                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Total Stock</span>
-                            <span className="text-base font-extrabold text-text-primary mt-0.5 block">
-                              {farmStockOverview.feed.totalQuantity} <span className="text-xs font-normal text-text-secondary">{farmStockOverview.feed.unit}</span>
-                            </span>
-                          </div>
-
-                          <div className="p-2.5 rounded-xl bg-background border border-border/60">
-                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Unallocated</span>
-                            <span className="text-base font-extrabold text-primary mt-0.5 block">
-                              {farmStockOverview.feed.unallocatedQuantity} <span className="text-xs font-normal text-text-secondary">{farmStockOverview.feed.unit}</span>
-                            </span>
-                          </div>
+                      <div className="space-y-3">
+                        {/* Primary Metric: Total Stock (Prominent & Clear) */}
+                        <div className="p-3.5 rounded-xl bg-primary-light/30 border border-primary/20 flex items-center justify-between shadow-2xs">
+                          <span className="text-xs uppercase font-bold text-primary tracking-wider">
+                            Total Stock
+                          </span>
+                          <span className="text-xl font-black text-text-primary tracking-tight">
+                            {farmStockOverview.feed.totalQuantity} <span className="text-xs font-semibold text-text-secondary">{farmStockOverview.feed.unit}</span>
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                          <div className="p-2 rounded-lg bg-teal-50/50 border border-teal-100">
-                            <span className="text-[10px] uppercase font-semibold text-teal-700 block">Allocated</span>
-                            <span className="text-sm font-bold text-teal-900 mt-0.5 block">
-                              {farmStockOverview.feed.totalAllocated} {farmStockOverview.feed.unit}
+                        {/* Secondary Metrics: Unallocated, Allocated, Used, Remaining */}
+                        <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Unallocated</span>
+                            <span className="text-sm font-bold text-primary mt-0.5 block">
+                              {farmStockOverview.feed.unallocatedQuantity} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.feed.unit}</span>
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-lg bg-amber-50/50 border border-amber-100">
-                            <span className="text-[10px] uppercase font-semibold text-amber-700 block">Used</span>
-                            <span className="text-sm font-bold text-amber-900 mt-0.5 block">
-                              {farmStockOverview.feed.totalUsed} {farmStockOverview.feed.unit}
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Allocated</span>
+                            <span className="text-sm font-bold text-teal-700 mt-0.5 block">
+                              {farmStockOverview.feed.totalAllocated} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.feed.unit}</span>
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-lg bg-emerald-50/50 border border-emerald-100">
-                            <span className="text-[10px] uppercase font-semibold text-emerald-700 block">Remaining</span>
-                            <span className="text-sm font-bold text-emerald-900 mt-0.5 block">
-                              {farmStockOverview.feed.totalRemaining} {farmStockOverview.feed.unit}
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Used</span>
+                            <span className="text-sm font-bold text-amber-700 mt-0.5 block">
+                              {farmStockOverview.feed.totalUsed} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.feed.unit}</span>
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Remaining</span>
+                            <span className="text-sm font-bold text-emerald-700 mt-0.5 block">
+                              {farmStockOverview.feed.totalRemaining} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.feed.unit}</span>
                             </span>
                           </div>
                         </div>
@@ -259,59 +259,62 @@ export default function Stocking() {
 
                 {/* MEDICINE STOCK CARD */}
                 <Card padding="normal" className="border-border/80 bg-surface shadow-xs flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <div className="space-y-4">
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between pb-3 border-b border-border/60">
                       <div className="flex items-center gap-2.5">
                         <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0 shadow-xs">
                           <Stethoscope className="w-5 h-5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-base text-text-primary">Medicine Stock</h4>
+                          <h4 className="font-bold text-base text-text-primary tracking-tight">Medicine Stock</h4>
                           <span className="text-xs text-text-secondary">Probiotics & Sanitizers</span>
                         </div>
                       </div>
-                      <Badge variant={farmStockOverview.medicine ? 'primary' : 'neutral'}>
+                      <Badge variant={farmStockOverview.medicine ? 'primary' : 'neutral'} size="sm">
                         {farmStockOverview.medicine ? 'In Stock' : 'No Stock'}
                       </Badge>
                     </div>
 
                     {farmStockOverview.medicine ? (
-                      <div className="mt-4 space-y-3">
-                        <div className="grid grid-cols-2 gap-2 text-center">
-                          <div className="p-2.5 rounded-xl bg-background border border-border/60">
-                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Total Stock</span>
-                            <span className="text-base font-extrabold text-text-primary mt-0.5 block">
-                              {farmStockOverview.medicine.totalQuantity} <span className="text-xs font-normal text-text-secondary">{farmStockOverview.medicine.unit}</span>
-                            </span>
-                          </div>
-
-                          <div className="p-2.5 rounded-xl bg-background border border-border/60">
-                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Unallocated</span>
-                            <span className="text-base font-extrabold text-primary mt-0.5 block">
-                              {farmStockOverview.medicine.unallocatedQuantity} <span className="text-xs font-normal text-text-secondary">{farmStockOverview.medicine.unit}</span>
-                            </span>
-                          </div>
+                      <div className="space-y-3">
+                        {/* Primary Metric: Total Stock (Prominent & Clear) */}
+                        <div className="p-3.5 rounded-xl bg-cyan-50/60 border border-cyan-200/60 flex items-center justify-between shadow-2xs">
+                          <span className="text-xs uppercase font-bold text-cyan-700 tracking-wider">
+                            Total Stock
+                          </span>
+                          <span className="text-xl font-black text-text-primary tracking-tight">
+                            {farmStockOverview.medicine.totalQuantity} <span className="text-xs font-semibold text-text-secondary">{farmStockOverview.medicine.unit}</span>
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                          <div className="p-2 rounded-lg bg-cyan-50/50 border border-cyan-100">
-                            <span className="text-[10px] uppercase font-semibold text-cyan-700 block">Allocated</span>
-                            <span className="text-sm font-bold text-cyan-900 mt-0.5 block">
-                              {farmStockOverview.medicine.totalAllocated} {farmStockOverview.medicine.unit}
+                        {/* Secondary Metrics: Unallocated, Allocated, Used, Remaining */}
+                        <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Unallocated</span>
+                            <span className="text-sm font-bold text-primary mt-0.5 block">
+                              {farmStockOverview.medicine.unallocatedQuantity} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.medicine.unit}</span>
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-lg bg-amber-50/50 border border-amber-100">
-                            <span className="text-[10px] uppercase font-semibold text-amber-700 block">Used</span>
-                            <span className="text-sm font-bold text-amber-900 mt-0.5 block">
-                              {farmStockOverview.medicine.totalUsed} {farmStockOverview.medicine.unit}
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Allocated</span>
+                            <span className="text-sm font-bold text-cyan-700 mt-0.5 block">
+                              {farmStockOverview.medicine.totalAllocated} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.medicine.unit}</span>
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-lg bg-emerald-50/50 border border-emerald-100">
-                            <span className="text-[10px] uppercase font-semibold text-emerald-700 block">Remaining</span>
-                            <span className="text-sm font-bold text-emerald-900 mt-0.5 block">
-                              {farmStockOverview.medicine.totalRemaining} {farmStockOverview.medicine.unit}
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Used</span>
+                            <span className="text-sm font-bold text-amber-700 mt-0.5 block">
+                              {farmStockOverview.medicine.totalUsed} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.medicine.unit}</span>
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                            <span className="text-[10px] uppercase font-semibold text-text-secondary block">Remaining</span>
+                            <span className="text-sm font-bold text-emerald-700 mt-0.5 block">
+                              {farmStockOverview.medicine.totalRemaining} <span className="text-[10px] font-normal text-text-secondary">{farmStockOverview.medicine.unit}</span>
                             </span>
                           </div>
                         </div>
@@ -337,12 +340,14 @@ export default function Stocking() {
           </div>
 
           {/* 3. SITE-WISE STOCK SECTION */}
-          <div className="space-y-4 pt-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-text-primary flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-primary" /> Site-wise Stock
-              </h3>
-              <span className="text-xs text-text-secondary">Site-specific stock allocations & consumption</span>
+          <div className="space-y-4 pt-4 border-t border-border/80">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <div>
+                <h3 className="font-bold text-base text-text-primary flex items-center gap-2">
+                  <MapPin className="w-4.5 h-4.5 text-primary" /> Site-wise Stock
+                </h3>
+                <span className="text-xs text-text-secondary">Site-specific stock allocations & consumption</span>
+              </div>
             </div>
 
             {siteWiseStockMap.length > 0 ? (
@@ -361,10 +366,10 @@ export default function Stocking() {
                             </div>
                             <div>
                               <h4 className="font-bold text-sm sm:text-base text-text-primary">{site.siteName}</h4>
-                              <span className="text-xs text-text-secondary">{site.location}, {site.district}</span>
+                              <span className="text-xs text-text-secondary">{site.location}</span>
                             </div>
                           </div>
-                          <Badge variant={hasSiteStock ? 'success' : 'neutral'}>
+                          <Badge variant={hasSiteStock ? 'success' : 'neutral'} size="sm">
                             {hasSiteStock ? 'Stock Allocated' : 'No Allocation'}
                           </Badge>
                         </div>
@@ -378,8 +383,8 @@ export default function Stocking() {
                                   <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
                                     <UtensilsCrossed className="w-3.5 h-3.5 text-teal-600" /> Feed
                                   </span>
-                                  <span className="text-[11px] text-text-secondary font-medium">
-                                    Allocated: {feed.allocated} {feed.unit}
+                                  <span className="text-[11px] text-text-secondary font-semibold">
+                                    Allocated: <strong className="text-text-primary">{feed.allocated} {feed.unit}</strong>
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-center text-xs">
@@ -402,8 +407,8 @@ export default function Stocking() {
                                   <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
                                     <Stethoscope className="w-3.5 h-3.5 text-cyan-600" /> Medicine
                                   </span>
-                                  <span className="text-[11px] text-text-secondary font-medium">
-                                    Allocated: {medicine.allocated} {medicine.unit}
+                                  <span className="text-[11px] text-text-secondary font-semibold">
+                                    Allocated: <strong className="text-text-primary">{medicine.allocated} {medicine.unit}</strong>
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-center text-xs">
