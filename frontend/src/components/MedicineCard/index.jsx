@@ -13,10 +13,12 @@ import { Button } from '../Button';
 export const MedicineCard = ({
   record = {},
   onView,
+  onViewDetails,
   onEdit,
   onDelete,
   className = '',
 }) => {
+  const handleView = onViewDetails || onView;
   const {
     id,
     tankName,
@@ -103,7 +105,7 @@ export const MedicineCard = ({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onView && onView(record)}
+          onClick={() => handleView && handleView(record)}
           icon={<Eye className="w-4 h-4 text-primary" />}
           className="text-xs font-medium"
         >
