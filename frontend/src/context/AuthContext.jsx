@@ -1,53 +1,68 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
+import farmService from '../services/farmService';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState(() => authService.getCurrentUser());
+  const [farm, setFarm] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async () => {
-    if (!token) {
+  const refreshAuthData = useCallback(async () => {
+    const currentToken = localStorage.getItem('token');
+    if (!currentToken) {
+      setUser(null);
+      setFarm(null);
       setLoading(false);
       return;
     }
+
     try {
-      const res = await authService.getProfile();
-      const userData = res.data || res;
+      // 1. Fetch user profile
+      const profileRes = await authService.getProfile();
+      const userData = profileRes?.data || profileRes;
       setUser(userData);
+
+      // 2. Fetch farm details
+      try {
+        const farmRes = await farmService.getFarm();
+        const farmData = farmRes?.data || farmRes;
+        setFarm(farmData);
+      } catch (farmErr) {
+        setFarm(null);
+      }
     } catch (err) {
-      console.error('Profile fetch error:', err);
-      // If token is invalid/expired, logout
+      console.error('Auth initialization error:', err);
       if (err.status === 401) {
-        authService.logout();
+        await authService.logout();
         setToken(null);
         setUser(null);
+        setFarm(null);
       }
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    refreshAuthData();
+  }, [refreshAuthData, token]);
 
   const login = async (credentials) => {
     const res = await authService.login(credentials);
     const newToken = localStorage.getItem('token');
-    const newUser = authService.getCurrentUser();
     setToken(newToken);
-    setUser(newUser);
+    await refreshAuthData();
     return res;
   };
 
   const register = async (userData) => {
-    // Ensure any existing authentication state is cleared before registering new user
     await authService.logout();
     setToken(null);
     setUser(null);
+    setFarm(null);
     return await authService.register(userData);
   };
 
@@ -55,21 +70,26 @@ export const AuthProvider = ({ children }) => {
     await authService.logout();
     setToken(null);
     setUser(null);
+    setFarm(null);
   };
 
   const isAuthenticated = Boolean(token);
+  const farmName = farm?.farmName || '';
 
   return (
     <AuthContext.Provider
       value={{
         token,
         user,
+        farm,
+        farmName,
         isAuthenticated,
         loading,
         login,
         register,
         logout,
-        fetchProfile,
+        fetchProfile: refreshAuthData,
+        refreshAuthData,
       }}
     >
       {children}
@@ -86,3 +106,4 @@ export const useAuth = () => {
 };
 
 export default AuthContext;
+

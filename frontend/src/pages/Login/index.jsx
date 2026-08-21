@@ -61,10 +61,7 @@ export default function Login() {
       await authLogin(payload);
       setIsSubmitting(false);
       setSubmitSuccess(true);
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 500);
+      navigate('/dashboard');
     } catch (err) {
       setIsSubmitting(false);
       setApiError(err.message || 'Login failed. Please check your credentials.');

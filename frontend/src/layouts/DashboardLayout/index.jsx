@@ -17,35 +17,10 @@ export const DashboardLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
-  const [farmName, setFarmName] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
-
-  // Fetch logged-in user's farm details
-  useEffect(() => {
-    let isMounted = true;
-    const fetchFarmDetails = async () => {
-      try {
-        const res = await farmService.getFarm();
-        const farmData = res?.data || res;
-        if (isMounted && farmData?.farmName) {
-          setFarmName(farmData.farmName);
-        }
-      } catch (err) {
-        // Safe fallback if farm details are not yet loaded or fail
-      }
-    };
-
-    if (user) {
-      fetchFarmDetails();
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, location.pathname]);
+  const { user, farm, farmName } = useAuth();
 
   // Handle page transition loader
   useEffect(() => {
@@ -86,7 +61,7 @@ export const DashboardLayout = () => {
   const currentUser = {
     name: user?.fullName || user?.name || 'Farmer',
     role: 'Farm Owner',
-    farm: farmName || user?.farmName || 'Farm',
+    farm: farmName || farm?.farmName || user?.farmName || 'Farm',
   };
 
   return (
@@ -101,7 +76,7 @@ export const DashboardLayout = () => {
         isCollapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
         onLogout={() => navigate('/login')}
-        farmName={farmName || user?.farmName}
+        farmName={farmName || farm?.farmName || user?.farmName}
       />
 
       {/* MAIN CONTENT AREA */}

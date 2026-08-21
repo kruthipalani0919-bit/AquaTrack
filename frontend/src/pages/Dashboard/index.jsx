@@ -14,33 +14,44 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardBody } from '../../components/Card';
 import { Button } from '../../components/Button';
 import dashboardService from '../../services/dashboardService';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { isAuthenticated, user, farm: authFarm } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     async function loadDashboard() {
+      if (!isAuthenticated) return;
       try {
         setLoading(true);
         const res = await dashboardService.getDashboard();
-        setDashboardData(res.data || res);
+        if (isMounted) {
+          setDashboardData(res.data || res);
+        }
       } catch (err) {
         console.log('Dashboard fetch status:', err.message);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     loadDashboard();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, user]);
 
   const stats = dashboardData?.statistics || {};
   const finance = dashboardData?.finance || {};
-  const farm = dashboardData?.farm || {};
+  const farm = dashboardData?.farm || authFarm || {};
   const activeCropsOverview = dashboardData?.activeCropOverview || [];
 
-  const hasFarmConfigured = Boolean(farm?.farmName || stats.totalTanks > 0);
+  const hasFarmConfigured = Boolean(farm?.farmName || authFarm?.farmName || stats.totalTanks > 0);
 
   const operationalMetrics = [
     {
