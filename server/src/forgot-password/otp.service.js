@@ -1,122 +1,58 @@
 /**
- * OTP Service for sending and managing OTP notifications.
- * Connects to Twilio / SMS Gateways to deliver real SMS to user's mobile phone.
- * NO secret OTP codes are printed to the backend terminal.
+ * OTP Service using Twilio Verify API to deliver real SMS directly to mobile phones.
+ * NO secret OTP codes are printed or logged in the backend terminal.
  */
 
-export const generateNumericOTP = (length = 6) => {
-  const digits = '0123456789';
-  let otp = '';
-  for (let i = 0; i < length; i++) {
-    otp += digits[Math.floor(Math.random() * 10)];
-  }
-  return otp;
-};
-
-export const sendSMS = async (mobile, otp) => {
+export const sendSMS = async (mobile) => {
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
   const twilioVerifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-  const twilioFromNumber = process.env.TWILIO_PHONE_NUMBER;
-  const fast2smsApiKey = process.env.FAST2SMS_API_KEY || process.env.SMS_API_KEY;
 
-  let smsSent = false;
-  const formattedMobile = mobile.startsWith('+') ? mobile : `+91${mobile}`;
+  // Format mobile to E.164 (+91XXXXXXXXXX)
+  const cleanDigits = (mobile || '').replace(/\D/g, '');
+  const tenDigits = cleanDigits.length > 10 ? cleanDigits.slice(-10) : cleanDigits;
+  const formattedMobile = `+91${tenDigits}`;
 
-  // 1. Twilio Verify API (Sends real SMS directly to mobile phone)
-  if (twilioSid && twilioAuthToken && twilioVerifyServiceSid && !smsSent) {
-    try {
-      const authHeader = 'Basic ' + Buffer.from(`${twilioSid}:${twilioAuthToken}`).toString('base64');
-      const params = new URLSearchParams();
-      params.append('To', formattedMobile);
-      params.append('Channel', 'sms');
+  if (!twilioSid || !twilioAuthToken || !twilioVerifyServiceSid) {
+    console.error('[AquaTrack OTP Error] Missing Twilio Verify credentials in environment variables.');
+    throw new Error('Twilio Verify service is not properly configured.');
+  }
 
-      const response = await fetch(
-        `https://verify.twilio.com/v2/Services/${twilioVerifyServiceSid}/Verifications`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: authHeader,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: params,
-        }
-      );
-      const data = await response.json();
-      if (response.ok && (data.status === 'pending' || data.status === 'approved')) {
-        console.log(`[AquaTrack OTP Service] Real SMS delivered to ${formattedMobile}`);
-        smsSent = true;
-      } else {
-        console.error('[Twilio Verify Error]', data.message || data);
+  try {
+    const authHeader = 'Basic ' + Buffer.from(`${twilioSid}:${twilioAuthToken}`).toString('base64');
+    const params = new URLSearchParams();
+    params.append('To', formattedMobile);
+    params.append('Channel', 'sms');
+
+    const response = await fetch(
+      `https://verify.twilio.com/v2/Services/${twilioVerifyServiceSid}/Verifications`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params,
       }
-    } catch (err) {
-      console.error('[Twilio Verify Exception]', err.message);
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[Twilio Verify API Error]', data.message || data);
+      throw new Error(data.message || 'Failed to dispatch verification SMS via Twilio.');
     }
+
+    console.log(`[AquaTrack OTP Service] Real SMS verification code dispatched via Twilio to ${formattedMobile}`);
+    return { success: true, smsSent: true, sid: data.sid };
+  } catch (err) {
+    console.error('[Twilio Verify Exception]', err.message);
+    throw err;
   }
-
-  // 2. Standard Twilio Outbound SMS (Fallback)
-  if (twilioSid && twilioAuthToken && twilioFromNumber && !smsSent) {
-    try {
-      const authHeader = 'Basic ' + Buffer.from(`${twilioSid}:${twilioAuthToken}`).toString('base64');
-      const params = new URLSearchParams();
-      params.append('To', formattedMobile);
-      params.append('From', twilioFromNumber);
-      params.append('Body', `Your AquaTrack verification code is: ${otp}. Valid for 10 minutes.`);
-
-      const response = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: authHeader,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: params,
-        }
-      );
-      const data = await response.json();
-      if (response.ok) {
-        console.log(`[AquaTrack OTP Service] Real SMS delivered to ${formattedMobile}`);
-        smsSent = true;
-      } else {
-        console.error('[Twilio SMS Error]', data.message || data);
-      }
-    } catch (err) {
-      console.error('[Twilio SMS Exception]', err.message);
-    }
-  }
-
-  // 3. Fast2SMS Integration (Fallback)
-  if (fast2smsApiKey && !smsSent) {
-    try {
-      const quickSmsMsg = encodeURIComponent(`Your AquaTrack verification code is ${otp}. Valid for 10 minutes.`);
-      const response = await fetch(
-        `https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(
-          fast2smsApiKey
-        )}&route=q&message=${quickSmsMsg}&language=english&flash=0&numbers=${encodeURIComponent(
-          mobile
-        )}`
-      );
-      const data = await response.json();
-      if (data.return) {
-        console.log(`[AquaTrack OTP Service] Real SMS delivered to ${mobile}`);
-        smsSent = true;
-      }
-    } catch (err) {
-      console.error('[Fast2SMS Exception]', err.message);
-    }
-  }
-
-  // Clean status log ONLY - NO OTP code exposed in backend terminal console
-  if (!smsSent) {
-    console.warn(`[AquaTrack OTP Service] Could not send SMS to ${formattedMobile}. Check SMS provider credentials.`);
-  }
-
-  return { success: true, smsSent };
 };
 
 /**
- * Verify OTP code against Twilio Verify API (or DB fallback).
+ * Verify OTP code directly against Twilio Verify API.
  */
 export const verifyTwilioCode = async (mobile, code) => {
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
@@ -125,7 +61,10 @@ export const verifyTwilioCode = async (mobile, code) => {
 
   if (twilioSid && twilioAuthToken && twilioVerifyServiceSid) {
     try {
-      const formattedMobile = mobile.startsWith('+') ? mobile : `+91${mobile}`;
+      const cleanDigits = (mobile || '').replace(/\D/g, '');
+      const tenDigits = cleanDigits.length > 10 ? cleanDigits.slice(-10) : cleanDigits;
+      const formattedMobile = `+91${tenDigits}`;
+
       const authHeader = 'Basic ' + Buffer.from(`${twilioSid}:${twilioAuthToken}`).toString('base64');
       const params = new URLSearchParams();
       params.append('To', formattedMobile);
@@ -142,10 +81,14 @@ export const verifyTwilioCode = async (mobile, code) => {
           body: params,
         }
       );
+
       const data = await response.json();
+
       if (response.ok && data.status === 'approved') {
-        console.log(`[AquaTrack OTP Service] Code approved for ${formattedMobile}`);
-        return { verified: true, approvedBy: 'twilio' };
+        console.log(`[AquaTrack OTP Service] Code approved by Twilio for ${formattedMobile}`);
+        return { verified: true };
+      } else {
+        console.warn(`[Twilio VerifyCheck Status] ${data.status || 'not approved'} for ${formattedMobile}`);
       }
     } catch (err) {
       console.error('[Twilio VerifyCheck Exception]', err.message);
@@ -156,7 +99,6 @@ export const verifyTwilioCode = async (mobile, code) => {
 };
 
 export default {
-  generateNumericOTP,
   sendSMS,
   verifyTwilioCode,
 };

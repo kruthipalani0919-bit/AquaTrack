@@ -1,24 +1,51 @@
 import bcrypt from "bcryptjs";
 import prisma from "../config/prisma.js";
-import { generateNumericOTP, sendSMS, verifyTwilioCode } from "./otp.service.js";
+import { sendSMS, verifyTwilioCode } from "./otp.service.js";
 
 /**
- * Service to handle sending OTP for forgot password.
+ * Helper to normalize mobile number for database queries.
  */
-export const sendForgotPasswordOtp = async (mobile) => {
+const normalizeMobile = (inputMobile) => {
+  const cleanDigits = (inputMobile || "").replace(/\D/g, "");
+  const tenDigits = cleanDigits.length > 10 ? cleanDigits.slice(-10) : cleanDigits;
+  const e164Mobile = `+91${tenDigits}`;
+  return { inputMobile: (inputMobile || "").trim(), tenDigits, e164Mobile };
+};
+
+/**
+ * Service to handle sending real SMS OTP via Twilio Verify API.
+ */
+export const sendForgotPasswordOtp = async (inputMobile) => {
+  const { inputMobile: raw, tenDigits, e164Mobile } = normalizeMobile(inputMobile);
+
+  if (!tenDigits || tenDigits.length !== 10) {
+    throw new Error("Please enter a valid 10-digit mobile number.");
+  }
+
   // 1. Check if user exists with this registered mobile number
-  const user = await prisma.user.findUnique({
-    where: { mobile },
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { mobile: raw },
+        { mobile: tenDigits },
+        { mobile: e164Mobile },
+      ],
+    },
   });
 
   if (!user) {
-    throw new Error("No account found with this mobile number.");
+    throw new Error("No account found with this mobile number. Please check the number or register.");
   }
 
-  // 2. Invalidate any existing active/unverified OTPs for this mobile
+  // 2. Dispatch real SMS via Twilio Verify API
+  await sendSMS(tenDigits);
+
+  // 3. Invalidate previous OTP sessions for this user in DB
   await prisma.passwordResetOtp.updateMany({
     where: {
-      mobile,
+      mobile: {
+        in: [raw, tenDigits, e164Mobile],
+      },
       used: false,
     },
     data: {
@@ -26,46 +53,43 @@ export const sendForgotPasswordOtp = async (mobile) => {
     },
   });
 
-  // 3. Generate a new 6-digit OTP
-  const rawOtp = generateNumericOTP(6);
-
-  // 4. Hash the OTP securely
-  const otpHash = await bcrypt.hash(rawOtp, 10);
-
-  // 5. Expiration time: 10 minutes from now
+  // 4. Save active verification session record in database
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-  // 6. Save OTP record in database
   await prisma.passwordResetOtp.create({
     data: {
-      mobile,
-      otpHash,
+      mobile: tenDigits,
+      otpHash: "TWILIO_VERIFY_PENDING",
       expiresAt,
       verified: false,
       used: false,
     },
   });
 
-  // 7. Dispatch SMS (via Twilio Verify API / Fast2SMS / Console fallback)
-  await sendSMS(mobile, rawOtp);
-
   return {
     success: true,
-    message: "OTP sent successfully to your registered mobile number.",
+    message: "OTP sent successfully to your registered mobile number via Twilio SMS.",
   };
 };
 
 /**
- * Service to verify submitted OTP.
+ * Service to verify submitted OTP against Twilio Verify API.
  */
 export const verifyForgotPasswordOtp = async ({ mobile, otp }) => {
-  // 1. Check Twilio Verify API first if enabled
-  const twilioCheck = await verifyTwilioCode(mobile, otp);
+  const { tenDigits, e164Mobile, inputMobile: raw } = normalizeMobile(mobile);
 
-  // 2. Find the latest unused OTP record for this mobile
+  // 1. Verify code directly against Twilio Verify API
+  const twilioCheck = await verifyTwilioCode(tenDigits, otp);
+
+  if (!twilioCheck.verified) {
+    throw new Error("Invalid OTP code. Please enter the correct code sent to your mobile.");
+  }
+
+  // 2. Find and update the latest pending OTP session in DB
   const otpRecord = await prisma.passwordResetOtp.findFirst({
     where: {
-      mobile,
+      mobile: {
+        in: [raw, tenDigits, e164Mobile],
+      },
       used: false,
     },
     orderBy: {
@@ -73,30 +97,12 @@ export const verifyForgotPasswordOtp = async ({ mobile, otp }) => {
     },
   });
 
-  if (!otpRecord) {
-    throw new Error("No OTP request found. Please request a new OTP.");
+  if (otpRecord) {
+    await prisma.passwordResetOtp.update({
+      where: { id: otpRecord.id },
+      data: { verified: true },
+    });
   }
-
-  // 3. Check if OTP has expired
-  if (new Date() > otpRecord.expiresAt) {
-    throw new Error("OTP has expired. Please request a new OTP.");
-  }
-
-  // 4. Verify OTP against stored hash or Twilio Verify result
-  let isValidOtp = twilioCheck.verified;
-  if (!isValidOtp) {
-    isValidOtp = await bcrypt.compare(otp, otpRecord.otpHash);
-  }
-
-  if (!isValidOtp) {
-    throw new Error("Invalid OTP. Please check and try again.");
-  }
-
-  // 5. Mark OTP as verified
-  await prisma.passwordResetOtp.update({
-    where: { id: otpRecord.id },
-    data: { verified: true },
-  });
 
   return {
     success: true,
@@ -105,22 +111,27 @@ export const verifyForgotPasswordOtp = async ({ mobile, otp }) => {
 };
 
 /**
- * Service to reset user's password after successful OTP verification.
+ * Service to reset user's password after successful Twilio OTP verification.
  */
 export const resetForgotPassword = async ({ mobile, otp, newPassword, confirmPassword }) => {
   if (newPassword !== confirmPassword) {
     throw new Error("New password and confirm password do not match.");
   }
 
-  // 1. Check for a verified, unused, and unexpired OTP record
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters long.");
+  }
+
+  const { tenDigits, e164Mobile, inputMobile: raw } = normalizeMobile(mobile);
+
+  // 1. Verify session record in DB or check Twilio Verify API
   const otpRecord = await prisma.passwordResetOtp.findFirst({
     where: {
-      mobile,
+      mobile: {
+        in: [raw, tenDigits, e164Mobile],
+      },
       verified: true,
       used: false,
-      expiresAt: {
-        gte: new Date(),
-      },
     },
     orderBy: {
       createdAt: "desc",
@@ -128,27 +139,48 @@ export const resetForgotPassword = async ({ mobile, otp, newPassword, confirmPas
   });
 
   if (!otpRecord) {
-    throw new Error("Invalid or expired OTP session. Please verify your OTP again.");
+    // Re-verify against Twilio as fallback
+    const twilioCheck = await verifyTwilioCode(tenDigits, otp);
+    if (!twilioCheck.verified) {
+      throw new Error("Invalid or expired OTP session. Please request and verify a new OTP.");
+    }
   }
 
-  // 2. Hash the new password using the existing bcrypt mechanism
+  // 2. Find the user record
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { mobile: raw },
+        { mobile: tenDigits },
+        { mobile: e164Mobile },
+      ],
+    },
+  });
+
+  if (!user) {
+    throw new Error("User account not found.");
+  }
+
+  // 3. Hash the new password securely
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-  // 3. Update the user's password in the database
+  // 4. Update user password in DB
   await prisma.user.update({
-    where: { mobile },
+    where: { id: user.id },
     data: { password: hashedPassword },
   });
 
-  // 4. Invalidate the OTP record so it cannot be reused
-  await prisma.passwordResetOtp.update({
-    where: { id: otpRecord.id },
-    data: { used: true },
-  });
+  // 5. Mark OTP session as used
+  if (otpRecord) {
+    await prisma.passwordResetOtp.update({
+      where: { id: otpRecord.id },
+      data: { used: true },
+    });
+  }
 
   return {
     success: true,
-    message: "Password reset successful. You can now log in with your new password.",
+    message: "Password reset successful! You can now log in with your new password.",
   };
 };
 
