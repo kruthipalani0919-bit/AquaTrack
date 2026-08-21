@@ -7,7 +7,8 @@ import {
   DollarSign,
   Download,
   RefreshCw,
-  Calendar
+  Calendar,
+  Landmark
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -276,52 +277,64 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* 4 LIVE SUMMARY CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* 5 LIVE SUMMARY CARDS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card padding="compact" className="border-border/80 shadow-2xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
-                  <Utensils className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+                  <Utensils className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Cost</span>
-                  <h3 className="text-2xl font-extrabold text-text-primary mt-0.5">₹{(summary.totalFeedCost || 0).toLocaleString()}</h3>
+                  <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Cost</span>
+                  <h3 className="text-lg font-extrabold text-text-primary mt-0.5">₹{(summary.totalFeedCost || 0).toLocaleString()}</h3>
                 </div>
               </div>
             </Card>
 
             <Card padding="compact" className="border-border/80 shadow-2xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
-                  <Stethoscope className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                  <Stethoscope className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-semibold uppercase text-text-secondary tracking-wider block">Total Medicine Cost</span>
-                  <h3 className="text-2xl font-extrabold text-text-primary mt-0.5">₹{(summary.totalMedicineCost || 0).toLocaleString()}</h3>
+                  <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Medicine Cost</span>
+                  <h3 className="text-lg font-extrabold text-text-primary mt-0.5">₹{(summary.totalMedicineCost || 0).toLocaleString()}</h3>
                 </div>
               </div>
             </Card>
 
             <Card padding="compact" className="border-border/80 shadow-2xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                  <Receipt className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                  <Landmark className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-semibold uppercase text-text-secondary tracking-wider block">Other Expenses</span>
-                  <h3 className="text-2xl font-extrabold text-text-primary mt-0.5">₹{(summary.totalExpenseCost || 0).toLocaleString()}</h3>
+                  <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Pond Lease Cost</span>
+                  <h3 className="text-lg font-extrabold text-text-primary mt-0.5">₹{(summary.totalPondLeaseCost || 0).toLocaleString()}</h3>
                 </div>
               </div>
             </Card>
 
             <Card padding="compact" className="border-border/80 shadow-2xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center shrink-0">
-                  <DollarSign className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                  <Receipt className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-semibold uppercase text-text-secondary tracking-wider block">Total Expenditure</span>
-                  <h3 className="text-2xl font-extrabold text-primary mt-0.5">₹{(summary.totalExpenses || 0).toLocaleString()}</h3>
+                  <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Other Expenses</span>
+                  <h3 className="text-lg font-extrabold text-text-primary mt-0.5">₹{(summary.totalExpenseCost || 0).toLocaleString()}</h3>
+                </div>
+              </div>
+            </Card>
+
+            <Card padding="compact" className="border-border/80 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center shrink-0">
+                  <DollarSign className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Expenditure</span>
+                  <h3 className="text-lg font-extrabold text-primary mt-0.5">₹{(summary.totalExpenses || 0).toLocaleString()}</h3>
                 </div>
               </div>
             </Card>

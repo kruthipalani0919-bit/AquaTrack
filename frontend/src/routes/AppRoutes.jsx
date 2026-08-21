@@ -14,6 +14,7 @@ import Stocking from '../pages/Stocking';
 import FeedManagement from '../pages/FeedManagement';
 import Medicines from '../pages/Medicines';
 import Expenses from '../pages/Expenses';
+import PondLeaseManagement from '../pages/PondLeaseManagement';
 import Harvest from '../pages/Harvest';
 import Reports from '../pages/Reports';
 import Settings from '../pages/Settings';
@@ -43,6 +44,7 @@ const AppRoutes = () => {
           <Route path="/feed" element={<FeedManagement />} />
           <Route path="/medicines" element={<Medicines />} />
           <Route path="/expenses" element={<Expenses />} />
+          <Route path="/pond-lease" element={<PondLeaseManagement />} />
           <Route path="/harvest" element={<Harvest />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />

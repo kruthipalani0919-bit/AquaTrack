@@ -117,15 +117,56 @@ export const createHarvest = async (
 
 
     /*
+     * Pond Lease Cost
+     */
+    const pondLeases = await prisma.pondLease.findMany({
+        where: { tankId: tank.id }
+    });
+
+    let pondLeaseCost = 0;
+    if (pondLeases && pondLeases.length > 0) {
+        const cropStart = new Date(crop.stockingDate);
+        const cropEnd = harvestData.harvestDate ? new Date(harvestData.harvestDate) : new Date();
+
+        for (const lease of pondLeases) {
+            const leaseStart = new Date(lease.leaseStartDate);
+            const leaseEnd = new Date(lease.leaseEndDate);
+
+            leaseStart.setUTCHours(0, 0, 0, 0);
+            leaseEnd.setUTCHours(0, 0, 0, 0);
+
+            if (leaseEnd >= leaseStart) {
+                const totalLeaseDays = Math.round((leaseEnd.getTime() - leaseStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                const dailyLeaseCost = totalLeaseDays > 0 ? (lease.totalLeaseAmount / totalLeaseDays) : 0;
+
+                const startNorm = new Date(cropStart);
+                const endNorm = new Date(cropEnd);
+                startNorm.setUTCHours(0, 0, 0, 0);
+                endNorm.setUTCHours(0, 0, 0, 0);
+
+                const cropOverlapStart = startNorm > leaseStart ? startNorm : leaseStart;
+                const cropOverlapEnd = endNorm < leaseEnd ? endNorm : leaseEnd;
+
+                if (cropOverlapStart <= cropOverlapEnd) {
+                    const overlappingDays = Math.round((cropOverlapEnd.getTime() - cropOverlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    pondLeaseCost += Math.round(dailyLeaseCost * Math.max(0, overlappingDays) * 100) / 100;
+                }
+            }
+        }
+    }
+
+
+    /*
      * Total Expense
      *
-     * Transportation cost is no longer used.
+     * Includes Feed, Medicine, General Expense, Harvest Expense, and Pond Lease Cost.
      */
     const totalExpense =
         feedCost +
         expenseCost +
         medicineCost +
-        harvestData.harvestExpense;
+        harvestData.harvestExpense +
+        pondLeaseCost;
 
 
     /*

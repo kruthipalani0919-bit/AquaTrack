@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Receipt, IndianRupee, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Receipt, IndianRupee, FileText, Landmark } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
@@ -15,6 +16,7 @@ import { ExpenseDetailsModal } from '../../components/ExpenseDetailsModal';
 import { useExpenses } from '../../context/ExpenseContext';
 
 export default function Expenses() {
+  const navigate = useNavigate();
   const { expenses = [], addExpense, updateExpense, deleteExpense, loading, error } = useExpenses();
 
   // Filter State (Category & Tank filters retained)
@@ -117,15 +119,26 @@ export default function Expenses() {
         title="Expense Management"
         subtitle="Log and monitor operating expenses, feed costs, electricity, labour, and maintenance."
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleOpenAdd}
-            icon={<Plus className="w-4 h-4" />}
-            className="font-semibold shadow-xs"
-          >
-            Add New Expense
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/pond-lease')}
+              icon={<Landmark className="w-4 h-4" />}
+              className="font-semibold shadow-xs"
+            >
+              Pond Lease Management
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleOpenAdd}
+              icon={<Plus className="w-4 h-4" />}
+              className="font-semibold shadow-xs"
+            >
+              Add New Expense
+            </Button>
+          </div>
         }
       />
 

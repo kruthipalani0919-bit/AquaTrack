@@ -133,8 +133,9 @@ model Tank {
   siteId String
   site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
-  crops     Crop[]
-  medicines Medicine[]
+  crops      Crop[]
+  medicines  Medicine[]
+  pondLeases PondLease[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -299,4 +300,18 @@ model PasswordResetOtp {
   createdAt DateTime @default(now())
 
   @@index([mobile])
+}
+
+model PondLease {
+  id               String   @id @default(cuid())
+  totalLeaseAmount Float
+  leaseStartDate   DateTime
+  leaseEndDate     DateTime
+  remarks          String?
+
+  tankId String
+  tank   Tank   @relation(fields: [tankId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

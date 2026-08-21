@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const expenseCategories = [
-    "Pond Lease",
     "Pond Preparation",
     "Seed Cost",
     "Electricity",

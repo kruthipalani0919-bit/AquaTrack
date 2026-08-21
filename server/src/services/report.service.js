@@ -216,6 +216,65 @@ export const getCompletedCropReport = async (
 };
 
 /* ---------------------------------------------
+   Helper: Calculate Crop Pond Lease Cost
+----------------------------------------------*/
+const getCropPondLeaseCost = async (tankId, crop) => {
+    const pondLeases = await prisma.pondLease.findMany({
+        where: { tankId }
+    });
+
+    if (!pondLeases || pondLeases.length === 0) return 0;
+
+    const cropStartDate = new Date(crop.stockingDate);
+
+    let cropEndDate;
+    if (crop.status === "ACTIVE") {
+        cropEndDate = new Date();
+    } else {
+        const harvest = await prisma.harvest.findFirst({
+            where: { cropId: crop.id },
+            orderBy: { harvestDate: "desc" }
+        });
+        cropEndDate = harvest?.harvestDate
+            ? new Date(harvest.harvestDate)
+            : crop.expectedHarvestDate
+                ? new Date(crop.expectedHarvestDate)
+                : new Date(crop.updatedAt);
+    }
+
+    let totalCost = 0;
+    for (const lease of pondLeases) {
+        const leaseStart = new Date(lease.leaseStartDate);
+        const leaseEnd = new Date(lease.leaseEndDate);
+
+        leaseStart.setUTCHours(0, 0, 0, 0);
+        leaseEnd.setUTCHours(0, 0, 0, 0);
+
+        if (leaseEnd >= leaseStart) {
+            const diffTime = leaseEnd.getTime() - leaseStart.getTime();
+            const totalLeaseDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const dailyLeaseCost = totalLeaseDays > 0 ? (lease.totalLeaseAmount / totalLeaseDays) : 0;
+
+            const startNorm = new Date(cropStartDate);
+            const endNorm = new Date(cropEndDate);
+            startNorm.setUTCHours(0, 0, 0, 0);
+            endNorm.setUTCHours(0, 0, 0, 0);
+
+            const cropOverlapStart = startNorm > leaseStart ? startNorm : leaseStart;
+            const cropOverlapEnd = endNorm < leaseEnd ? endNorm : leaseEnd;
+
+            if (cropOverlapStart <= cropOverlapEnd) {
+                const overlapTime = cropOverlapEnd.getTime() - cropOverlapStart.getTime();
+                const overlappingDays = Math.round(overlapTime / (1000 * 60 * 60 * 24)) + 1;
+                totalCost += Math.round(dailyLeaseCost * Math.max(0, overlappingDays) * 100) / 100;
+            }
+        }
+    }
+
+    return Math.round(totalCost * 100) / 100;
+};
+
+/* ---------------------------------------------
    Shared Report Builder
 ----------------------------------------------*/
 
@@ -275,6 +334,8 @@ const buildReport = async (
 
     });
 
+    const totalPondLeaseCost = await getCropPondLeaseCost(tank.id, crop);
+
     const totalFeedCost = feedEntries.reduce(
 
         (sum, item) => sum + item.totalCost,
@@ -305,7 +366,9 @@ const buildReport = async (
 
         totalMedicineCost +
 
-        totalExpenseCost;
+        totalExpenseCost +
+
+        totalPondLeaseCost;
 
     const categoryBreakdown = {};
 
@@ -324,6 +387,12 @@ const buildReport = async (
     categoryBreakdown["Feed"] = totalFeedCost;
 
     categoryBreakdown["Medicine"] = totalMedicineCost;
+
+    if (totalPondLeaseCost > 0 || !categoryBreakdown["Pond Lease"]) {
+
+        categoryBreakdown["Pond Lease"] = (categoryBreakdown["Pond Lease"] || 0) + totalPondLeaseCost;
+
+    }
 
     const pieChartData = Object.entries(
 
@@ -398,6 +467,8 @@ const buildReport = async (
             totalMedicineCost,
 
             totalExpenseCost,
+
+            totalPondLeaseCost,
 
             totalExpenses
 

@@ -1,5 +1,4 @@
 export const EXPENSE_CATEGORY_OPTIONS = [
-  { value: 'Pond Lease', label: 'Pond Lease' },
   { value: 'Pond Preparation', label: 'Pond Preparation' },
   { value: 'Seed Cost', label: 'Seed Cost' },
   { value: 'Electricity', label: 'Electricity' },

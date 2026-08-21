@@ -13,6 +13,7 @@ import dashboardRoutes from "./dashboard.routes.js";
 import reportRoutes from "./report.routes.js";
 import siteRoutes from "./site.routes.js";
 import stockingRoutes from "./stocking.routes.js";
+import pondLeaseRoutes from "./pondLease.routes.js";
 import forgotPasswordRoutes from "../forgot-password/forgotPassword.routes.js";
 const router = Router();
 
@@ -42,4 +43,6 @@ router.use("/reports", reportRoutes);
 router.use("/sites", siteRoutes);
 
 router.use("/stocking", stockingRoutes);
+
+router.use("/pond-leases", pondLeaseRoutes);
 export default router;
