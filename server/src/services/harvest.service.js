@@ -42,14 +42,20 @@ export const createHarvest = async (
      * 60 count = 16.67 grams
      */
     const averageWeight =
-        1000 / harvestData.shrimpCount;
+        harvestData.averageWeight
+            ? Number(harvestData.averageWeight)
+            : (harvestData.shrimpCount ? 1000 / harvestData.shrimpCount : 0);
 
+    const productionVal =
+        harvestData.production !== undefined && harvestData.production !== null
+            ? harvestData.production
+            : (harvestData.shrimpCount ?? 0);
 
     /*
      * Revenue
      */
     const revenue =
-        harvestData.production *
+        productionVal *
         harvestData.sellingPrice;
 
 
@@ -194,14 +200,14 @@ export const createHarvest = async (
                     ),
 
                 production:
-                    harvestData.production,
+                    harvestData.production ?? harvestData.shrimpCount ?? null,
 
 
                 /*
                  * Store user-entered shrimp count
                  */
                 shrimpCount:
-                    harvestData.shrimpCount,
+                    harvestData.shrimpCount ?? null,
 
 
                 /*
@@ -211,7 +217,7 @@ export const createHarvest = async (
 
 
                 survivalRate:
-                    harvestData.survivalRate,
+                    harvestData.survivalRate ?? 85,
 
                 sellingPrice:
                     harvestData.sellingPrice,
@@ -228,7 +234,7 @@ export const createHarvest = async (
 
 
                 harvestExpense:
-                    harvestData.harvestExpense,
+                    harvestData.harvestExpense || 0,
 
                 revenue,
 
@@ -444,7 +450,7 @@ export const getHarvestSummary = async (
     const totalProduction =
         harvests.reduce(
             (sum, item) =>
-                sum + item.production,
+                sum + (item.production ?? item.shrimpCount ?? 0),
             0
         );
 

@@ -122,7 +122,7 @@ export const HarvestForm = ({
       survivalRate: 85,
       sellingPrice: parseFloat(data.sellingPrice),
       buyerName: data.buyerName.trim(),
-      transportationCost: 0,
+      transportationCost: null,
       harvestExpense: parseFloat(data.harvestExpense || 0),
       notes: data.notes ? data.notes.trim() : '',
     };

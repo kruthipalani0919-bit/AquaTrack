@@ -43,13 +43,15 @@ export const HarvestProvider = ({ children }) => {
     const payload = {
       tankId: newHarvestData.tankId,
       harvestDate: newHarvestData.harvestDate || new Date().toISOString().split('T')[0],
-      production: parseFloat(newHarvestData.production),
-      averageWeight: parseFloat(newHarvestData.averageWeight),
-      survivalRate: parseFloat(newHarvestData.survivalRate),
+      shrimpCount: newHarvestData.shrimpCount ? parseFloat(newHarvestData.shrimpCount) : undefined,
+      production: newHarvestData.production !== undefined && newHarvestData.production !== null ? parseFloat(newHarvestData.production) : (newHarvestData.shrimpCount ? parseFloat(newHarvestData.shrimpCount) : undefined),
+      averageWeight: newHarvestData.averageWeight ? parseFloat(newHarvestData.averageWeight) : (newHarvestData.shrimpCount ? parseFloat((1000 / parseFloat(newHarvestData.shrimpCount)).toFixed(2)) : undefined),
+      survivalRate: newHarvestData.survivalRate !== undefined ? parseFloat(newHarvestData.survivalRate) : 85,
       sellingPrice: parseFloat(newHarvestData.sellingPrice),
       buyerName: newHarvestData.buyerName,
-      transportationCost: parseFloat(newHarvestData.transportationCost || 0),
+      transportationCost: newHarvestData.transportationCost ? parseFloat(newHarvestData.transportationCost) : null,
       harvestExpense: parseFloat(newHarvestData.harvestExpense || 0),
+      notes: newHarvestData.notes || '',
     };
 
     const res = await harvestService.createHarvest(payload);
