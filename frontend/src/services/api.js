@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // Base API URL configuration
-export const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api';
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 /**
  * Production-ready Axios instance for AquaTrack API requests.
@@ -20,9 +21,11 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {
