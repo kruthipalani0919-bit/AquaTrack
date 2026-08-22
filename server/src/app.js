@@ -7,13 +7,13 @@ const app = express();
 
 const allowedOrigins = [
     "http://localhost:5173",
+    "https://aqua-track-tan.vercel.app",
     process.env.CLIENT_URL
 ].filter(Boolean);
 
 app.use(
     cors({
         origin: (origin, callback) => {
-
             // Allow requests without an Origin header
             // such as Postman or server-to-server requests.
             if (!origin) {
@@ -24,9 +24,7 @@ app.use(
                 return callback(null, true);
             }
 
-            return callback(
-                new Error("Not allowed by CORS")
-            );
+            return callback(new Error("Not allowed by CORS"));
         },
         credentials: true
     })
