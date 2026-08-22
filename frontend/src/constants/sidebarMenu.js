@@ -9,8 +9,7 @@ import {
   Stethoscope,
   Receipt,
   Wheat,
-  FileSpreadsheet,
-  Settings
+  FileSpreadsheet
 } from 'lucide-react';
 
 export const SIDEBAR_MENU_ITEMS = [
@@ -25,7 +24,6 @@ export const SIDEBAR_MENU_ITEMS = [
   { label: 'Expenses', path: '/expenses', icon: Receipt },
   { label: 'Harvest', path: '/harvest', icon: Wheat },
   { label: 'Reports', path: '/reports', icon: FileSpreadsheet },
-  { label: 'Settings', path: '/settings', icon: Settings },
 ];
 
 export default SIDEBAR_MENU_ITEMS;

@@ -44,7 +44,6 @@ export const DashboardLayout = () => {
       '/expenses': 'Expenses',
       '/harvest': 'Harvest',
       '/reports': 'Reports',
-      '/settings': 'Settings',
     };
 
     if (pathname === '/dashboard') {

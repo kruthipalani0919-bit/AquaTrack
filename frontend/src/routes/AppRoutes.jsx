@@ -17,7 +17,6 @@ import Expenses from '../pages/Expenses';
 import PondLeaseManagement from '../pages/PondLeaseManagement';
 import Harvest from '../pages/Harvest';
 import Reports from '../pages/Reports';
-import Settings from '../pages/Settings';
 import NotFound from '../pages/NotFound';
 
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -47,7 +46,6 @@ const AppRoutes = () => {
           <Route path="/pond-lease" element={<PondLeaseManagement />} />
           <Route path="/harvest" element={<Harvest />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>
 
