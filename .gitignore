@@ -1,20 +1,73 @@
 # Dependencies
 node_modules/
+**/node_modules/
 
-# Environment Variables
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
 .env
 .env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
-# Build
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Frontend specific
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+
+# Server specific
+server/node_modules/
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Build folders
 dist/
 build/
 
-# Logs
-*.log
-
-# VS Code
-.vscode/
-
-# OS Files
+# OS files
 .DS_Store
 Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+coverage/
+
+server/.agents/
+server/.claude/
+server/.windsurf/

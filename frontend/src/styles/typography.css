@@ -1,0 +1,97 @@
+/* Typography Design System Guidelines */
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background-color: var(--color-background);
+  }
+
+  h1, .h1 {
+    font-size: 2.25rem; /* 36px */
+    line-height: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--color-text-primary);
+  }
+
+  h2, .h2 {
+    font-size: 1.875rem; /* 30px */
+    line-height: 2.25rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--color-text-primary);
+  }
+
+  h3, .h3 {
+    font-size: 1.5rem; /* 24px */
+    line-height: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-text-primary);
+  }
+
+  h4, .h4 {
+    font-size: 1.25rem; /* 20px */
+    line-height: 1.75rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  h5, .h5 {
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.5rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  h6, .h6 {
+    font-size: 1rem; /* 16px */
+    line-height: 1.5rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+}
+
+@layer utilities {
+  .text-display {
+    font-size: 3rem; /* 48px */
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .text-body-lg {
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.75rem;
+    font-weight: 400;
+  }
+
+  .text-body {
+    font-size: 1rem; /* 16px */
+    line-height: 1.5rem;
+    font-weight: 400;
+  }
+
+  .text-body-sm {
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.25rem;
+    font-weight: 400;
+  }
+
+  .text-caption {
+    font-size: 0.75rem; /* 12px */
+    line-height: 1rem;
+    font-weight: 400;
+    color: var(--color-text-secondary);
+  }
+
+  .text-overline {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+  }
+}

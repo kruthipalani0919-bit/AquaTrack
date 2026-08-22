@@ -1,0 +1,160 @@
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import feedService from '../services/feedService';
+import { useAuth } from './AuthContext';
+
+const FeedContext = createContext(null);
+
+export const FeedProvider = ({ children }) => {
+  const { token, isAuthenticated } = useAuth();
+  const [feedLogs, setFeedLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchFeedLogs = useCallback(async () => {
+    if (!isAuthenticated) {
+      setFeedLogs([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await feedService.getFeeds();
+      const list = res.data || res || [];
+      const normalized = list.map((f) => ({
+        ...f,
+        feedingDate: f.date ? new Date(f.date).toISOString().split('T')[0] : f.feedingDate,
+        quantityKg: f.quantity ?? f.quantityKg,
+        feedCost: f.totalCost ?? f.feedCost ?? (f.quantity * f.costPerKg),
+        tankName: f.crop?.tank?.tankName || f.tankName || 'Tank',
+        cropName: f.crop?.cropName || f.cropName || 'Crop',
+      }));
+      setFeedLogs(normalized);
+    } catch (err) {
+      console.error('Error fetching feed logs:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchFeedLogs();
+  }, [fetchFeedLogs, token]);
+
+  const addFeedLog = async (newFeedData) => {
+    const payload = {
+      tankId: newFeedData.tankId,
+      date: newFeedData.feedingDate || newFeedData.date || new Date().toISOString().split('T')[0],
+      feedType: newFeedData.feedType,
+      feedBrand: newFeedData.feedBrand,
+      feedSize: newFeedData.feedSize || 'Standard',
+      quantity: parseFloat(newFeedData.quantityKg || newFeedData.quantity),
+      costPerKg: parseFloat(newFeedData.costPerKg || (newFeedData.feedCost / newFeedData.quantityKg) || 100),
+      notes: newFeedData.notes || undefined,
+    };
+
+    const res = await feedService.createFeed(payload);
+    const created = res.data || res;
+    const normalized = {
+      ...created,
+      feedingDate: created.date ? new Date(created.date).toISOString().split('T')[0] : payload.date,
+      quantityKg: created.quantity,
+      feedCost: created.totalCost,
+      tankName: newFeedData.tankName || 'Tank',
+      cropName: newFeedData.cropName || 'Crop',
+    };
+    setFeedLogs((prev) => [normalized, ...prev]);
+    return normalized;
+  };
+
+  const updateFeedLog = async (id, updatedData) => {
+    const payload = {
+      ...(updatedData.feedingDate || updatedData.date ? { date: updatedData.feedingDate || updatedData.date } : {}),
+      ...(updatedData.feedType ? { feedType: updatedData.feedType } : {}),
+      ...(updatedData.feedBrand ? { feedBrand: updatedData.feedBrand } : {}),
+      ...(updatedData.feedSize ? { feedSize: updatedData.feedSize } : {}),
+      ...(updatedData.quantityKg || updatedData.quantity
+        ? { quantity: parseFloat(updatedData.quantityKg || updatedData.quantity) }
+        : {}),
+      ...(updatedData.costPerKg ? { costPerKg: parseFloat(updatedData.costPerKg) } : {}),
+      ...(updatedData.notes !== undefined ? { notes: updatedData.notes } : {}),
+    };
+
+    const res = await feedService.updateFeed(id, payload);
+    const updated = res.data || res;
+    const normalized = {
+      ...updated,
+      feedingDate: updated.date ? new Date(updated.date).toISOString().split('T')[0] : updatedData.feedingDate,
+      quantityKg: updated.quantity ?? updatedData.quantityKg,
+      feedCost: updated.totalCost ?? updatedData.feedCost,
+      tankName: updated.crop?.tank?.tankName || 'Tank',
+      cropName: updated.crop?.cropName || 'Crop',
+    };
+    setFeedLogs((prev) => prev.map((log) => (log.id === id ? { ...log, ...normalized } : log)));
+    return normalized;
+  };
+
+  const deleteFeedLog = async (id) => {
+    await feedService.deleteFeed(id);
+    setFeedLogs((prev) => prev.filter((log) => log.id !== id));
+  };
+
+  const getFeedLogById = (id) => {
+    return feedLogs.find((log) => log.id === id);
+  };
+
+  // Analytics Computation
+  const analytics = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const todaysFeedKg = feedLogs.reduce((acc, log) => {
+      if (log.feedingDate === todayStr) {
+        return acc + (parseFloat(log.quantityKg) || 0);
+      }
+      return acc;
+    }, 0);
+
+    const totalFeedUsedKg = feedLogs.reduce((acc, log) => acc + (parseFloat(log.quantityKg) || 0), 0);
+
+    const uniqueDates = new Set(feedLogs.map((log) => log.feedingDate));
+    const dayCount = uniqueDates.size || 1;
+    const avgFeedPerDayKg = totalFeedUsedKg / dayCount;
+
+    const totalFeedCostRupees = feedLogs.reduce((acc, log) => acc + (parseFloat(log.feedCost) || 0), 0);
+
+    return {
+      todaysFeedKg,
+      totalFeedUsedKg,
+      avgFeedPerDayKg: avgFeedPerDayKg.toFixed(1),
+      totalFeedCostRupees,
+    };
+  }, [feedLogs]);
+
+  return (
+    <FeedContext.Provider
+      value={{
+        feedLogs,
+        loading,
+        error,
+        fetchFeedLogs,
+        addFeedLog,
+        updateFeedLog,
+        deleteFeedLog,
+        getFeedLogById,
+        analytics,
+      }}
+    >
+      {children}
+    </FeedContext.Provider>
+  );
+};
+
+export const useFeed = () => {
+  const context = useContext(FeedContext);
+  if (!context) {
+    throw new Error('useFeed must be used within a FeedProvider');
+  }
+  return context;
+};
+
+export default FeedContext;
