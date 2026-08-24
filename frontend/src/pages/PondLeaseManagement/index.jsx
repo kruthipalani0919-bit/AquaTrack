@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/EmptyState';
 
 import { usePondLeases } from '../../context/PondLeaseContext';
 import { useTanks } from '../../context/TankContext';
+import { subscribeToSyncBus } from '../../utils/syncBus';
 
 export default function PondLeaseManagement() {
   const navigate = useNavigate();
@@ -27,6 +28,25 @@ export default function PondLeaseManagement() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [selectedLeaseDetails, setSelectedLeaseDetails] = useState(null);
+
+  // Subscribe to sync bus events for reactive cleanup
+  React.useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'LEASE' && detail.payload?.id) {
+          const lId = String(detail.payload.id);
+          if (deletingLease && String(deletingLease.id) === lId) {
+            setIsDeleteOpen(false);
+            setDeletingLease(null);
+          }
+          if (selectedLeaseDetails && String(selectedLeaseDetails.id) === lId) {
+            setSelectedLeaseDetails(null);
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [deletingLease, selectedLeaseDetails]);
 
   // Form inputs state
   const [formData, setFormData] = useState({

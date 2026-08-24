@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Receipt, IndianRupee, FileText, Landmark } from 'lucide-react';
 
@@ -14,10 +14,13 @@ import { ExpenseForm } from '../../components/ExpenseForm';
 import { ExpenseFilters } from '../../components/ExpenseFilters';
 import { ExpenseDetailsModal } from '../../components/ExpenseDetailsModal';
 import { useExpenses } from '../../context/ExpenseContext';
+import { useTanks } from '../../context/TankContext';
+import { subscribeToSyncBus } from '../../utils/syncBus';
 
 export default function Expenses() {
   const navigate = useNavigate();
   const { expenses = [], addExpense, updateExpense, deleteExpense, loading, error } = useExpenses();
+  const { tanks = [] } = useTanks();
 
   // Filter State (Category & Tank filters retained)
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -33,6 +36,43 @@ export default function Expenses() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingExpense, setDeletingExpense] = useState(null);
 
+  // Automatically reset tankFilter if the selected tank was deleted
+  useEffect(() => {
+    if (tankFilter && tanks.length > 0) {
+      const exists = tanks.some((t) => String(t.id) === String(tankFilter));
+      if (!exists) {
+        setTankFilter('');
+      }
+    }
+  }, [tanks, tankFilter]);
+
+  // Subscribe to sync bus events for reactive modal cleanup
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId === tankFilter) {
+          setTankFilter('');
+        }
+        if (detail.entityType === 'EXPENSE' && detail.payload?.id) {
+          const eId = String(detail.payload.id);
+          if (viewingExpense && String(viewingExpense.id) === eId) {
+            setIsDetailsOpen(false);
+            setViewingExpense(null);
+          }
+          if (deletingExpense && String(deletingExpense.id) === eId) {
+            setIsDeleteOpen(false);
+            setDeletingExpense(null);
+          }
+          if (editingExpense && String(editingExpense.id) === eId) {
+            setIsFormOpen(false);
+            setEditingExpense(null);
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [tankFilter, viewingExpense, deletingExpense, editingExpense]);
+
   // Filter Expenses List Safely
   const filteredExpenses = useMemo(() => {
     const list = expenses || [];
@@ -40,7 +80,7 @@ export default function Expenses() {
     return list.filter((exp) => {
       if (!exp) return false;
       const matchesCategory = categoryFilter === '' || exp.category === categoryFilter;
-      const matchesTank = tankFilter === '' || exp.tankId === tankFilter;
+      const matchesTank = tankFilter === '' || String(exp.tankId) === String(tankFilter);
 
       return matchesCategory && matchesTank;
     });
@@ -117,153 +157,120 @@ export default function Expenses() {
       {/* 1. PAGE HEADER */}
       <PageHeader
         title="Expense Management"
-        subtitle="Log and monitor operating expenses, feed costs, electricity, labour, and maintenance."
+        subtitle="Log general operational costs, pond prep, lab testing, electricity, and labor charges."
         actions={
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/pond-lease')}
-              icon={<Landmark className="w-4 h-4" />}
-              className="font-semibold shadow-xs"
-            >
-              Pond Lease Management
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleOpenAdd}
-              icon={<Plus className="w-4 h-4" />}
-              className="font-semibold shadow-xs"
-            >
-              Add New Expense
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleOpenAdd}
+            icon={<Plus className="w-4 h-4" />}
+            className="font-semibold shadow-xs"
+          >
+            Add Expense Log
+          </Button>
         }
       />
 
-      {/* 2. SUMMARY CARDS (Total Expenses & Total Records) */}
+      {/* 2. OPERATIONAL SUMMARY METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <Card padding="compact" className="border-border/80 shadow-2xs">
+        <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
-              <IndianRupee className="w-4 h-4" />
+              <Receipt className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Expenses</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">₹{stats.totalAmount.toLocaleString()}</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Expense Records</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalCount}</span>
             </div>
           </div>
         </Card>
 
-        <Card padding="compact" className="border-border/80 shadow-2xs">
+        <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <FileText className="w-4 h-4" />
+              <IndianRupee className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Records</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalCount}</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Expenditure</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">₹{stats.totalAmount.toLocaleString()}</span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* 3. FILTERS AREA (Select Category & Select Tank) */}
+      {/* 3. EXPENSE FILTERS BAR */}
       <ExpenseFilters
         categoryFilter={categoryFilter}
-        onCategoryChange={setCategoryFilter}
+        onCategoryFilterChange={setCategoryFilter}
         tankFilter={tankFilter}
-        onTankChange={setTankFilter}
-        onReset={handleResetFilters}
+        onTankFilterChange={setTankFilter}
+        onResetFilters={handleResetFilters}
       />
 
-      {/* 4. EXPENSE CARDS GRID OR EMPTY STATE */}
-      {filteredExpenses.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {/* 4. EXPENSES GRID OR EMPTY STATE */}
+      {loading ? (
+        <div className="py-16 text-center">
+          <span className="text-xs font-semibold text-text-secondary">Loading operational expenses...</span>
+        </div>
+      ) : filteredExpenses.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredExpenses.map((exp) => (
             <ExpenseCard
               key={exp.id}
               expense={exp}
-              onViewDetails={handleOpenDetails}
-              onEdit={handleOpenEdit}
-              onDelete={handleOpenDelete}
+              onViewDetails={() => handleOpenDetails(exp)}
+              onEdit={() => handleOpenEdit(exp)}
+              onDelete={() => handleOpenDelete(exp)}
             />
           ))}
         </div>
       ) : (
-        <Card padding="relaxed" className="border-border/80 shadow-2xs">
-          <EmptyState
-            title="No Expenses Recorded"
-            description={
-              categoryFilter || tankFilter
-                ? "No expense records match your selected filter criteria. Try resetting filters."
-                : "Log farm operating expenses to track overall production expenditure."
-            }
-            actionLabel={
-              categoryFilter || tankFilter ? "Reset Filters" : "Add New Expense"
-            }
-            onAction={
-              categoryFilter || tankFilter ? handleResetFilters : handleOpenAdd
-            }
-          />
-        </Card>
+        <EmptyState
+          title={categoryFilter || tankFilter ? "No matching expense records" : "No operational expenses logged"}
+          description={
+            categoryFilter || tankFilter
+              ? "Try adjusting your category or tank filter."
+              : "Log pond prep, electricity bills, labor charges, and testing expenses to track farm overheads."
+          }
+          actionLabel={categoryFilter || tankFilter ? "Reset Filters" : "Add Expense Log"}
+          onAction={categoryFilter || tankFilter ? handleResetFilters : handleOpenAdd}
+        />
       )}
 
-      {/* 5. ADD / EDIT EXPENSE MODAL */}
+      {/* 5. ADD / EDIT EXPENSE FORM MODAL */}
       <Modal
         isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingExpense(null);
-        }}
-        title={editingExpense ? 'Edit Expense Record' : 'Add New Expense'}
-        description={
-          editingExpense
-            ? `Update expense record for ${editingExpense.category || 'Expense'}`
-            : 'Record a new operating expenditure for your farm ponds.'
-        }
-        size="md"
+        onClose={() => setIsFormOpen(false)}
+        title={editingExpense ? "Edit Operational Expense" : "Log Operational Expense"}
+        maxWidth="max-w-md"
       >
         <ExpenseForm
           initialData={editingExpense}
           onSubmit={handleSaveExpense}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingExpense(null);
-          }}
+          onCancel={() => setIsFormOpen(false)}
         />
       </Modal>
 
       {/* 6. VIEW EXPENSE DETAILS MODAL */}
-      <ExpenseDetailsModal
-        isOpen={isDetailsOpen}
-        onClose={() => {
-          setIsDetailsOpen(false);
-          setViewingExpense(null);
-        }}
-        expense={viewingExpense}
-        onEdit={handleOpenEdit}
-        onDelete={handleOpenDelete}
-      />
+      {viewingExpense && (
+        <ExpenseDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          expense={viewingExpense}
+          onEdit={() => handleOpenEdit(viewingExpense)}
+        />
+      )}
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE EXPENSE CONFIRMATION DIALOG */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
-        onClose={() => {
-          setIsDeleteOpen(false);
-          setDeletingExpense(null);
-        }}
+        onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Expense Record"
-        message={
-          deletingExpense
-            ? `Are you sure you want to delete the expense record for "${deletingExpense.category || 'Expense'}"? This action cannot be undone.`
-            : 'Are you sure you want to delete this expense record?'
-        }
-        confirmText="Delete Expense Record"
+        title="Delete Operational Expense"
+        message={`Are you sure you want to delete expense "${deletingExpense?.category || deletingExpense?.description || 'Expense'}"? This action cannot be undone.`}
+        confirmText="Delete Expense"
         cancelText="Cancel"
-        type="danger"
+        variant="danger"
       />
     </div>
   );

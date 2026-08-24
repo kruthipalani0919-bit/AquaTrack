@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import stockingService from '../services/stockingService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const StockingContext = createContext(null);
 
@@ -11,32 +12,41 @@ export const StockingProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // Fetch real farm stock records from backend database
-  const fetchStockings = useCallback(async () => {
+  const fetchStockings = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setStockings([]);
-      setLoading(false);
+      if (!isSilent) setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
 
     try {
       const res = await stockingService.getStockings();
       const stockingList = res?.data || res || [];
-      console.log('[StockingContext] Loaded real database stocking items count:', Array.isArray(stockingList) ? stockingList.length : 0);
       setStockings(Array.isArray(stockingList) ? stockingList : []);
     } catch (err) {
       console.error('Error fetching farm stocking overview:', err);
       setError(err.message || 'Failed to load stock inventory');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     fetchStockings();
   }, [fetchStockings, token]);
+
+  // Subscribe to sync bus events for cascading cleanup
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (['SITE', 'TANK', 'CROP', 'STOCKING'].includes(detail.entityType)) {
+        fetchStockings(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchStockings]);
 
   // Create real stock record in database
   const addStock = async (stockData) => {
@@ -47,11 +57,12 @@ export const StockingProvider = ({ children }) => {
       unit: stockData.unit ? stockData.unit.trim() : 'kg',
     };
 
-    console.log('[StockingContext] Posting new stock payload to backend:', payload);
     try {
       const res = await stockingService.createStocking(payload);
-      await fetchStockings();
-      return res?.data || res;
+      const result = res?.data || res;
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'CREATE', result);
+      return result;
     } catch (err) {
       console.error('[StockingContext] Add stock error:', err);
       const msg = err.message || 'Failed to add stock record';
@@ -81,36 +92,24 @@ export const StockingProvider = ({ children }) => {
       targetStockingId = match.id;
     }
 
-    if (!targetStockingId) {
-      throw new Error('Stocking record ID is required for allocation.');
-    }
-
     const payload = {
+      stockingId: targetStockingId,
       siteId,
       allocatedQuantity: parseFloat(allocatedQuantity),
-      unit: unit ? unit.trim() : 'kg',
+      unit: unit ? unit.trim() : undefined,
     };
 
-    console.log(`[StockingContext] Allocating stock #${targetStockingId} to site #${siteId}:`, payload);
     try {
-      const res = await stockingService.allocateStock(targetStockingId, payload);
-      await fetchStockings();
-      return res?.data || res;
+      const res = await stockingService.allocateStocking(payload);
+      const result = res?.data || res;
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'UPDATE', result);
+      return result;
     } catch (err) {
-      console.error('[StockingContext] Allocation API error:', err);
+      console.error('[StockingContext] Allocate stock error:', err);
       const msg = err.message || 'Failed to allocate stock to site';
       setError(msg);
       throw new Error(msg);
-    }
-  };
-
-  const getSiteAllocations = async (siteId) => {
-    try {
-      const res = await stockingService.getSiteStockAllocations(siteId);
-      return res?.data || res || [];
-    } catch (err) {
-      console.error(`Error fetching allocations for site #${siteId}:`, err);
-      return [];
     }
   };
 
@@ -123,7 +122,6 @@ export const StockingProvider = ({ children }) => {
         fetchStockings,
         addStock,
         allocateStock,
-        getSiteAllocations,
       }}
     >
       {children}

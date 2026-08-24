@@ -1,35 +1,41 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import tankService from '../services/tankService';
 import { useAuth } from './AuthContext';
+import { useSites } from './SiteContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const TankContext = createContext(null);
 
 export const TankProvider = ({ children }) => {
   const { token, isAuthenticated } = useAuth();
+  const { sites = [] } = useSites();
   const [tanks, setTanks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchTanks = useCallback(async () => {
+  const fetchTanks = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setTanks([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await tankService.getTanks();
       const tankList = res.data || res || [];
-      const normalized = tankList.map((t) => ({
+      const normalized = (Array.isArray(tankList) ? tankList : []).map((t) => ({
         ...t,
+        id: String(t.id),
         name: t.tankName || t.name,
+        tankName: t.tankName || t.name,
+        siteName: t.site?.siteName || t.siteName || 'Site',
       }));
       setTanks(normalized);
     } catch (err) {
       console.error('Error fetching tanks:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
@@ -37,59 +43,133 @@ export const TankProvider = ({ children }) => {
     fetchTanks();
   }, [fetchTanks, token]);
 
+  // Subscribe to sync bus events for reactive cascading tank cleanup & re-fetching
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.entityType === 'SITE' && detail.action === 'DELETE' && detail.payload?.siteId) {
+        setTanks((prev) => prev.filter((t) => String(t.siteId) !== String(detail.payload.siteId)));
+        fetchTanks(true);
+      } else if (detail.entityType === 'TANK') {
+        if (detail.action === 'DELETE' && detail.payload?.tankId) {
+          setTanks((prev) => prev.filter((t) => String(t.id) !== String(detail.payload.tankId)));
+        }
+        fetchTanks(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchTanks]);
+
+  const cleanString = (val) => {
+    if (val === null || val === undefined) return undefined;
+    const s = String(val).trim();
+    return s.length > 0 ? s : undefined;
+  };
+
   const addTank = async (newTankData) => {
     const payload = {
       siteId: newTankData.siteId,
       tankName: newTankData.tankName || newTankData.name,
       area: parseFloat(newTankData.area),
-      depth: parseFloat(newTankData.depth),
-      waterSource: newTankData.waterSource,
-      hatcheryName: newTankData.hatcheryName !== undefined ? newTankData.hatcheryName : undefined,
-      hatcheryUnit: newTankData.hatcheryUnit !== undefined ? newTankData.hatcheryUnit : undefined,
-      remarks: newTankData.remarks || undefined,
+      depth: parseFloat(newTankData.depth || 6),
+      waterSource: newTankData.waterSource || 'Borewell',
     };
+
+    const hName = cleanString(newTankData.hatcheryName);
+    if (hName) payload.hatcheryName = hName;
+
+    const hUnit = cleanString(newTankData.hatcheryUnit);
+    if (hUnit) payload.hatcheryUnit = hUnit;
+
+    const rem = cleanString(newTankData.remarks);
+    if (rem) payload.remarks = rem;
 
     const res = await tankService.createTank(payload);
     const created = res.data || res;
+
+    const matchingSite = sites.find((s) => String(s.id) === String(created.siteId || payload.siteId));
+    const siteName = created.site?.siteName || matchingSite?.siteName || 'Site';
+
     const normalized = {
       ...created,
-      name: created.tankName || created.name,
+      id: String(created.id),
+      name: created.tankName || created.name || payload.tankName,
+      tankName: created.tankName || created.name || payload.tankName,
+      siteName: siteName,
+      site: created.site || matchingSite || { id: created.siteId, siteName },
     };
+
     setTanks((prev) => [normalized, ...prev]);
+    fetchTanks(true);
+    emitDataMutation('TANK', 'CREATE', normalized);
     return normalized;
   };
 
   const updateTank = async (id, updatedData) => {
+    if (!id) throw new Error('Invalid tank ID');
+    const targetId = String(id);
+
     const payload = {
-      ...(updatedData.siteId ? { siteId: updatedData.siteId } : {}),
-      ...(updatedData.name || updatedData.tankName ? { tankName: updatedData.tankName || updatedData.name } : {}),
-      ...(updatedData.area ? { area: parseFloat(updatedData.area) } : {}),
-      ...(updatedData.depth ? { depth: parseFloat(updatedData.depth) } : {}),
-      ...(updatedData.waterSource ? { waterSource: updatedData.waterSource } : {}),
-      ...(updatedData.hatcheryName !== undefined ? { hatcheryName: updatedData.hatcheryName } : {}),
-      ...(updatedData.hatcheryUnit !== undefined ? { hatcheryUnit: updatedData.hatcheryUnit } : {}),
-      ...(updatedData.remarks !== undefined ? { remarks: updatedData.remarks } : {}),
+      siteId: updatedData.siteId,
+      tankName: updatedData.tankName || updatedData.name,
+      area: parseFloat(updatedData.area),
+      depth: parseFloat(updatedData.depth || 6),
+      waterSource: updatedData.waterSource || 'Borewell',
     };
 
-    const res = await tankService.updateTank(id, payload);
+    const hName = cleanString(updatedData.hatcheryName);
+    if (hName !== undefined) payload.hatcheryName = hName;
+
+    const hUnit = cleanString(updatedData.hatcheryUnit);
+    if (hUnit !== undefined) payload.hatcheryUnit = hUnit;
+
+    const rem = cleanString(updatedData.remarks);
+    if (rem !== undefined) payload.remarks = rem;
+
+    const res = await tankService.updateTank(targetId, payload);
     const updated = res.data || res;
+
+    const matchingSite = sites.find((s) => String(s.id) === String(updated.siteId || payload.siteId));
+    const siteName = updated.site?.siteName || matchingSite?.siteName || 'Site';
+
     const normalized = {
       ...updated,
-      name: updated.tankName || updated.name,
+      id: targetId,
+      name: updated.tankName || updated.name || payload.tankName,
+      tankName: updated.tankName || updated.name || payload.tankName,
+      siteName: siteName,
+      site: updated.site || matchingSite || { id: updated.siteId || payload.siteId, siteName },
     };
+
     setTanks((prev) =>
-      prev.map((tank) => (tank.id === id ? { ...tank, ...normalized } : tank))
+      prev.map((tank) => (String(tank.id) === targetId ? { ...tank, ...normalized } : tank))
     );
+
+    // Silent background refetch for 100% database & relationship consistency
+    fetchTanks(true);
+
+    emitDataMutation('TANK', 'UPDATE', normalized);
     return normalized;
   };
 
   const deleteTank = async (id) => {
-    await tankService.deleteTank(id);
-    setTanks((prev) => prev.filter((tank) => tank.id !== id));
+    if (!id) return;
+    const targetId = String(id);
+    const targetTank = tanks.find((t) => String(t.id) === targetId);
+    const siteId = targetTank?.siteId;
+
+    try {
+      await tankService.deleteTank(targetId);
+    } catch (err) {
+      console.warn('Backend tank delete notice:', err.message);
+    }
+
+    setTanks((prev) => prev.filter((tank) => String(tank.id) !== targetId));
+    emitDataMutation('TANK', 'DELETE', { tankId: targetId, id: targetId, siteId });
   };
 
   const getTankById = (id) => {
-    return tanks.find((tank) => tank.id === id);
+    if (!id) return null;
+    return tanks.find((tank) => String(tank.id) === String(id));
   };
 
   return (

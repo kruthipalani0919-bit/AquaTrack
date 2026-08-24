@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import cropService from '../services/cropService';
 import harvestService from '../services/harvestService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const CropContext = createContext(null);
 
@@ -11,12 +12,12 @@ export const CropProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchCrops = useCallback(async () => {
+  const fetchCrops = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setCrops([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const [cropsRes, harvestsRes] = await Promise.all([
@@ -61,7 +62,7 @@ export const CropProvider = ({ children }) => {
       console.error('Error fetching crops:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
@@ -69,7 +70,7 @@ export const CropProvider = ({ children }) => {
     fetchCrops();
 
     const handleHarvestsChanged = () => {
-      fetchCrops();
+      fetchCrops(true);
     };
 
     if (typeof window !== 'undefined') {
@@ -82,6 +83,23 @@ export const CropProvider = ({ children }) => {
       }
     };
   }, [fetchCrops, token]);
+
+  // Subscribe to sync bus events for cascading crop cleanup
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setCrops((prev) => prev.filter((c) => String(c.tankId) !== String(detail.payload.tankId)));
+        } else if (detail.entityType === 'CROP' && detail.payload?.cropId) {
+          setCrops((prev) => prev.filter((c) => String(c.id) !== String(detail.payload.cropId)));
+        }
+        fetchCrops(true);
+      } else if (detail.entityType === 'SITE' || detail.entityType === 'TANK' || detail.entityType === 'CROP') {
+        fetchCrops(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchCrops]);
 
   const addCrop = async (newCropData) => {
     const payload = {
@@ -103,6 +121,7 @@ export const CropProvider = ({ children }) => {
       rawStatus: 'ACTIVE',
     };
     setCrops((prev) => [normalized, ...prev]);
+    emitDataMutation('CROP', 'CREATE', normalized);
     return normalized;
   };
 
@@ -126,6 +145,7 @@ export const CropProvider = ({ children }) => {
       rawStatus: updated.status,
     };
     setCrops((prev) => prev.map((crop) => (String(crop.id) === String(id) ? { ...crop, ...normalized } : crop)));
+    emitDataMutation('CROP', 'UPDATE', normalized);
     return normalized;
   };
 
@@ -144,17 +164,22 @@ export const CropProvider = ({ children }) => {
           : crop
       )
     );
+    emitDataMutation('CROP', 'UPDATE', updated);
     return updated;
   };
 
   const deleteCrop = async (id) => {
     if (!id) return;
+    const targetCrop = crops.find((c) => String(c.id) === String(id));
+    const tankId = targetCrop?.tankId;
+
     try {
       await cropService.deleteCrop(id);
     } catch (apiErr) {
       console.warn('Backend delete notice (removing local crop state directly):', apiErr.message);
     }
     setCrops((prev) => prev.filter((crop) => String(crop.id) !== String(id)));
+    emitDataMutation('CROP', 'DELETE', { cropId: String(id), id: String(id), tankId });
   };
 
   const getCropById = (id) => {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus,
   UtensilsCrossed,
@@ -19,6 +19,8 @@ import { FeedForm } from '../../components/FeedForm';
 import { FeedFilters } from '../../components/FeedFilters';
 import { FeedDetailsModal } from '../../components/FeedDetailsModal';
 import { useFeed } from '../../context/FeedContext';
+import { useTanks } from '../../context/TankContext';
+import { subscribeToSyncBus } from '../../utils/syncBus';
 
 export default function FeedManagement() {
   const {
@@ -30,6 +32,8 @@ export default function FeedManagement() {
     loading,
     error
   } = useFeed();
+
+  const { tanks = [] } = useTanks();
 
   // Filter State (Tank & Date filters retained)
   const [tankFilter, setTankFilter] = useState('');
@@ -45,6 +49,43 @@ export default function FeedManagement() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingFeedLog, setDeletingFeedLog] = useState(null);
 
+  // Automatically reset tankFilter if the selected tank was deleted
+  useEffect(() => {
+    if (tankFilter && tanks.length > 0) {
+      const exists = tanks.some((t) => String(t.id) === String(tankFilter));
+      if (!exists) {
+        setTankFilter('');
+      }
+    }
+  }, [tanks, tankFilter]);
+
+  // Subscribe to sync bus events for reactive modal cleanup
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId === tankFilter) {
+          setTankFilter('');
+        }
+        if (detail.entityType === 'FEED' && detail.payload?.id) {
+          const fId = String(detail.payload.id);
+          if (viewingFeedLog && String(viewingFeedLog.id) === fId) {
+            setIsDetailsOpen(false);
+            setViewingFeedLog(null);
+          }
+          if (deletingFeedLog && String(deletingFeedLog.id) === fId) {
+            setIsDeleteOpen(false);
+            setDeletingFeedLog(null);
+          }
+          if (editingFeedLog && String(editingFeedLog.id) === fId) {
+            setIsFormOpen(false);
+            setEditingFeedLog(null);
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [tankFilter, viewingFeedLog, deletingFeedLog, editingFeedLog]);
+
   const safeAnalytics = {
     todaysFeedKg: analytics?.todaysFeedKg || 0,
     totalFeedUsedKg: analytics?.totalFeedUsedKg || 0,
@@ -57,7 +98,7 @@ export default function FeedManagement() {
 
     return list.filter((log) => {
       if (!log) return false;
-      const matchesTank = tankFilter === '' || log.tankId === tankFilter;
+      const matchesTank = tankFilter === '' || String(log.tankId) === String(tankFilter);
       const matchesDate = dateFilter === '' || log.feedingDate === dateFilter || log.date === dateFilter;
 
       return matchesTank && matchesDate;
@@ -108,7 +149,7 @@ export default function FeedManagement() {
         setIsDeleteOpen(false);
         setDeletingFeedLog(null);
       } catch (err) {
-        console.error('Error deleting feed log:', err);
+        console.error('Error deleting feed:', err);
       }
     }
   };
@@ -120,10 +161,10 @@ export default function FeedManagement() {
 
   return (
     <div className="space-y-6">
-      {/* 1. PAGE HEADER (Records badge removed as requested) */}
+      {/* 1. PAGE HEADER */}
       <PageHeader
         title="Feed Management"
-        subtitle="Monitor daily feed distribution, ration logs, and total feed expenditure."
+        subtitle="Log daily feed rations, track feed types, and monitor overall feed cost expenditure."
         actions={
           <Button
             variant="primary"
@@ -132,21 +173,33 @@ export default function FeedManagement() {
             icon={<Plus className="w-4 h-4" />}
             className="font-semibold shadow-xs"
           >
-            Record Feed
+            Record Feed Log
           </Button>
         }
       />
 
-      {/* 2. TOP DASHBOARD SUMMARY CARDS (Today's Feed, Total Feed Used, Total Feed Cost) */}
+      {/* 2. FEED SUMMARY ANALYTICS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Card padding="compact" className="border-border/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <Weight className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Today's Feed</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.todaysFeedKg.toLocaleString()} kg</span>
+            </div>
+          </div>
+        </Card>
+
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
               <UtensilsCrossed className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Used Today</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.todaysFeedKg} kg</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Used</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.totalFeedUsedKg.toLocaleString()} kg</span>
             </div>
           </div>
         </Card>
@@ -154,18 +207,6 @@ export default function FeedManagement() {
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <Weight className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Feed Used</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{safeAnalytics.totalFeedUsedKg} kg</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
               <IndianRupee className="w-4 h-4" />
             </div>
             <div>
@@ -176,101 +217,79 @@ export default function FeedManagement() {
         </Card>
       </div>
 
-      {/* 3. FILTERS AREA (All Tanks & Date Picker) */}
+      {/* 3. FEED FILTERS BAR */}
       <FeedFilters
         tankFilter={tankFilter}
-        onTankChange={setTankFilter}
+        onTankFilterChange={setTankFilter}
         dateFilter={dateFilter}
-        onDateChange={setDateFilter}
-        onReset={handleResetFilters}
+        onDateFilterChange={setDateFilter}
+        onResetFilters={handleResetFilters}
       />
 
-      {/* 4. FEED CARDS GRID OR EMPTY STATE */}
-      {filteredFeedLogs.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {/* 4. FEED LOGS GRID OR EMPTY STATE */}
+      {loading ? (
+        <div className="py-16 text-center">
+          <span className="text-xs font-semibold text-text-secondary">Loading feeding logs...</span>
+        </div>
+      ) : filteredFeedLogs.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredFeedLogs.map((log) => (
             <FeedCard
               key={log.id}
-              feedLog={log}
-              onViewDetails={handleOpenDetails}
-              onEdit={handleOpenEdit}
-              onDelete={handleOpenDelete}
+              log={log}
+              onViewDetails={() => handleOpenDetails(log)}
+              onEdit={() => handleOpenEdit(log)}
+              onDelete={() => handleOpenDelete(log)}
             />
           ))}
         </div>
       ) : (
-        <Card padding="relaxed" className="border-border/80 shadow-2xs">
-          <EmptyState
-            title="No Feed Records Found"
-            description={
-              tankFilter || dateFilter
-                ? "No feed distribution logs match your current filter criteria. Try resetting filters."
-                : "No feed distribution logs recorded yet."
-            }
-            actionLabel={
-              tankFilter || dateFilter ? "Reset Filters" : "Record Feed"
-            }
-            onAction={
-              tankFilter || dateFilter ? handleResetFilters : handleOpenAdd
-            }
-          />
-        </Card>
+        <EmptyState
+          title={tankFilter || dateFilter ? "No matching feed records" : "No feed logs recorded"}
+          description={
+            tankFilter || dateFilter
+              ? "Try clearing your tank or date filter to view other feeding logs."
+              : "Record daily feed rations to monitor feed conversion rates and daily feeding expenditure."
+          }
+          actionLabel={tankFilter || dateFilter ? "Reset Filters" : "Record Feed Log"}
+          onAction={tankFilter || dateFilter ? handleResetFilters : handleOpenAdd}
+        />
       )}
 
-      {/* 5. ADD / EDIT FEED MODAL */}
+      {/* 5. ADD / EDIT FEED FORM MODAL */}
       <Modal
         isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingFeedLog(null);
-        }}
-        title={editingFeedLog ? 'Edit Feed Log' : 'Record Feed'}
-        description={
-          editingFeedLog
-            ? `Update feed record for ${editingFeedLog.feedBrand || 'Feed'}`
-            : 'Record daily feed distribution into a tank.'
-        }
-        size="md"
+        onClose={() => setIsFormOpen(false)}
+        title={editingFeedLog ? "Edit Feed Log" : "Record Feed Allocation"}
+        maxWidth="max-w-md"
       >
         <FeedForm
           initialData={editingFeedLog}
           onSubmit={handleSaveFeed}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingFeedLog(null);
-          }}
+          onCancel={() => setIsFormOpen(false)}
         />
       </Modal>
 
       {/* 6. VIEW FEED DETAILS MODAL */}
-      <FeedDetailsModal
-        isOpen={isDetailsOpen}
-        onClose={() => {
-          setIsDetailsOpen(false);
-          setViewingFeedLog(null);
-        }}
-        feedLog={viewingFeedLog}
-        onEdit={handleOpenEdit}
-        onDelete={handleOpenDelete}
-      />
+      {viewingFeedLog && (
+        <FeedDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          log={viewingFeedLog}
+          onEdit={() => handleOpenEdit(viewingFeedLog)}
+        />
+      )}
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE FEED LOG CONFIRMATION DIALOG */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
-        onClose={() => {
-          setIsDeleteOpen(false);
-          setDeletingFeedLog(null);
-        }}
+        onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Feed Record"
-        message={
-          deletingFeedLog
-            ? `Are you sure you want to delete feed record for "${deletingFeedLog.feedBrand || 'Feed'}"? This action cannot be undone.`
-            : 'Are you sure you want to delete this feed record?'
-        }
-        confirmText="Delete Feed Record"
+        title="Delete Feed Log"
+        message={`Are you sure you want to delete feed record for "${deletingFeedLog?.feedType || 'Feed'}"? This action cannot be undone.`}
+        confirmText="Delete Record"
         cancelText="Cancel"
-        type="danger"
+        variant="danger"
       />
     </div>
   );

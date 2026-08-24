@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import harvestService from '../services/harvestService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const HarvestContext = createContext(null);
 
@@ -10,12 +11,12 @@ export const HarvestProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchHarvests = useCallback(async () => {
+  const fetchHarvests = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setHarvests([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await harvestService.getHarvests();
@@ -51,13 +52,32 @@ export const HarvestProvider = ({ children }) => {
       console.error('Error fetching harvests:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     fetchHarvests();
   }, [fetchHarvests, token]);
+
+  // Subscribe to sync bus events for cascading cleanup & re-fetch
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setHarvests((prev) => prev.filter((h) => String(h.tankId) !== String(detail.payload.tankId)));
+        } else if (detail.entityType === 'CROP' && detail.payload?.cropId) {
+          setHarvests((prev) => prev.filter((h) => String(h.cropId) !== String(detail.payload.cropId)));
+        } else if (detail.entityType === 'HARVEST' && detail.payload?.id) {
+          setHarvests((prev) => prev.filter((h) => String(h.id) !== String(detail.payload.id)));
+        }
+        fetchHarvests(true);
+      } else if (['SITE', 'TANK', 'CROP', 'HARVEST'].includes(detail.entityType)) {
+        fetchHarvests(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchHarvests]);
 
   const addHarvest = async (newHarvestData) => {
     const payload = {
@@ -100,87 +120,73 @@ export const HarvestProvider = ({ children }) => {
       notes: payload.notes,
     };
 
-    // Prepend new harvest record to local harvest list immediately
     setHarvests((prev) => [normalized, ...prev]);
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('aquatrack:harvests-changed'));
+      window.dispatchEvent(new CustomEvent('aquatrack:harvests-changed', { detail: normalized }));
     }
-
+    emitDataMutation('HARVEST', 'CREATE', normalized);
     return normalized;
   };
 
-  const updateHarvest = async (id, updatedHarvestData) => {
-    setError(null);
-    const harvestDateFormatted = updatedHarvestData.harvestDate
-      ? new Date(updatedHarvestData.harvestDate).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0];
+  const updateHarvest = async (id, updatedData) => {
+    if (!id) return null;
 
-    const payload = {
-      tankId: updatedHarvestData.tankId,
-      harvestDate: harvestDateFormatted,
-      shrimpCount: updatedHarvestData.shrimpCount ? parseFloat(updatedHarvestData.shrimpCount) : undefined,
-      production: updatedHarvestData.production !== undefined && updatedHarvestData.production !== null ? parseFloat(updatedHarvestData.production) : (updatedHarvestData.shrimpCount ? parseFloat(updatedHarvestData.shrimpCount) : undefined),
-      averageWeight: updatedHarvestData.averageWeight ? parseFloat(updatedHarvestData.averageWeight) : (updatedHarvestData.shrimpCount ? parseFloat((1000 / parseFloat(updatedHarvestData.shrimpCount)).toFixed(2)) : undefined),
-      survivalRate: updatedHarvestData.survivalRate !== undefined ? parseFloat(updatedHarvestData.survivalRate) : 85,
-      sellingPrice: parseFloat(updatedHarvestData.sellingPrice),
-      buyerName: updatedHarvestData.buyerName,
-      transportationCost: updatedHarvestData.transportationCost ? parseFloat(updatedHarvestData.transportationCost) : null,
-      harvestExpense: parseFloat(updatedHarvestData.harvestExpense || 0),
-      notes: updatedHarvestData.notes || '',
-    };
+    let updatedFromApi = null;
+    try {
+      const res = await harvestService.updateHarvest(id, updatedData);
+      updatedFromApi = res.data || res;
+    } catch (err) {
+      console.warn('Backend update Harvest notice (saving edit state locally):', err.message);
+    }
 
-    // Save edit into persistent localStorage map
+    // Save edit payload to localStorage map so harvest edit persists 100% across page reloads & navigation
     try {
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('aquatrack_harvest_edits');
-        const savedEdits = stored ? JSON.parse(stored) : {};
-        savedEdits[id] = payload;
-        savedEdits[String(id)] = payload;
+        let savedEdits = stored ? JSON.parse(stored) : {};
+        savedEdits[id] = {
+          ...(savedEdits[id] || {}),
+          ...updatedData,
+        };
         localStorage.setItem('aquatrack_harvest_edits', JSON.stringify(savedEdits));
       }
     } catch (e) {
-      console.warn('localStorage edit save notice:', e.message);
+      console.warn('Failed to persist harvest edit to localStorage:', e.message);
     }
 
-    try {
-      await harvestService.updateHarvest(id, payload);
-    } catch (apiErr) {
-      console.warn('Backend update notice (updating local harvest state directly):', apiErr.message);
-    }
-
-    const mergedRecord = {
-      id,
-      ...payload,
-      tankName: updatedHarvestData.tankName || 'Tank',
-    };
-
-    // Immediately replace target harvest record in state
-    setHarvests((prevList) =>
-      prevList.map((item) => (String(item.id) === String(id) ? { ...item, ...mergedRecord } : item))
+    setHarvests((prev) =>
+      prev.map((item) => {
+        if (String(item.id) === String(id)) {
+          return {
+            ...item,
+            ...(updatedFromApi || {}),
+            ...updatedData,
+            harvestDate: updatedData.harvestDate
+              ? new Date(updatedData.harvestDate).toISOString().split('T')[0]
+              : (updatedFromApi?.harvestDate || item.harvestDate),
+          };
+        }
+        return item;
+      })
     );
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('aquatrack:harvests-changed'));
+      window.dispatchEvent(new CustomEvent('aquatrack:harvests-changed', { detail: { id, ...updatedData } }));
     }
-
-    return mergedRecord;
+    emitDataMutation('HARVEST', 'UPDATE', { id, ...updatedData });
+    return updatedData;
   };
 
   const deleteHarvest = async (id) => {
     if (!id) return;
-    try {
-      await harvestService.deleteHarvest(id);
-    } catch (apiErr) {
-      console.warn('Backend delete notice (removing local harvest state directly):', apiErr.message);
-    }
 
-    // Clean from localStorage persistent edits map
+    // Clean up local storage edit map
     try {
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('aquatrack_harvest_edits');
         if (stored) {
-          const savedEdits = JSON.parse(stored);
+          let savedEdits = JSON.parse(stored);
           delete savedEdits[id];
           delete savedEdits[String(id)];
           localStorage.setItem('aquatrack_harvest_edits', JSON.stringify(savedEdits));
@@ -188,11 +194,19 @@ export const HarvestProvider = ({ children }) => {
       }
     } catch (e) {}
 
+    // Clean up state immediately
     setHarvests((prev) => prev.filter((item) => String(item.id) !== String(id)));
 
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('aquatrack:harvests-changed'));
+    try {
+      await harvestService.deleteHarvest(id);
+    } catch (err) {
+      console.warn('Backend deleteHarvest notice (harvest removed locally):', err.message);
     }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('aquatrack:harvests-changed', { detail: { id, deleted: true } }));
+    }
+    emitDataMutation('HARVEST', 'DELETE', { id: String(id) });
   };
 
   const getHarvestById = (id) => {

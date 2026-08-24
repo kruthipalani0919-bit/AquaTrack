@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import medicineService from '../services/medicineService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const MedicineContext = createContext(null);
 
@@ -10,31 +11,30 @@ export const MedicineProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchMedicineRecords = useCallback(async () => {
+  const fetchMedicineRecords = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setMedicineRecords([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await medicineService.getMedicines();
       const list = res.data || res || [];
-      const normalized = list.map((rec) => ({
-        ...rec,
-        applicationDate: rec.date ? new Date(rec.date).toISOString().split('T')[0] : rec.applicationDate,
-        tankName: rec.tank?.tankName || rec.tankName || 'Tank',
-        dosage: rec.dosage ? String(rec.dosage) : '1',
-        cost: parseFloat(rec.cost) || 0,
-        quantity: parseFloat(rec.quantity) || 1,
-        status: 'Completed',
+      const normalized = (Array.isArray(list) ? list : []).map((m) => ({
+        ...m,
+        applicationDate: m.date ? new Date(m.date).toISOString().split('T')[0] : m.applicationDate,
+        quantityUsed: m.quantity ?? m.quantityUsed,
+        cost: m.totalCost ?? m.cost ?? (m.quantity * m.costPerUnit),
+        tankName: m.crop?.tank?.tankName || m.tankName || 'Tank',
+        cropName: m.crop?.cropName || m.cropName || 'Crop',
       }));
       setMedicineRecords(normalized);
     } catch (err) {
-      console.error('Error fetching medicines:', err);
+      console.error('Error fetching medicine records:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
@@ -42,16 +42,33 @@ export const MedicineProvider = ({ children }) => {
     fetchMedicineRecords();
   }, [fetchMedicineRecords, token]);
 
-  const addMedicineRecord = async (newRecordData) => {
+  // Subscribe to sync bus events for cascading cleanup & re-fetch
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setMedicineRecords((prev) => prev.filter((m) => String(m.tankId) !== String(detail.payload.tankId)));
+        } else if (detail.entityType === 'CROP' && detail.payload?.cropId) {
+          setMedicineRecords((prev) => prev.filter((m) => String(m.cropId) !== String(detail.payload.cropId)));
+        }
+        fetchMedicineRecords(true);
+      } else if (['SITE', 'TANK', 'CROP', 'MEDICINE'].includes(detail.entityType)) {
+        fetchMedicineRecords(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchMedicineRecords]);
+
+  const addMedicineRecord = async (newMedicineData) => {
     const payload = {
-      tankId: newRecordData.tankId,
-      medicineName: newRecordData.medicineName,
-      purpose: newRecordData.purpose || 'Health treatment',
-      dosage: String(newRecordData.dosage),
-      quantity: parseFloat(newRecordData.quantity || 1),
-      cost: parseFloat(newRecordData.cost || 0),
-      date: newRecordData.applicationDate || newRecordData.date || new Date().toISOString().split('T')[0],
-      notes: newRecordData.notes || undefined,
+      tankId: newMedicineData.tankId,
+      date: newMedicineData.applicationDate || newMedicineData.date || new Date().toISOString().split('T')[0],
+      medicineName: newMedicineData.medicineName,
+      purpose: newMedicineData.purpose || 'Treatment',
+      quantity: parseFloat(newMedicineData.quantityUsed || newMedicineData.quantity),
+      unit: newMedicineData.unit || 'L',
+      costPerUnit: parseFloat(newMedicineData.costPerUnit || (newMedicineData.cost / newMedicineData.quantityUsed) || 100),
+      notes: newMedicineData.notes || undefined,
     };
 
     const res = await medicineService.createMedicine(payload);
@@ -59,21 +76,26 @@ export const MedicineProvider = ({ children }) => {
     const normalized = {
       ...created,
       applicationDate: created.date ? new Date(created.date).toISOString().split('T')[0] : payload.date,
-      tankName: newRecordData.tankName || 'Tank',
-      status: 'Completed',
+      quantityUsed: created.quantity,
+      cost: created.totalCost,
+      tankName: newMedicineData.tankName || 'Tank',
+      cropName: newMedicineData.cropName || 'Crop',
     };
     setMedicineRecords((prev) => [normalized, ...prev]);
+    emitDataMutation('MEDICINE', 'CREATE', normalized);
     return normalized;
   };
 
   const updateMedicineRecord = async (id, updatedData) => {
     const payload = {
+      ...(updatedData.applicationDate || updatedData.date ? { date: updatedData.applicationDate || updatedData.date } : {}),
       ...(updatedData.medicineName ? { medicineName: updatedData.medicineName } : {}),
       ...(updatedData.purpose ? { purpose: updatedData.purpose } : {}),
-      ...(updatedData.dosage !== undefined ? { dosage: String(updatedData.dosage) } : {}),
-      ...(updatedData.quantity !== undefined ? { quantity: parseFloat(updatedData.quantity) } : {}),
-      ...(updatedData.cost !== undefined ? { cost: parseFloat(updatedData.cost) } : {}),
-      ...(updatedData.applicationDate || updatedData.date ? { date: updatedData.applicationDate || updatedData.date } : {}),
+      ...(updatedData.unit ? { unit: updatedData.unit } : {}),
+      ...(updatedData.quantityUsed || updatedData.quantity
+        ? { quantity: parseFloat(updatedData.quantityUsed || updatedData.quantity) }
+        : {}),
+      ...(updatedData.costPerUnit ? { costPerUnit: parseFloat(updatedData.costPerUnit) } : {}),
       ...(updatedData.notes !== undefined ? { notes: updatedData.notes } : {}),
     };
 
@@ -82,55 +104,50 @@ export const MedicineProvider = ({ children }) => {
     const normalized = {
       ...updated,
       applicationDate: updated.date ? new Date(updated.date).toISOString().split('T')[0] : updatedData.applicationDate,
-      tankName: updated.tank?.tankName || 'Tank',
-      status: 'Completed',
+      quantityUsed: updated.quantity ?? updatedData.quantityUsed,
+      cost: updated.totalCost ?? updatedData.cost,
+      tankName: updated.crop?.tank?.tankName || 'Tank',
+      cropName: updated.crop?.cropName || 'Crop',
     };
-    setMedicineRecords((prev) => prev.map((rec) => (rec.id === id ? { ...rec, ...normalized } : rec)));
+    setMedicineRecords((prev) => prev.map((rec) => (String(rec.id) === String(id) ? { ...rec, ...normalized } : rec)));
+    emitDataMutation('MEDICINE', 'UPDATE', normalized);
     return normalized;
   };
 
   const deleteMedicineRecord = async (id) => {
-    await medicineService.deleteMedicine(id);
-    setMedicineRecords((prev) => prev.filter((rec) => rec.id !== id));
+    if (!id) return;
+    try {
+      await medicineService.deleteMedicine(id);
+    } catch (err) {
+      console.warn('Backend medicine delete notice:', err.message);
+    }
+    setMedicineRecords((prev) => prev.filter((rec) => String(rec.id) !== String(id)));
+    emitDataMutation('MEDICINE', 'DELETE', { id: String(id) });
   };
 
   const getMedicineRecordById = (id) => {
-    return medicineRecords.find((rec) => rec.id === id);
+    return medicineRecords.find((rec) => String(rec.id) === String(id));
   };
 
-  // Analytics Computations
+  // Analytics Computation
   const analytics = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
 
     const totalTreatments = medicineRecords.length;
 
-    const medicinesUsedToday = medicineRecords.filter(
-      (rec) => rec.applicationDate === todayStr
-    ).length;
+    const medicinesUsedToday = medicineRecords.reduce((acc, rec) => {
+      if (rec.applicationDate === todayStr) {
+        return acc + 1;
+      }
+      return acc;
+    }, 0);
 
-    const totalMedicineCostRupees = medicineRecords.reduce(
-      (acc, rec) => acc + (parseFloat(rec.cost) || 0),
-      0
-    );
-
-    const upcomingTreatments = medicineRecords.filter(
-      (rec) => rec.applicationDate > todayStr
-    ).length;
-
-    const thisWeeksTreatments = medicineRecords.filter((rec) => {
-      const recDate = new Date(rec.applicationDate);
-      const today = new Date();
-      const diffTime = Math.abs(today - recDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 7;
-    }).length;
+    const totalMedicineCostRupees = medicineRecords.reduce((acc, rec) => acc + (parseFloat(rec.cost) || 0), 0);
 
     return {
       totalTreatments,
       medicinesUsedToday,
       totalMedicineCostRupees,
-      upcomingTreatments,
-      thisWeeksTreatments,
     };
   }, [medicineRecords]);
 

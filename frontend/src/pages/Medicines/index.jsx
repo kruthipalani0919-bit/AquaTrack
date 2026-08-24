@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus,
   Stethoscope,
@@ -17,6 +17,8 @@ import { MedicineForm } from '../../components/MedicineForm';
 import { MedicineFilters } from '../../components/MedicineFilters';
 import { MedicineDetailsModal } from '../../components/MedicineDetailsModal';
 import { useMedicine } from '../../context/MedicineContext';
+import { useTanks } from '../../context/TankContext';
+import { subscribeToSyncBus } from '../../utils/syncBus';
 
 export default function Medicines() {
   const {
@@ -28,6 +30,8 @@ export default function Medicines() {
     loading,
     error
   } = useMedicine();
+
+  const { tanks = [] } = useTanks();
 
   // Filter State (Tank & Date filters retained)
   const [tankFilter, setTankFilter] = useState('');
@@ -43,6 +47,43 @@ export default function Medicines() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(null);
 
+  // Reset tankFilter automatically if selected tank was deleted
+  useEffect(() => {
+    if (tankFilter && tanks.length > 0) {
+      const exists = tanks.some((t) => String(t.id) === String(tankFilter));
+      if (!exists) {
+        setTankFilter('');
+      }
+    }
+  }, [tanks, tankFilter]);
+
+  // Subscribe to sync bus events for reactive modal cleanup
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId === tankFilter) {
+          setTankFilter('');
+        }
+        if (detail.entityType === 'MEDICINE' && detail.payload?.id) {
+          const mId = String(detail.payload.id);
+          if (viewingRecord && String(viewingRecord.id) === mId) {
+            setIsDetailsOpen(false);
+            setViewingRecord(null);
+          }
+          if (deletingRecord && String(deletingRecord.id) === mId) {
+            setIsDeleteOpen(false);
+            setDeletingRecord(null);
+          }
+          if (editingRecord && String(editingRecord.id) === mId) {
+            setIsFormOpen(false);
+            setEditingRecord(null);
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [tankFilter, viewingRecord, deletingRecord, editingRecord]);
+
   const safeAnalytics = {
     totalTreatments: analytics?.totalTreatments || (medicineRecords || []).length,
     totalMedicineCostRupees: analytics?.totalMedicineCostRupees || (medicineRecords || []).reduce((acc, r) => acc + (parseFloat(r.cost) || 0), 0),
@@ -54,7 +95,7 @@ export default function Medicines() {
 
     return list.filter((rec) => {
       if (!rec) return false;
-      const matchesTank = tankFilter === '' || rec.tankId === tankFilter;
+      const matchesTank = tankFilter === '' || String(rec.tankId) === String(tankFilter);
       const matchesDate = dateFilter === '' || rec.applicationDate === dateFilter || rec.date === dateFilter;
 
       return matchesTank && matchesDate;
@@ -119,8 +160,8 @@ export default function Medicines() {
     <div className="space-y-6">
       {/* 1. PAGE HEADER */}
       <PageHeader
-        title="Medicine & Health Management"
-        subtitle="Track pond treatments, probiotics, and treatment expenditure."
+        title="Medicine Management"
+        subtitle="Record health treatments, monitor dosages, and track chemical expenditure."
         actions={
           <Button
             variant="primary"
@@ -129,12 +170,12 @@ export default function Medicines() {
             icon={<Plus className="w-4 h-4" />}
             className="font-semibold shadow-xs"
           >
-            Add Treatment Record
+            Record Treatment Log
           </Button>
         }
       />
 
-      {/* 2. TOP SUMMARY CARDS (Total Treatments, Total Cost) */}
+      {/* 2. MEDICINE SUMMARY ANALYTICS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
@@ -150,112 +191,90 @@ export default function Medicines() {
 
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
               <IndianRupee className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Cost</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Medicine Cost</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">₹{safeAnalytics.totalMedicineCostRupees.toLocaleString()}</span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* 3. FILTERS AREA (All Tanks & Date Picker) */}
+      {/* 3. MEDICINE FILTERS BAR */}
       <MedicineFilters
         tankFilter={tankFilter}
-        onTankChange={setTankFilter}
+        onTankFilterChange={setTankFilter}
         dateFilter={dateFilter}
-        onDateChange={setDateFilter}
-        onReset={handleResetFilters}
+        onDateFilterChange={setDateFilter}
+        onResetFilters={handleResetFilters}
       />
 
-      {/* 4. MEDICINE CARDS GRID OR EMPTY STATE */}
-      {filteredRecords.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {/* 4. MEDICINE RECORDS GRID OR EMPTY STATE */}
+      {loading ? (
+        <div className="py-16 text-center">
+          <span className="text-xs font-semibold text-text-secondary">Loading medicine records...</span>
+        </div>
+      ) : filteredRecords.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredRecords.map((rec) => (
             <MedicineCard
               key={rec.id}
               record={rec}
-              onViewDetails={handleOpenDetails}
-              onEdit={handleOpenEdit}
-              onDelete={handleOpenDelete}
+              onViewDetails={() => handleOpenDetails(rec)}
+              onEdit={() => handleOpenEdit(rec)}
+              onDelete={() => handleOpenDelete(rec)}
             />
           ))}
         </div>
       ) : (
-        <Card padding="relaxed" className="border-border/80 shadow-2xs">
-          <EmptyState
-            title="No Treatment Records Found"
-            description={
-              tankFilter || dateFilter
-                ? "No treatment records match your current filter criteria. Try resetting filters."
-                : "No treatment records registered yet."
-            }
-            actionLabel={
-              tankFilter || dateFilter ? "Reset Filters" : "Add Treatment Record"
-            }
-            onAction={
-              tankFilter || dateFilter ? handleResetFilters : handleOpenAdd
-            }
-          />
-        </Card>
+        <EmptyState
+          title={tankFilter || dateFilter ? "No matching medicine records" : "No medicine logs recorded"}
+          description={
+            tankFilter || dateFilter
+              ? "Try clearing your tank or date filter to view other treatment records."
+              : "Record pond treatments and water chemicals to maintain health logs and cost records."
+          }
+          actionLabel={tankFilter || dateFilter ? "Reset Filters" : "Record Treatment Log"}
+          onAction={tankFilter || dateFilter ? handleResetFilters : handleOpenAdd}
+        />
       )}
 
-      {/* 5. ADD / EDIT MEDICINE RECORD MODAL */}
+      {/* 5. ADD / EDIT MEDICINE FORM MODAL */}
       <Modal
         isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingRecord(null);
-        }}
-        title={editingRecord ? 'Edit Treatment Record' : 'Add Treatment Record'}
-        description={
-          editingRecord
-            ? `Update details for ${editingRecord.medicineName || 'Treatment'}`
-            : 'Register a new medicine or chemical treatment into a farm tank.'
-        }
-        size="md"
+        onClose={() => setIsFormOpen(false)}
+        title={editingRecord ? "Edit Medicine Record" : "Record Treatment Log"}
+        maxWidth="max-w-md"
       >
         <MedicineForm
           initialData={editingRecord}
           onSubmit={handleSaveRecord}
-          onCancel={() => {
-            setIsFormOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={() => setIsFormOpen(false)}
         />
       </Modal>
 
       {/* 6. VIEW MEDICINE DETAILS MODAL */}
-      <MedicineDetailsModal
-        isOpen={isDetailsOpen}
-        onClose={() => {
-          setIsDetailsOpen(false);
-          setViewingRecord(null);
-        }}
-        record={viewingRecord}
-        onEdit={handleOpenEdit}
-        onDelete={handleOpenDelete}
-      />
+      {viewingRecord && (
+        <MedicineDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          record={viewingRecord}
+          onEdit={() => handleOpenEdit(viewingRecord)}
+        />
+      )}
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE MEDICINE RECORD CONFIRMATION DIALOG */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
-        onClose={() => {
-          setIsDeleteOpen(false);
-          setDeletingRecord(null);
-        }}
+        onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Treatment Record"
-        message={
-          deletingRecord
-            ? `Are you sure you want to delete treatment record for "${deletingRecord.medicineName || 'Treatment'}"? This action cannot be undone.`
-            : 'Are you sure you want to delete this treatment record?'
-        }
-        confirmText="Delete Treatment Record"
+        title="Delete Medicine Record"
+        message={`Are you sure you want to delete treatment record for "${deletingRecord?.medicineName || 'Medicine'}"? This action cannot be undone.`}
+        confirmText="Delete Record"
         cancelText="Cancel"
-        type="danger"
+        variant="danger"
       />
     </div>
   );

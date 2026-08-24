@@ -21,6 +21,7 @@ import { Loader } from '../../components/Loader';
 
 import { useTanks } from '../../context/TankContext';
 import { getCropReport, getCompletedCropsByTank, reportService } from '../../services/reportService';
+import { subscribeToSyncBus } from '../../utils/syncBus';
 
 const formatDateDisplay = (dateString) => {
   if (!dateString) return '—';
@@ -117,10 +118,16 @@ export default function Reports() {
     return result;
   }, [reportTanks, contextTanks]);
 
-  // Default select first tank automatically as soon as effectiveTanks are available
+  // Default select first tank automatically as soon as effectiveTanks are available or when selected tank is deleted
   useEffect(() => {
-    if (effectiveTanks.length > 0 && !selectedTankId) {
-      setSelectedTankId(effectiveTanks[0].id);
+    if (effectiveTanks.length > 0) {
+      const exists = effectiveTanks.some((t) => String(t.id) === String(selectedTankId));
+      if (!selectedTankId || !exists) {
+        setSelectedTankId(effectiveTanks[0].id);
+      }
+    } else {
+      setSelectedTankId('');
+      setReportData(null);
     }
   }, [effectiveTanks, selectedTankId]);
 
@@ -195,11 +202,19 @@ export default function Reports() {
       fetchReport();
     };
 
+    const unsubscribe = subscribeToSyncBus(() => {
+      reportService.getReportTanks().then((fetched) => {
+        if (Array.isArray(fetched)) setReportTanks(fetched);
+      }).catch(() => {});
+      fetchReport();
+    });
+
     if (typeof window !== 'undefined') {
       window.addEventListener('aquatrack:harvests-changed', handleHarvestsChanged);
     }
 
     return () => {
+      unsubscribe();
       if (typeof window !== 'undefined') {
         window.removeEventListener('aquatrack:harvests-changed', handleHarvestsChanged);
       }

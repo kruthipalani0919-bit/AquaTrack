@@ -8,7 +8,7 @@ import { Textarea } from '../Textarea';
 import { Button } from '../Button';
 import { useSites } from '../../context/SiteContext';
 
-// Zod Validation Schema strictly matching frontend required fields
+// Zod Validation Schema strictly matching frontend required fields & backend optional constraints
 const tankSchema = z.object({
   siteId: z
     .string()
@@ -23,22 +23,22 @@ const tankSchema = z.object({
     .positive('Area must be greater than 0'),
   hatcheryName: z
     .string()
+    .nullable()
     .optional(),
   hatcheryUnit: z
     .string()
+    .nullable()
     .optional(),
   remarks: z
     .string()
+    .nullable()
     .optional(),
 });
 
 /**
  * Reusable TankForm component for Add & Edit tank operations.
- * - Select Site dropdown formats site label cleanly as `${s.siteName} (${s.location})`
- *   without district or null strings.
- * - Blue highlighted container (Tank Details) contains Tank Name, Area (Acres), Hatchery Name, and Hatchery Unit.
- * - Remarks / Notes is BELOW the blue container.
- * Computes internal fallbacks for depth and waterSource for 100% backend API contract safety.
+ * Pre-fills ALL existing tank details in the edit form cleanly.
+ * Sanitizes null/empty optional strings to prevent backend Zod validation errors.
  */
 export const TankForm = ({
   initialData = null,
@@ -46,9 +46,11 @@ export const TankForm = ({
   onCancel,
   isSubmitting = false,
   defaultSiteId = '',
+  preselectedSiteId = '',
 }) => {
   const isEditing = Boolean(initialData?.id);
   const { sites = [], loading: sitesLoading } = useSites();
+  const effectiveDefaultSite = defaultSiteId || preselectedSiteId || '';
 
   // Clean Site label formatting without district or null
   const siteOptions = sites.map((s) => {
@@ -81,16 +83,16 @@ export const TankForm = ({
   useEffect(() => {
     if (initialData) {
       reset({
-        siteId: initialData.siteId || defaultSiteId || (sites.length === 1 ? sites[0].id : ''),
+        siteId: initialData.siteId || effectiveDefaultSite || (sites.length === 1 ? sites[0].id : ''),
         tankName: initialData.tankName || initialData.name || '',
-        area: initialData.area || '',
+        area: initialData.area !== undefined && initialData.area !== null ? String(initialData.area) : '',
         hatcheryName: initialData.hatcheryName || '',
         hatcheryUnit: initialData.hatcheryUnit || '',
         remarks: initialData.remarks || '',
       });
     } else {
       reset({
-        siteId: defaultSiteId || (sites.length === 1 ? sites[0].id : ''),
+        siteId: effectiveDefaultSite || (sites.length === 1 ? sites[0].id : ''),
         tankName: '',
         area: '',
         hatcheryName: '',
@@ -98,20 +100,31 @@ export const TankForm = ({
         remarks: '',
       });
     }
-  }, [initialData, defaultSiteId, sites, reset]);
+  }, [initialData, effectiveDefaultSite, sites, reset]);
 
   const handleFormSubmit = (data) => {
-    // Backend Tank Request Model: { siteId, tankName, area, depth, waterSource, hatcheryName, hatcheryUnit, remarks }
+    const cleanString = (val) => {
+      if (!val) return undefined;
+      const s = String(val).trim();
+      return s.length > 0 ? s : undefined;
+    };
+
     const tankPayload = {
       siteId: data.siteId,
       tankName: data.tankName.trim(),
       area: parseFloat(data.area),
       depth: parseFloat(initialData?.depth || 6),
       waterSource: initialData?.waterSource || 'Borewell',
-      hatcheryName: data.hatcheryName ? data.hatcheryName.trim() : null,
-      hatcheryUnit: data.hatcheryUnit ? data.hatcheryUnit.trim() : null,
-      remarks: data.remarks ? data.remarks.trim() : null,
     };
+
+    const hName = cleanString(data.hatcheryName);
+    if (hName) tankPayload.hatcheryName = hName;
+
+    const hUnit = cleanString(data.hatcheryUnit);
+    if (hUnit) tankPayload.hatcheryUnit = hUnit;
+
+    const rem = cleanString(data.remarks);
+    if (rem) tankPayload.remarks = rem;
 
     if (onSubmit) {
       onSubmit(tankPayload);

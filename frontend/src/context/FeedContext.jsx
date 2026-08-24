@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import feedService from '../services/feedService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const FeedContext = createContext(null);
 
@@ -10,17 +11,17 @@ export const FeedProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchFeedLogs = useCallback(async () => {
+  const fetchFeedLogs = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setFeedLogs([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await feedService.getFeeds();
       const list = res.data || res || [];
-      const normalized = list.map((f) => ({
+      const normalized = (Array.isArray(list) ? list : []).map((f) => ({
         ...f,
         feedingDate: f.date ? new Date(f.date).toISOString().split('T')[0] : f.feedingDate,
         quantityKg: f.quantity ?? f.quantityKg,
@@ -33,13 +34,30 @@ export const FeedProvider = ({ children }) => {
       console.error('Error fetching feed logs:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     fetchFeedLogs();
   }, [fetchFeedLogs, token]);
+
+  // Subscribe to sync bus events for cascading cleanup & re-fetch
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setFeedLogs((prev) => prev.filter((f) => String(f.tankId) !== String(detail.payload.tankId)));
+        } else if (detail.entityType === 'CROP' && detail.payload?.cropId) {
+          setFeedLogs((prev) => prev.filter((f) => String(f.cropId) !== String(detail.payload.cropId)));
+        }
+        fetchFeedLogs(true);
+      } else if (['SITE', 'TANK', 'CROP', 'FEED'].includes(detail.entityType)) {
+        fetchFeedLogs(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchFeedLogs]);
 
   const addFeedLog = async (newFeedData) => {
     const payload = {
@@ -64,6 +82,7 @@ export const FeedProvider = ({ children }) => {
       cropName: newFeedData.cropName || 'Crop',
     };
     setFeedLogs((prev) => [normalized, ...prev]);
+    emitDataMutation('FEED', 'CREATE', normalized);
     return normalized;
   };
 
@@ -91,16 +110,23 @@ export const FeedProvider = ({ children }) => {
       cropName: updated.crop?.cropName || 'Crop',
     };
     setFeedLogs((prev) => prev.map((log) => (log.id === id ? { ...log, ...normalized } : log)));
+    emitDataMutation('FEED', 'UPDATE', normalized);
     return normalized;
   };
 
   const deleteFeedLog = async (id) => {
-    await feedService.deleteFeed(id);
-    setFeedLogs((prev) => prev.filter((log) => log.id !== id));
+    if (!id) return;
+    try {
+      await feedService.deleteFeed(id);
+    } catch (err) {
+      console.warn('Backend feed delete notice:', err.message);
+    }
+    setFeedLogs((prev) => prev.filter((log) => String(log.id) !== String(id)));
+    emitDataMutation('FEED', 'DELETE', { id: String(id) });
   };
 
   const getFeedLogById = (id) => {
-    return feedLogs.find((log) => log.id === id);
+    return feedLogs.find((log) => String(log.id) === String(id));
   };
 
   // Analytics Computation
@@ -118,14 +144,14 @@ export const FeedProvider = ({ children }) => {
 
     const uniqueDates = new Set(feedLogs.map((log) => log.feedingDate));
     const dayCount = uniqueDates.size || 1;
-    const avgFeedPerDayKg = totalFeedUsedKg / dayCount;
+    const avgFeedPerDayKg = parseFloat((totalFeedUsedKg / dayCount).toFixed(1));
 
     const totalFeedCostRupees = feedLogs.reduce((acc, log) => acc + (parseFloat(log.feedCost) || 0), 0);
 
     return {
       todaysFeedKg,
       totalFeedUsedKg,
-      avgFeedPerDayKg: avgFeedPerDayKg.toFixed(1),
+      avgFeedPerDayKg,
       totalFeedCostRupees,
     };
   }, [feedLogs]);

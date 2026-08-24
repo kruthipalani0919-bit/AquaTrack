@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import pondLeaseService from '../services/pondLeaseService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const PondLeaseContext = createContext(null);
 
@@ -10,12 +11,13 @@ export const PondLeaseProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchLeases = useCallback(async () => {
+  const fetchLeases = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setLeases([]);
+      if (!isSilent) setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await pondLeaseService.getPondLeases();
@@ -25,13 +27,30 @@ export const PondLeaseProvider = ({ children }) => {
       console.error('Error fetching pond leases:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     fetchLeases();
   }, [fetchLeases, token]);
+
+  // Subscribe to sync bus events for cascading cleanup
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setLeases((prev) => prev.filter((l) => String(l.tankId) !== String(detail.payload.tankId)));
+        } else if (detail.entityType === 'LEASE' && detail.payload?.id) {
+          setLeases((prev) => prev.filter((l) => String(l.id) !== String(detail.payload.id)));
+        }
+        fetchLeases(true);
+      } else if (['SITE', 'TANK', 'LEASE'].includes(detail.entityType)) {
+        fetchLeases(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchLeases]);
 
   const addLease = async (newLeaseData) => {
     const payload = {
@@ -46,13 +65,13 @@ export const PondLeaseProvider = ({ children }) => {
     const created = res.data || res;
     setLeases((prev) => [created, ...prev]);
 
-    // Background refetch to sync nested tank/site references cleanly
     try {
-      await fetchLeases();
+      await fetchLeases(true);
     } catch (refetchErr) {
       console.warn('Background refetch leases notice:', refetchErr.message);
     }
 
+    emitDataMutation('LEASE', 'CREATE', created);
     return created;
   };
 
@@ -70,11 +89,12 @@ export const PondLeaseProvider = ({ children }) => {
     setLeases((prev) => prev.map((item) => (String(item.id) === String(id) ? { ...item, ...updated } : item)));
 
     try {
-      await fetchLeases();
+      await fetchLeases(true);
     } catch (refetchErr) {
       console.warn('Background refetch leases notice:', refetchErr.message);
     }
 
+    emitDataMutation('LEASE', 'UPDATE', updated);
     return updated;
   };
 
@@ -90,8 +110,8 @@ export const PondLeaseProvider = ({ children }) => {
       console.warn('Backend delete pond lease notice (removing local state directly):', apiErr.message);
     }
 
-    // Always remove deleted lease from state using stringified ID comparison
     setLeases((prev) => prev.filter((item) => String(item.id) !== String(id)));
+    emitDataMutation('LEASE', 'DELETE', { id: String(id) });
   };
 
   const getLeaseCropAllocations = async (id) => {

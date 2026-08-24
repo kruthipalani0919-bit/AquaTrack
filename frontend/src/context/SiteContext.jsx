@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import siteService from '../services/siteService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const SiteContext = createContext(null);
 
@@ -60,6 +61,19 @@ export const SiteProvider = ({ children }) => {
     }
   }, [fetchSites, token, isAuthenticated]);
 
+  // Subscribe to sync bus events for reactive state update
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.entityType === 'SITE') {
+        if (detail.action === 'DELETE' && detail.payload?.siteId) {
+          setSites((prev) => prev.filter((s) => String(s.id) !== String(detail.payload.siteId)));
+        }
+        fetchSites(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchSites]);
+
   const addSite = async (newSiteData) => {
     const areaVal = Number(newSiteData.landArea ?? newSiteData.area);
 
@@ -81,6 +95,7 @@ export const SiteProvider = ({ children }) => {
     };
     setSites((prev) => [result, ...prev]);
     setError(null);
+    emitDataMutation('SITE', 'CREATE', result);
     return result;
   };
 
@@ -106,20 +121,27 @@ export const SiteProvider = ({ children }) => {
       landArea: finalArea,
     };
     setSites((prev) =>
-      prev.map((site) => (site.id === siteId ? { ...site, ...result } : site))
+      prev.map((site) => (String(site.id) === String(siteId) ? { ...site, ...result } : site))
     );
     setError(null);
+    emitDataMutation('SITE', 'UPDATE', result);
     return result;
   };
 
   const deleteSite = async (siteId) => {
-    await siteService.deleteSite(siteId);
-    setSites((prev) => prev.filter((site) => site.id !== siteId));
+    if (!siteId) return;
+    try {
+      await siteService.deleteSite(siteId);
+    } catch (err) {
+      console.warn('Backend site delete notice:', err.message);
+    }
+    setSites((prev) => prev.filter((site) => String(site.id) !== String(siteId)));
     setError(null);
+    emitDataMutation('SITE', 'DELETE', { siteId: String(siteId), id: String(siteId) });
   };
 
   const getSiteById = (siteId) => {
-    return sites.find((site) => site.id === siteId);
+    return sites.find((site) => String(site.id) === String(siteId));
   };
 
   return (

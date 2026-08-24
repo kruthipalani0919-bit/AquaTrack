@@ -10,6 +10,12 @@ export const AuthProvider = ({ children }) => {
   const [farm, setFarm] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const updateFarm = useCallback((newFarmData) => {
+    if (newFarmData) {
+      setFarm((prev) => ({ ...(prev || {}), ...newFarmData }));
+    }
+  }, []);
+
   const refreshAuthData = useCallback(async () => {
     const currentToken = localStorage.getItem('token');
     if (!currentToken) {
@@ -29,9 +35,11 @@ export const AuthProvider = ({ children }) => {
       try {
         const farmRes = await farmService.getFarm();
         const farmData = farmRes?.data || farmRes;
-        setFarm(farmData);
+        if (farmData && (farmData.farmName || farmData.id)) {
+          setFarm(farmData);
+        }
       } catch (farmErr) {
-        setFarm(null);
+        // Keep existing farm if fetch fails
       }
     } catch (err) {
       console.error('Auth initialization error:', err);
@@ -49,6 +57,26 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     refreshAuthData();
   }, [refreshAuthData, token]);
+
+  // Listen for global farm updates across frontend components
+  useEffect(() => {
+    const handleFarmUpdated = (event) => {
+      if (event?.detail) {
+        updateFarm(event.detail);
+      }
+      refreshAuthData();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('aquatrack:farm-updated', handleFarmUpdated);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('aquatrack:farm-updated', handleFarmUpdated);
+      }
+    };
+  }, [refreshAuthData, updateFarm]);
 
   const login = async (credentials) => {
     const res = await authService.login(credentials);
@@ -74,7 +102,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAuthenticated = Boolean(token);
-  const farmName = farm?.farmName || '';
+  const farmName = farm?.farmName || user?.farmName || '';
 
   return (
     <AuthContext.Provider
@@ -88,6 +116,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        updateFarm,
         fetchProfile: refreshAuthData,
         refreshAuthData,
       }}
@@ -106,4 +135,3 @@ export const useAuth = () => {
 };
 
 export default AuthContext;
-

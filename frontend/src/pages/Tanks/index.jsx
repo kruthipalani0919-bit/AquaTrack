@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   Plus,
@@ -10,7 +10,8 @@ import {
   ShieldAlert,
   FileText,
   Building2,
-  Layers
+  Layers,
+  AlertCircle
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -20,11 +21,13 @@ import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { EmptyState } from '../../components/EmptyState';
+import { Loader } from '../../components/Loader';
 import { TankCard } from '../../components/TankCard';
 import { TankForm } from '../../components/TankForm';
 import { TankFilters } from '../../components/TankFilters';
 import { useTanks } from '../../context/TankContext';
 import { useSites } from '../../context/SiteContext';
+import { subscribeToSyncBus } from '../../utils/syncBus';
 
 export default function Tanks() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,12 +43,54 @@ export default function Tanks() {
   // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTank, setEditingTank] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingTank, setViewingTank] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingTank, setDeletingTank] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Reset site filter automatically if the selected site was deleted
+  useEffect(() => {
+    if (siteFilter && sites.length > 0) {
+      const exists = sites.some((s) => String(s.id) === String(siteFilter));
+      if (!exists) {
+        setSiteFilter('');
+        setSearchParams({});
+      }
+    }
+  }, [sites, siteFilter, setSearchParams]);
+
+  // Subscribe to sync bus events for immediate reactive resets
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'SITE' && detail.payload?.siteId === siteFilter) {
+          setSiteFilter('');
+          setSearchParams({});
+        }
+        if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          const tId = String(detail.payload.tankId);
+          if (viewingTank && String(viewingTank.id) === tId) {
+            setIsDetailsOpen(false);
+            setViewingTank(null);
+          }
+          if (deletingTank && String(deletingTank.id) === tId) {
+            setIsDeleteOpen(false);
+            setDeletingTank(null);
+          }
+          if (editingTank && String(editingTank.id) === tId) {
+            setIsFormOpen(false);
+            setEditingTank(null);
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [siteFilter, viewingTank, deletingTank, editingTank, setSearchParams]);
 
   // Filter Tanks List Safely
   const filteredTanks = useMemo(() => {
@@ -67,7 +112,7 @@ export default function Tanks() {
         hatcheryUnitStr.toLowerCase().includes(query);
 
       // Site filter
-      const matchesSite = siteFilter === '' || tank.siteId === siteFilter;
+      const matchesSite = siteFilter === '' || String(tank.siteId) === String(siteFilter);
 
       return matchesSearch && matchesSite;
     });
@@ -88,35 +133,42 @@ export default function Tanks() {
   // Selected site object if siteFilter is active
   const selectedSite = useMemo(() => {
     if (!siteFilter) return null;
-    return sites.find((s) => s.id === siteFilter);
+    return sites.find((s) => String(s.id) === String(siteFilter));
   }, [sites, siteFilter]);
 
   // Form Handlers
   const handleOpenAdd = () => {
     setEditingTank(null);
+    setFormError('');
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (tank) => {
-    setEditingTank(tank);
+    if (!tank || !tank.id) return;
+    setEditingTank({ ...tank });
+    setFormError('');
     setIsFormOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
   const handleOpenDetails = (tank) => {
-    setViewingTank(tank);
+    if (!tank || !tank.id) return;
+    setViewingTank({ ...tank });
     setIsDetailsOpen(true);
   };
 
   const handleOpenDelete = (tank) => {
-    setDeletingTank(tank);
+    if (!tank || !tank.id) return;
+    setDeletingTank({ ...tank });
     setIsDeleteOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
   const handleSaveTank = async (formData) => {
+    setIsSubmitting(true);
+    setFormError('');
     try {
-      if (editingTank) {
+      if (editingTank && editingTank.id) {
         await updateTank(editingTank.id, formData);
       } else {
         await addTank(formData);
@@ -125,17 +177,23 @@ export default function Tanks() {
       setEditingTank(null);
     } catch (err) {
       console.error('Error saving tank:', err);
+      setFormError(err.message || 'Failed to save tank details.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
-    if (deletingTank) {
+    if (deletingTank && deletingTank.id) {
+      setIsDeleting(true);
       try {
         await deleteTank(deletingTank.id);
         setIsDeleteOpen(false);
         setDeletingTank(null);
       } catch (err) {
         console.error('Error deleting tank:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -162,7 +220,7 @@ export default function Tanks() {
             size="sm"
             onClick={handleOpenAdd}
             icon={<Plus className="w-4 h-4" />}
-            className="font-semibold shadow-xs"
+            className="font-semibold shadow-xs cursor-pointer"
           >
             Add New Tank
           </Button>
@@ -186,244 +244,186 @@ export default function Tanks() {
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <Maximize2 className="w-4 h-4" />
+              <Layers className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Area</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Farm Area</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalArea} Acres</span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* 3. SEARCH & FILTERS */}
+      {/* 3. TANK SEARCH & SITE FILTERS BAR */}
       <TankFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         siteFilter={siteFilter}
-        onSiteChange={(siteId) => {
-          setSiteFilter(siteId);
-          if (siteId) {
-            setSearchParams({ siteId });
-          } else {
-            setSearchParams({});
-          }
+        onSiteFilterChange={(val) => {
+          setSiteFilter(val);
+          if (val) setSearchParams({ siteId: val });
+          else setSearchParams({});
         }}
-        onReset={handleResetFilters}
+        sites={sites}
+        onResetFilters={handleResetFilters}
       />
 
-      {/* Active Filter Notice */}
-      {selectedSite && (
-        <div className="p-3 bg-primary-light/40 border border-primary/20 rounded-xl flex items-center justify-between text-xs">
-          <span className="text-text-primary font-medium flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-primary" />
-            Filtering by Site: <strong className="text-primary">{selectedSite.siteName}</strong> ({selectedSite.location})
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetFilters}
-            className="text-xs text-primary font-medium hover:bg-primary-light/60"
-          >
-            Show All Sites
-          </Button>
-        </div>
-      )}
-
       {/* 4. TANKS GRID OR EMPTY STATE */}
-      {filteredTanks.length > 0 ? (
+      {loading ? (
+        <div className="py-16 text-center">
+          <Loader text="Loading farm tanks..." />
+        </div>
+      ) : filteredTanks.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredTanks.map((tank) => (
             <TankCard
               key={tank.id}
               tank={tank}
-              onViewDetails={handleOpenDetails}
-              onEdit={handleOpenEdit}
-              onDelete={handleOpenDelete}
+              onViewDetails={() => handleOpenDetails(tank)}
+              onEdit={() => handleOpenEdit(tank)}
+              onDelete={() => handleOpenDelete(tank)}
             />
           ))}
         </div>
       ) : (
-        <Card padding="relaxed" className="border-border/80">
-          <EmptyState
-            title={
-              searchQuery || siteFilter
-                ? "No matching tanks found"
-                : "No tanks registered"
-            }
-            description={
-              searchQuery || siteFilter
-                ? "No tanks match your current filter criteria. Try clearing filters or searching for a different term."
-                : "You haven't added any tanks yet. Click the button below to register your first tank."
-            }
-            actionLabel={
-              searchQuery || siteFilter ? "Reset Filters" : "Add First Tank"
-            }
-            onAction={
-              searchQuery || siteFilter ? handleResetFilters : handleOpenAdd
-            }
-          />
-        </Card>
+        <EmptyState
+          title={searchQuery || siteFilter ? "No matching tanks found" : "No tanks registered yet"}
+          description={
+            searchQuery || siteFilter
+              ? "Try adjusting your search criteria or site filter."
+              : "Start by registering your first pond tank to configure dimensions and culture cycles."
+          }
+          actionLabel={searchQuery || siteFilter ? "Reset Filters" : "Add New Tank"}
+          onAction={searchQuery || siteFilter ? handleResetFilters : handleOpenAdd}
+        />
       )}
 
-      {/* 5. ADD / EDIT TANK MODAL */}
+      {/* 5. ADD / EDIT TANK FORM MODAL */}
       <Modal
         isOpen={isFormOpen}
         onClose={() => {
-          setIsFormOpen(false);
-          setEditingTank(null);
-        }}
-        title={editingTank ? 'Edit Tank Details' : 'Add New Tank'}
-        description={
-          editingTank
-            ? `Update properties for ${editingTank.name || editingTank.tankName || 'Tank'}`
-            : 'Register a new tank into your site setup.'
-        }
-        size="lg"
-      >
-        <TankForm
-          initialData={editingTank}
-          defaultSiteId={siteFilter}
-          onSubmit={handleSaveTank}
-          onCancel={() => {
+          if (!isSubmitting) {
             setIsFormOpen(false);
             setEditingTank(null);
+            setFormError('');
+          }
+        }}
+        title={editingTank ? "Edit Tank Details" : "Add New Tank"}
+        maxWidth="max-w-lg"
+      >
+        {formError && (
+          <div className="mb-4 p-3 bg-danger-light text-danger rounded-lg text-xs font-medium border border-danger/20 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{formError}</span>
+          </div>
+        )}
+        <TankForm
+          key={editingTank ? editingTank.id : 'new-tank'}
+          initialData={editingTank}
+          sites={sites}
+          preselectedSiteId={editingTank?.siteId || siteFilter}
+          defaultSiteId={editingTank?.siteId || siteFilter}
+          onSubmit={handleSaveTank}
+          onCancel={() => {
+            if (!isSubmitting) {
+              setIsFormOpen(false);
+              setEditingTank(null);
+              setFormError('');
+            }
           }}
+          isSubmitting={isSubmitting}
         />
       </Modal>
 
-      {/* 6. TANK DETAILS MODAL */}
-      {viewingTank && (() => {
-        const tankTitle = viewingTank.name || viewingTank.tankName || 'Tank Details';
-        const targetSite = sites.find((s) => s.id === viewingTank.siteId);
-        const rawSiteName = viewingTank.site?.siteName || viewingTank.siteName || targetSite?.siteName || '';
-        const siteLocation = viewingTank.site?.location || targetSite?.location || '';
-        const displaySiteName = rawSiteName ? (siteLocation ? `${rawSiteName} (${siteLocation})` : rawSiteName) : 'Not specified';
-
-        const numArea = parseFloat(viewingTank.area);
-        const displayAreaStr = !isNaN(numArea) && numArea > 0 ? `${numArea} Acres` : 'Not specified';
-
-        const tankRemarks = (viewingTank.remarks || viewingTank.notes || '').trim();
-
-        return (
-          <Modal
-            isOpen={isDetailsOpen}
-            onClose={() => {
-              setIsDetailsOpen(false);
-              setViewingTank(null);
-            }}
-            title={tankTitle}
-            description="Tank Details"
-            size="md"
-          >
-            <div className="space-y-5">
-              {/* TANK INFORMATION SECTION */}
-              <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-2">
-                  <Container className="w-4 h-4 text-primary" /> Tank Information
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  {/* SITE */}
-                  <div className="bg-surface p-3 rounded-lg border border-border/50">
-                    <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-primary" /> Site
-                    </span>
-                    <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={displaySiteName}>
-                      {displaySiteName}
-                    </span>
-                  </div>
-
-                  {/* AREA */}
-                  <div className="bg-surface p-3 rounded-lg border border-border/50">
-                    <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
-                      <Maximize2 className="w-3 h-3 text-primary" /> Area
-                    </span>
-                    <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
-                      {displayAreaStr}
-                    </span>
-                  </div>
-
-                  {/* HATCHERY NAME (IF AVAILABLE) */}
-                  {viewingTank.hatcheryName ? (
-                    <div className="bg-surface p-3 rounded-lg border border-border/50">
-                      <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
-                        <Building2 className="w-3 h-3 text-primary" /> Hatchery Name
-                      </span>
-                      <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={viewingTank.hatcheryName}>
-                        {viewingTank.hatcheryName}
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {/* HATCHERY UNIT (IF AVAILABLE) */}
-                  {viewingTank.hatcheryUnit ? (
-                    <div className="bg-surface p-3 rounded-lg border border-border/50">
-                      <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
-                        <Layers className="w-3 h-3 text-primary" /> Hatchery Unit
-                      </span>
-                      <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={viewingTank.hatcheryUnit}>
-                        {viewingTank.hatcheryUnit}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
+      {/* 6. VIEW TANK DETAILS MODAL */}
+      {viewingTank && (
+        <Modal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          title={`Tank Details: ${viewingTank.name || viewingTank.tankName}`}
+          maxWidth="max-w-md"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-4 bg-background rounded-xl border border-border space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-border/60">
+                <span className="text-text-secondary font-medium">Tank ID</span>
+                <span className="font-bold text-text-primary">{viewingTank.id}</span>
               </div>
 
-              {/* REMARKS / NOTES SECTION */}
-              {tankRemarks ? (
-                <div className="p-3.5 rounded-xl bg-background border border-border/80 text-xs shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1 mb-1">
-                    <FileText className="w-3.5 h-3.5 text-primary" /> Remarks / Notes
-                  </span>
-                  <p className="text-text-secondary leading-relaxed">{tankRemarks}</p>
-                </div>
-              ) : null}
-
-              {/* FOOTER ACTIONS */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleOpenEdit(viewingTank)}
-                  icon={<Edit3 className="w-4 h-4" />}
-                  className="font-semibold"
-                >
-                  Edit Tank
-                </Button>
-
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleOpenDelete(viewingTank)}
-                  icon={<Trash2 className="w-4 h-4" />}
-                  className="font-semibold"
-                >
-                  Delete
-                </Button>
+              <div className="flex justify-between items-center pb-2 border-b border-border/60">
+                <span className="text-text-secondary font-medium">Tank Name</span>
+                <span className="font-bold text-text-primary">{viewingTank.name || viewingTank.tankName}</span>
               </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-border/60">
+                <span className="text-text-secondary font-medium">Area</span>
+                <span className="font-bold text-text-primary">{viewingTank.area} Acres</span>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-border/60">
+                <span className="text-text-secondary font-medium">Depth</span>
+                <span className="font-bold text-text-primary">{viewingTank.depth || 'Standard'} ft</span>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-border/60">
+                <span className="text-text-secondary font-medium">Water Source</span>
+                <span className="font-bold text-text-primary">{viewingTank.waterSource || 'Ground Water'}</span>
+              </div>
+
+              {viewingTank.hatcheryName && (
+                <div className="flex justify-between items-center pb-2 border-b border-border/60">
+                  <span className="text-text-secondary font-medium">Hatchery Name</span>
+                  <span className="font-bold text-text-primary">{viewingTank.hatcheryName}</span>
+                </div>
+              )}
+
+              {viewingTank.hatcheryUnit && (
+                <div className="flex justify-between items-center pb-2 border-b border-border/60">
+                  <span className="text-text-secondary font-medium">Hatchery Unit</span>
+                  <span className="font-bold text-text-primary">{viewingTank.hatcheryUnit}</span>
+                </div>
+              )}
+
+              {viewingTank.remarks && (
+                <div className="pt-1">
+                  <span className="text-text-secondary font-medium block mb-1">Remarks</span>
+                  <p className="text-text-primary bg-surface p-2 rounded-lg border border-border/50">{viewingTank.remarks}</p>
+                </div>
+              )}
             </div>
-          </Modal>
-        );
-      })()}
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOpenEdit(viewingTank)}
+                icon={<Edit3 className="w-3.5 h-3.5" />}
+              >
+                Edit Tank
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDetailsOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 7. DELETE TANK CONFIRMATION DIALOG */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
-        onClose={() => {
-          setIsDeleteOpen(false);
-          setDeletingTank(null);
-        }}
+        onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Tank"
-        message={
-          deletingTank
-            ? `Are you sure you want to delete "${deletingTank.name || deletingTank.tankName}"? This action cannot be undone.`
-            : 'Are you sure you want to delete this tank?'
-        }
-        confirmText="Delete Tank"
+        message={`Are you sure you want to delete tank "${deletingTank?.name || deletingTank?.tankName || 'Tank'}"? All culture records associated with this tank will be removed.`}
+        confirmText={isDeleting ? "Deleting..." : "Delete Tank"}
         cancelText="Cancel"
-        type="danger"
+        variant="danger"
+        disabled={isDeleting}
       />
     </div>
   );

@@ -22,6 +22,7 @@ import { Badge } from '../../components/Badge';
 import { Loader } from '../../components/Loader';
 
 import farmService from '../../services/farmService';
+import { useAuth } from '../../context/AuthContext';
 
 // Zod Validation Schema for required frontend inputs
 const farmSetupSchema = z.object({
@@ -31,6 +32,7 @@ const farmSetupSchema = z.object({
 
 export default function FarmSetup() {
   const navigate = useNavigate();
+  const { updateFarm, refreshAuthData } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,6 +71,10 @@ export default function FarmSetup() {
             ownerName: farm.ownerName || '',
           });
           setIsCompleted(true);
+
+          if (updateFarm) {
+            updateFarm(farm);
+          }
         } else {
           setIsCompleted(false);
         }
@@ -80,7 +86,7 @@ export default function FarmSetup() {
       }
     }
     loadFarmDetails();
-  }, [reset]);
+  }, [reset, updateFarm]);
 
   const handleNext = async (e) => {
     if (e && e.preventDefault) {
@@ -129,16 +135,31 @@ export default function FarmSetup() {
     };
 
     try {
+      let savedFarm = null;
       if (existingFarmId) {
         const updatedRes = await farmService.updateFarm(existingFarmId, farmPayload);
-        const updated = updatedRes.data || updatedRes || farmPayload;
-        setExistingFarmData(updated);
+        savedFarm = updatedRes.data || updatedRes || farmPayload;
+        setExistingFarmData(savedFarm);
       } else {
         const createdRes = await farmService.createFarm(farmPayload);
-        const created = createdRes.data || createdRes;
-        setExistingFarmId(created?.id || 'new-farm');
-        setExistingFarmData(created || farmPayload);
+        savedFarm = createdRes.data || createdRes;
+        setExistingFarmId(savedFarm?.id || 'new-farm');
+        setExistingFarmData(savedFarm || farmPayload);
       }
+
+      // Immediately sync with global AuthContext state
+      if (updateFarm) {
+        updateFarm(savedFarm);
+      }
+      if (refreshAuthData) {
+        await refreshAuthData();
+      }
+
+      // Dispatch global event for reactive UI updates (Sidebar, Navbar, Dashboard)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('aquatrack:farm-updated', { detail: savedFarm }));
+      }
+
       setIsSubmitting(false);
       setIsCompleted(true);
     } catch (err) {
