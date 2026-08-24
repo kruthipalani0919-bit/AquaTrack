@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import medicineService from '../services/medicineService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const MedicineContext = createContext(null);
 
@@ -10,18 +11,19 @@ export const MedicineProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchMedicineRecords = useCallback(async () => {
+  const fetchMedicineRecords = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setMedicineRecords([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await medicineService.getMedicines();
       const list = res.data || res || [];
-      const normalized = list.map((rec) => ({
+      const normalized = (Array.isArray(list) ? list : []).map((rec) => ({
         ...rec,
+        id: String(rec.id),
         applicationDate: rec.date ? new Date(rec.date).toISOString().split('T')[0] : rec.applicationDate,
         tankName: rec.tank?.tankName || rec.tankName || 'Tank',
         dosage: rec.dosage ? String(rec.dosage) : '1',
@@ -34,13 +36,30 @@ export const MedicineProvider = ({ children }) => {
       console.error('Error fetching medicines:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     fetchMedicineRecords();
   }, [fetchMedicineRecords, token]);
+
+  // Subscribe to sync bus events for cascading medicine cleanup & reactive tank updates
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'SITE' && detail.payload?.siteId) {
+          setMedicineRecords((prev) => prev.filter((m) => String(m.tank?.siteId || m.siteId) !== String(detail.payload.siteId)));
+        } else if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setMedicineRecords((prev) => prev.filter((m) => String(m.tankId) !== String(detail.payload.tankId)));
+        }
+        fetchMedicineRecords(true);
+      } else if (['SITE', 'TANK', 'CROP', 'MEDICINE'].includes(detail.entityType)) {
+        fetchMedicineRecords(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchMedicineRecords]);
 
   const addMedicineRecord = async (newRecordData) => {
     const payload = {
@@ -58,15 +77,19 @@ export const MedicineProvider = ({ children }) => {
     const created = res.data || res;
     const normalized = {
       ...created,
+      id: String(created.id),
       applicationDate: created.date ? new Date(created.date).toISOString().split('T')[0] : payload.date,
       tankName: newRecordData.tankName || 'Tank',
       status: 'Completed',
     };
     setMedicineRecords((prev) => [normalized, ...prev]);
+    emitDataMutation('MEDICINE', 'CREATE', normalized);
+    fetchMedicineRecords(true);
     return normalized;
   };
 
   const updateMedicineRecord = async (id, updatedData) => {
+    const targetId = String(id);
     const payload = {
       ...(updatedData.medicineName ? { medicineName: updatedData.medicineName } : {}),
       ...(updatedData.purpose ? { purpose: updatedData.purpose } : {}),
@@ -77,25 +100,37 @@ export const MedicineProvider = ({ children }) => {
       ...(updatedData.notes !== undefined ? { notes: updatedData.notes } : {}),
     };
 
-    const res = await medicineService.updateMedicine(id, payload);
+    const res = await medicineService.updateMedicine(targetId, payload);
     const updated = res.data || res;
     const normalized = {
       ...updated,
+      id: targetId,
       applicationDate: updated.date ? new Date(updated.date).toISOString().split('T')[0] : updatedData.applicationDate,
       tankName: updated.tank?.tankName || 'Tank',
       status: 'Completed',
     };
-    setMedicineRecords((prev) => prev.map((rec) => (rec.id === id ? { ...rec, ...normalized } : rec)));
+    setMedicineRecords((prev) => prev.map((rec) => (String(rec.id) === targetId ? { ...rec, ...normalized } : rec)));
+    emitDataMutation('MEDICINE', 'UPDATE', normalized);
+    fetchMedicineRecords(true);
     return normalized;
   };
 
   const deleteMedicineRecord = async (id) => {
-    await medicineService.deleteMedicine(id);
-    setMedicineRecords((prev) => prev.filter((rec) => rec.id !== id));
+    if (!id) return;
+    const targetId = String(id);
+    try {
+      await medicineService.deleteMedicine(targetId);
+    } catch (err) {
+      console.warn('Backend medicine delete notice:', err.message);
+    }
+    setMedicineRecords((prev) => prev.filter((rec) => String(rec.id) !== targetId));
+    emitDataMutation('MEDICINE', 'DELETE', { id: targetId });
+    fetchMedicineRecords(true);
   };
 
   const getMedicineRecordById = (id) => {
-    return medicineRecords.find((rec) => rec.id === id);
+    if (!id) return null;
+    return medicineRecords.find((rec) => String(rec.id) === String(id));
   };
 
   // Analytics Computations

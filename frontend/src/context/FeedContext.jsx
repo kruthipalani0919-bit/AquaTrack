@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import feedService from '../services/feedService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const FeedContext = createContext(null);
 
@@ -10,18 +11,19 @@ export const FeedProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchFeedLogs = useCallback(async () => {
+  const fetchFeedLogs = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setFeedLogs([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await feedService.getFeeds();
       const list = res.data || res || [];
-      const normalized = list.map((f) => ({
+      const normalized = (Array.isArray(list) ? list : []).map((f) => ({
         ...f,
+        id: String(f.id),
         feedingDate: f.date ? new Date(f.date).toISOString().split('T')[0] : f.feedingDate,
         quantityKg: f.quantity ?? f.quantityKg,
         feedCost: f.totalCost ?? f.feedCost ?? (f.quantity * f.costPerKg),
@@ -33,13 +35,30 @@ export const FeedProvider = ({ children }) => {
       console.error('Error fetching feed logs:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     fetchFeedLogs();
   }, [fetchFeedLogs, token]);
+
+  // Subscribe to sync bus events for cascading feed cleanup & reactive updates
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'SITE' && detail.payload?.siteId) {
+          setFeedLogs((prev) => prev.filter((f) => String(f.crop?.tank?.siteId || f.siteId) !== String(detail.payload.siteId)));
+        } else if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setFeedLogs((prev) => prev.filter((f) => String(f.crop?.tankId || f.tankId) !== String(detail.payload.tankId)));
+        }
+        fetchFeedLogs(true);
+      } else if (['SITE', 'TANK', 'CROP', 'FEED'].includes(detail.entityType)) {
+        fetchFeedLogs(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchFeedLogs]);
 
   const addFeedLog = async (newFeedData) => {
     const payload = {
@@ -57,6 +76,7 @@ export const FeedProvider = ({ children }) => {
     const created = res.data || res;
     const normalized = {
       ...created,
+      id: String(created.id),
       feedingDate: created.date ? new Date(created.date).toISOString().split('T')[0] : payload.date,
       quantityKg: created.quantity,
       feedCost: created.totalCost,
@@ -64,10 +84,13 @@ export const FeedProvider = ({ children }) => {
       cropName: newFeedData.cropName || 'Crop',
     };
     setFeedLogs((prev) => [normalized, ...prev]);
+    emitDataMutation('FEED', 'CREATE', normalized);
+    fetchFeedLogs(true);
     return normalized;
   };
 
   const updateFeedLog = async (id, updatedData) => {
+    const targetId = String(id);
     const payload = {
       ...(updatedData.feedingDate || updatedData.date ? { date: updatedData.feedingDate || updatedData.date } : {}),
       ...(updatedData.feedType ? { feedType: updatedData.feedType } : {}),
@@ -80,27 +103,39 @@ export const FeedProvider = ({ children }) => {
       ...(updatedData.notes !== undefined ? { notes: updatedData.notes } : {}),
     };
 
-    const res = await feedService.updateFeed(id, payload);
+    const res = await feedService.updateFeed(targetId, payload);
     const updated = res.data || res;
     const normalized = {
       ...updated,
+      id: targetId,
       feedingDate: updated.date ? new Date(updated.date).toISOString().split('T')[0] : updatedData.feedingDate,
       quantityKg: updated.quantity ?? updatedData.quantityKg,
       feedCost: updated.totalCost ?? updatedData.feedCost,
       tankName: updated.crop?.tank?.tankName || 'Tank',
       cropName: updated.crop?.cropName || 'Crop',
     };
-    setFeedLogs((prev) => prev.map((log) => (log.id === id ? { ...log, ...normalized } : log)));
+    setFeedLogs((prev) => prev.map((log) => (String(log.id) === targetId ? { ...log, ...normalized } : log)));
+    emitDataMutation('FEED', 'UPDATE', normalized);
+    fetchFeedLogs(true);
     return normalized;
   };
 
   const deleteFeedLog = async (id) => {
-    await feedService.deleteFeed(id);
-    setFeedLogs((prev) => prev.filter((log) => log.id !== id));
+    if (!id) return;
+    const targetId = String(id);
+    try {
+      await feedService.deleteFeed(targetId);
+    } catch (err) {
+      console.warn('Backend feed delete notice:', err.message);
+    }
+    setFeedLogs((prev) => prev.filter((log) => String(log.id) !== targetId));
+    emitDataMutation('FEED', 'DELETE', { id: targetId });
+    fetchFeedLogs(true);
   };
 
   const getFeedLogById = (id) => {
-    return feedLogs.find((log) => log.id === id);
+    if (!id) return null;
+    return feedLogs.find((log) => String(log.id) === String(id));
   };
 
   // Analytics Computation

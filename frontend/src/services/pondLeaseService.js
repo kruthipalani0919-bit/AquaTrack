@@ -64,6 +64,7 @@ export const pondLeaseService = {
   getLeaseCropAllocations,
   updatePondLease,
   deletePondLease,
+  deleteLease: deletePondLease, // Alias for 100% method call compatibility
 };
 
 export default pondLeaseService;

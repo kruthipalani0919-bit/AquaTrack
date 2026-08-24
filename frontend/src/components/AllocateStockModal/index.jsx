@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MapPin, ShieldAlert, Package, Scale, Layers } from 'lucide-react';
+import { MapPin, ShieldAlert, Package, Scale, Layers, Info } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -38,6 +38,7 @@ const UNIT_OPTIONS = [
  * Reusable AllocateStockForm component styled consistently with AquaTrack registration modals:
  * - Visually highlighted Allocation Details section card
  * - Stock Category *, Select Site *, Allocated Quantity *, Unit * fields with icons
+ * - Available unallocated stock helper card & validation against over-allocation
  * - Bottom right action buttons: Cancel, Allocate Stock
  */
 export const AllocateStockForm = ({
@@ -49,15 +50,19 @@ export const AllocateStockForm = ({
   const { sites = [], loading: sitesLoading } = useSites();
   const [formError, setFormError] = useState('');
 
-  // Clean Site label formatting without district or null
-  const siteOptions = sites.map((s) => {
-    const siteName = s.siteName || 'Site';
-    const locationSuffix = s.location ? ` (${s.location})` : '';
-    return {
-      value: s.id,
-      label: `${siteName}${locationSuffix}`,
-    };
-  });
+  // Active non-deleted site options
+  const siteOptions = useMemo(() => {
+    return (sites || [])
+      .filter((s) => s && s.id)
+      .map((s) => {
+        const siteName = s.siteName || 'Site';
+        const locationSuffix = s.location ? ` (${s.location})` : '';
+        return {
+          value: String(s.id),
+          label: `${siteName}${locationSuffix}`,
+        };
+      });
+  }, [sites]);
 
   const {
     register,
@@ -69,7 +74,7 @@ export const AllocateStockForm = ({
     resolver: zodResolver(allocateStockSchema),
     defaultValues: {
       category: 'FEED',
-      siteId: sites.length === 1 ? sites[0].id : '',
+      siteId: siteOptions.length > 0 ? siteOptions[0].value : '',
       allocatedQuantity: '',
       unit: 'kg',
     },
@@ -78,11 +83,28 @@ export const AllocateStockForm = ({
 
   const selectedCategory = watch('category');
 
+  // Find matching farm stock for selected category
+  const categoryStock = useMemo(() => {
+    const catUpper = (selectedCategory || 'FEED').toUpperCase();
+    return availableStockings.find((s) => s && s.category?.toUpperCase() === catUpper);
+  }, [availableStockings, selectedCategory]);
+
+  // Compute available unallocated quantity
+  const availableUnallocated = useMemo(() => {
+    if (!categoryStock) return 0;
+    if (categoryStock.unallocatedQuantity !== undefined && categoryStock.unallocatedQuantity !== null) {
+      return parseFloat(categoryStock.unallocatedQuantity) || 0;
+    }
+    const total = parseFloat(categoryStock.totalQuantity) || 0;
+    const allocated = parseFloat(categoryStock.totalAllocated) || 0;
+    return Math.max(total - allocated, 0);
+  }, [categoryStock]);
+
   // Auto-set unit default based on category if unchanged
   const handleCategoryChange = (e) => {
     const val = e.target.value;
     setValue('category', val);
-    const match = availableStockings.find((s) => s.category?.toUpperCase() === val.toUpperCase());
+    const match = availableStockings.find((s) => s && s.category?.toUpperCase() === val.toUpperCase());
     if (match?.unit) {
       setValue('unit', match.unit);
     } else if (val === 'MEDICINE') {
@@ -92,11 +114,39 @@ export const AllocateStockForm = ({
     }
   };
 
+  useEffect(() => {
+    if (categoryStock?.unit) {
+      setValue('unit', categoryStock.unit);
+    }
+  }, [categoryStock, setValue]);
+
   const handleFormSubmit = async (data) => {
     setFormError('');
+
+    if (siteOptions.length === 0) {
+      setFormError('No active site available for allocation. Please create a site first.');
+      return;
+    }
+
+    if (!categoryStock) {
+      setFormError(`No farm stock found for category "${data.category}". Please add stock first.`);
+      return;
+    }
+
+    const requestedQty = parseFloat(data.allocatedQuantity);
+    if (requestedQty > availableUnallocated) {
+      setFormError(
+        `Allocated quantity (${requestedQty} ${data.unit}) cannot exceed available unallocated stock (${availableUnallocated} ${data.unit}).`
+      );
+      return;
+    }
+
     try {
       if (onSubmit) {
-        await onSubmit(data);
+        await onSubmit({
+          ...data,
+          stockingId: categoryStock.id,
+        });
       }
     } catch (err) {
       setFormError(err.message || 'Failed to allocate stock to site');
@@ -111,6 +161,18 @@ export const AllocateStockForm = ({
           <span>{formError}</span>
         </div>
       )}
+
+      {/* Helper Info Card: Available Unallocated Stock */}
+      <div className="p-3 rounded-xl bg-background border border-border/60 flex items-center justify-between text-xs shadow-2xs">
+        <span className="text-text-secondary font-medium flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5 text-primary" /> Unallocated {selectedCategory} Stock
+        </span>
+        <span className="font-bold text-primary">
+          {categoryStock
+            ? `${availableUnallocated} ${categoryStock.unit || (selectedCategory === 'MEDICINE' ? 'L' : 'kg')}`
+            : '0 In Stock'}
+        </span>
+      </div>
 
       {/* ALLOCATION DETAILS SECTION */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-4 shadow-2xs">
@@ -136,7 +198,7 @@ export const AllocateStockForm = ({
           required={true}
           placeholder="Choose site location..."
           options={siteOptions}
-          disabled={sitesLoading || isSubmitting}
+          disabled={sitesLoading || isSubmitting || siteOptions.length === 0}
           error={errors.siteId?.message}
           icon={<MapPin className="w-4 h-4 text-primary" />}
           {...register('siteId')}

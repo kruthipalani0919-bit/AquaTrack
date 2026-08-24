@@ -7,7 +7,7 @@ import { Button } from '../Button';
 /**
  * Reusable CropCard component matching the exact visual language, structure,
  * padding, icon container, typography, and button styling of TankCard:
- * - Header: Sprout icon in pastel container, Batch Title (e.g. Batch 53), Tank Subtitle (e.g. Tank A1) directly below, Status Badge (Active) top right.
+ * - Header: Sprout icon in pastel container, Batch Title (e.g. Batch 53), Tank Subtitle (e.g. A1 or No Tank Assigned) directly below, Status Badge (Active) top right.
  * - Information Area: Single specification box displaying Seed Variety & Stocking Date.
  * - Footer Actions: View Details (primary outline button), Edit & Delete icon triggers.
  */
@@ -31,10 +31,10 @@ export const CropCard = ({
   const displayName = batchNumber ? `Batch ${batchNumber}` : cropName || 'Crop Batch';
   const displayVariety = seedVariety || 'Not specified';
 
-  // Format tank name cleanly: e.g. "Tank A1" without "Tank: A1" prefix or water source string
-  const rawTank = tankName || crop?.tank?.name || crop?.tank?.tankName || 'A1';
+  // Format tank name cleanly: e.g. "A1" or "No Tank Assigned" without fallback to generic "Tank" or "A1"
+  const rawTank = tankName || crop?.tank?.tankName || crop?.tank?.name || (crop?.tankId ? 'Tank' : 'No Tank Assigned');
   const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
-  const tankLabel = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
+  const tankLabel = cleanTank;
 
   const validStockingDate = stockingDate ? new Date(stockingDate) : null;
   const formattedStockingDate = validStockingDate && !isNaN(validStockingDate.getTime())

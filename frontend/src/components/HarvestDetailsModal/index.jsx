@@ -1,11 +1,14 @@
 import React from 'react';
-import { Wheat, Container, Calendar, Weight, User, IndianRupee, Truck, Edit3, Trash2 } from 'lucide-react';
+import { Container, Calendar, Weight, User, IndianRupee, Wheat, Edit3, Trash2 } from 'lucide-react';
 import { Modal } from '../Modal';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Reusable HarvestDetailsModal component to view full harvest record details.
+ * Reusable HarvestDetailsModal component.
+ * Layout:
+ * 1. Top Section: Tank Header, Buyer/Trader Name, Harvest Date, Notes.
+ * 2. Bottom Highlighted Blue Section: Selling Price, Shrimp Count, ABW, and Harvest Expense.
  */
 export const HarvestDetailsModal = ({
   isOpen,
@@ -16,77 +19,118 @@ export const HarvestDetailsModal = ({
 }) => {
   if (!harvest) return null;
 
+  const rawTank = harvest.tankName || harvest.crop?.tank?.tankName || harvest.crop?.tank?.name || 'A1';
+  const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+  const displayTank = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
+
+  const shrimpCountVal = harvest.shrimpCount || harvest.production || 0;
+  const sellingPriceVal = parseFloat(harvest.sellingPrice) || 0;
+  const abwVal = harvest.averageWeight !== undefined && harvest.averageWeight !== null
+    ? harvest.averageWeight
+    : (shrimpCountVal > 0 ? (1000 / shrimpCountVal).toFixed(2) : 'N/A');
+  const harvestExpenseVal = parseFloat(harvest.harvestExpense || 0);
+
+  const formattedDate = harvest.harvestDate
+    ? new Date(harvest.harvestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'Not specified';
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Harvest Details - ${harvest.tankName || 'Tank'}`}
-      description="Harvest yield metrics and transaction details"
+      title={`Harvest Details - ${displayTank}`}
+      description="Recorded pond harvest yields and transaction details"
       size="md"
     >
-      <div className="space-y-6">
-        {/* Header Tank & Buyer */}
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
-          <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-            <Container className="w-4 h-4 text-primary" /> {harvest.tankName || 'Tank 1'}
+      <div className="space-y-4 pt-1">
+        {/* 1. TOP SECTION SEPARATELY: Tank Name Header & Status */}
+        <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-border/80 shadow-2xs">
+          <span className="text-xs font-bold text-text-primary flex items-center gap-2">
+            <Container className="w-4 h-4 text-primary" /> {displayTank}
           </span>
-          <Badge variant="success">
+          <Badge variant="success" size="sm" className="font-semibold">
             Harvested
           </Badge>
         </div>
 
-        {/* Spec Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Production</span>
-            <span className="text-sm font-extrabold text-text-primary mt-1 block">{harvest.production} kg</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Avg Weight (ABW)</span>
-            <span className="text-sm font-extrabold text-text-primary mt-1 block">{harvest.averageWeight} g</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Survival Rate</span>
-            <span className="text-sm font-extrabold text-emerald-700 mt-1 block">{harvest.survivalRate}%</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Selling Price</span>
-            <span className="text-sm font-extrabold text-primary mt-1 block">₹{harvest.sellingPrice}/kg</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Transport Cost</span>
-            <span className="text-sm font-bold text-text-primary mt-1 block">₹{harvest.transportationCost}</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Harvest Expense</span>
-            <span className="text-sm font-bold text-text-primary mt-1 block">₹{harvest.harvestExpense}</span>
-          </div>
-        </div>
-
-        {/* Buyer & Date Section */}
-        <div className="p-3.5 rounded-xl bg-background border border-border space-y-2 text-xs">
+        {/* BUYER & HARVEST DATE CARD */}
+        <div className="p-3.5 rounded-xl bg-background border border-border/80 space-y-2.5 text-xs shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-text-secondary flex items-center gap-1.5 font-medium">
-              <User className="w-3.5 h-3.5 text-primary" /> Buyer / Trader
+              <User className="w-3.5 h-3.5 text-primary" /> Buyer / Trader Name
             </span>
-            <span className="font-bold text-text-primary">{harvest.buyerName || 'Buyer'}</span>
+            <span className="font-extrabold text-text-primary text-sm">{harvest.buyerName || 'Not specified'}</span>
           </div>
 
           <div className="flex items-center justify-between border-t border-border/60 pt-2">
             <span className="text-text-secondary flex items-center gap-1.5 font-medium">
-              <Calendar className="w-3.5 h-3.5 text-accent" /> Harvest Date
+              <Calendar className="w-3.5 h-3.5 text-primary" /> Harvest Date
             </span>
-            <span className="font-bold text-text-primary">{harvest.harvestDate}</span>
+            <span className="font-bold text-text-primary">{formattedDate}</span>
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+        {/* NOTES & REMARKS (IF PROVIDED) */}
+        {harvest.notes && String(harvest.notes).trim() && (
+          <div className="p-3 rounded-xl bg-background border border-border/60 text-xs space-y-1">
+            <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider block">
+              Notes & Remarks
+            </span>
+            <p className="text-text-primary font-medium">{harvest.notes}</p>
+          </div>
+        )}
+
+        {/* 2. BLUE HIGHLIGHTED SECTION AT BOTTOM: Selling Price, Shrimp Count, ABW, Harvest Expense */}
+        <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200/80 shadow-2xs space-y-3">
+          <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+            <Wheat className="w-3.5 h-3.5 text-blue-700" /> Harvest Transaction Summary
+          </h4>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            {/* Shrimp Count */}
+            <div className="p-3 rounded-lg bg-white/90 border border-blue-100 shadow-2xs space-y-0.5">
+              <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider block">
+                Shrimp Count
+              </span>
+              <span className="text-sm font-extrabold text-text-primary block">
+                {shrimpCountVal}
+              </span>
+            </div>
+
+            {/* Average Weight (ABW) */}
+            <div className="p-3 rounded-lg bg-white/90 border border-blue-100 shadow-2xs space-y-0.5">
+              <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider block">
+                Average Weight (ABW)
+              </span>
+              <span className="text-sm font-extrabold text-text-primary block">
+                {abwVal} g
+              </span>
+            </div>
+
+            {/* Selling Price */}
+            <div className="p-3 rounded-lg bg-white/90 border border-blue-100 shadow-2xs space-y-0.5">
+              <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider block">
+                Selling Price
+              </span>
+              <span className="text-sm font-extrabold text-teal-700 block">
+                ₹{sellingPriceVal}/kg
+              </span>
+            </div>
+
+            {/* Harvest Expense */}
+            <div className="p-3 rounded-lg bg-white/90 border border-blue-100 shadow-2xs space-y-0.5">
+              <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider block">
+                Harvest Expense
+              </span>
+              <span className="text-sm font-extrabold text-amber-700 block">
+                ₹{harvestExpenseVal.toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. FOOTER ACTIONS */}
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/80">
           {onEdit && (
             <Button
               variant="outline"
@@ -98,14 +142,16 @@ export const HarvestDetailsModal = ({
             </Button>
           )}
 
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => onDelete(harvest)}
-            icon={<Trash2 className="w-4 h-4" />}
-          >
-            Delete
-          </Button>
+          {onDelete && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => onDelete(harvest)}
+              icon={<Trash2 className="w-4 h-4" />}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

@@ -7,6 +7,7 @@ import {
     createHarvestController,
     getHarvestsController,
     getHarvestByIdController,
+    updateHarvestController,
     deleteHarvestController,
     getHarvestSummaryController
 } from "../controllers/harvest.controller.js";
@@ -41,6 +42,13 @@ router.get(
     "/:id",
     auth,
     getHarvestByIdController
+);
+
+router.put(
+    "/:id",
+    auth,
+    validate(updateHarvestSchema),
+    updateHarvestController
 );
 
 router.delete(

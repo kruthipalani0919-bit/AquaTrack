@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import stockingService from '../services/stockingService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const StockingContext = createContext(null);
 
@@ -10,22 +11,26 @@ export const StockingProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchStockings = useCallback(async () => {
+  // Fetch real farm stock records from backend database
+  const fetchStockings = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setStockings([]);
+      if (!isSilent) setLoading(false);
       return;
     }
-    setLoading(true);
+
+    if (!isSilent) setLoading(true);
     setError(null);
+
     try {
       const res = await stockingService.getStockings();
-      const stockingList = res.data || res || [];
-      setStockings(stockingList);
+      const stockingList = res?.data || res || [];
+      setStockings(Array.isArray(stockingList) ? stockingList : []);
     } catch (err) {
       console.error('Error fetching farm stocking overview:', err);
       setError(err.message || 'Failed to load stock inventory');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
@@ -33,28 +38,56 @@ export const StockingProvider = ({ children }) => {
     fetchStockings();
   }, [fetchStockings, token]);
 
+  // Subscribe to sync bus events for cascading cleanup & re-fetching
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (['SITE', 'TANK', 'CROP', 'STOCKING', 'FEED', 'MEDICINE'].includes(detail.entityType)) {
+        fetchStockings(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchStockings]);
+
+  // Create real stock record in database
   const addStock = async (stockData) => {
+    setError(null);
     const payload = {
       category: stockData.category.toUpperCase(),
       totalQuantity: parseFloat(stockData.totalQuantity),
       unit: stockData.unit ? stockData.unit.trim() : 'kg',
     };
 
-    const res = await stockingService.createStocking(payload);
-    await fetchStockings();
-    return res.data || res;
+    try {
+      const res = await stockingService.createStocking(payload);
+      const result = res?.data || res;
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'CREATE', result);
+      return result;
+    } catch (err) {
+      console.error('[StockingContext] Add stock error:', err);
+      const msg = err.message || 'Failed to add stock record';
+      setError(msg);
+      throw new Error(msg);
+    }
   };
 
+  // Allocate real stock to site in database
   const allocateStock = async (allocationData) => {
+    setError(null);
     const { stockingId, category, siteId, allocatedQuantity, unit } = allocationData;
 
     let targetStockingId = stockingId;
     if (!targetStockingId && category) {
-      const match = stockings.find(
-        (s) => s.category?.toUpperCase() === category.toUpperCase()
-      );
+      const match = stockings.find((s) => {
+        if (s.category?.toUpperCase() !== category.toUpperCase()) return false;
+        const unallocated = s.unallocatedQuantity !== undefined
+          ? parseFloat(s.unallocatedQuantity)
+          : Math.max((parseFloat(s.totalQuantity) || 0) - (parseFloat(s.totalAllocated) || 0), 0);
+        return unallocated > 0;
+      });
+
       if (!match) {
-        throw new Error(`No farm stock found for category "${category}". Please add farm stock first.`);
+        throw new Error(`No available unallocated stock for category "${category}". Please add stock first.`);
       }
       targetStockingId = match.id;
     }
@@ -69,9 +102,18 @@ export const StockingProvider = ({ children }) => {
       unit: unit ? unit.trim() : 'kg',
     };
 
-    const res = await stockingService.allocateStock(targetStockingId, payload);
-    await fetchStockings();
-    return res.data || res;
+    try {
+      const res = await stockingService.allocateStock(targetStockingId, payload);
+      const result = res?.data || res;
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'UPDATE', result);
+      return result;
+    } catch (err) {
+      console.error('[StockingContext] Allocate stock error:', err);
+      const msg = err.message || 'Failed to allocate stock to site';
+      setError(msg);
+      throw new Error(msg);
+    }
   };
 
   const getSiteAllocations = async (siteId) => {
