@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import pondLeaseService from '../services/pondLeaseService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const PondLeaseContext = createContext(null);
 
@@ -10,28 +11,47 @@ export const PondLeaseProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchLeases = useCallback(async () => {
+  const fetchLeases = useCallback(async (isSilent = false) => {
     if (!isAuthenticated) {
       setLeases([]);
       return;
     }
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await pondLeaseService.getPondLeases();
       const list = res.data || res || [];
-      setLeases(list);
+      const normalized = (Array.isArray(list) ? list : []).map((l) => ({
+        ...l,
+        id: String(l.id),
+      }));
+      setLeases(normalized);
     } catch (err) {
       console.error('Error fetching pond leases:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     fetchLeases();
   }, [fetchLeases, token]);
+
+  // Subscribe to sync bus events for reactive cascading cleanup
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.action === 'DELETE') {
+        if (detail.entityType === 'TANK' && detail.payload?.tankId) {
+          setLeases((prev) => prev.filter((l) => String(l.tankId) !== String(detail.payload.tankId)));
+        }
+        fetchLeases(true);
+      } else if (['SITE', 'TANK', 'CROP', 'LEASE'].includes(detail.entityType)) {
+        fetchLeases(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchLeases]);
 
   const addLease = async (leaseData) => {
     const payload = {
@@ -44,11 +64,17 @@ export const PondLeaseProvider = ({ children }) => {
 
     const res = await pondLeaseService.createPondLease(payload);
     const created = res.data || res;
-    setLeases((prev) => [created, ...prev]);
-    return created;
+    const normalized = {
+      ...created,
+      id: String(created.id),
+    };
+    setLeases((prev) => [normalized, ...prev]);
+    emitDataMutation('LEASE', 'CREATE', normalized);
+    return normalized;
   };
 
   const updateLease = async (id, updatedData) => {
+    const targetId = String(id);
     const payload = {
       ...(updatedData.tankId ? { tankId: updatedData.tankId } : {}),
       ...(updatedData.totalLeaseAmount ? { totalLeaseAmount: parseFloat(updatedData.totalLeaseAmount) } : {}),
@@ -57,19 +83,36 @@ export const PondLeaseProvider = ({ children }) => {
       ...(updatedData.remarks !== undefined ? { remarks: updatedData.remarks } : {}),
     };
 
-    const res = await pondLeaseService.updatePondLease(id, payload);
+    const res = await pondLeaseService.updatePondLease(targetId, payload);
     const updated = res.data || res;
-    setLeases((prev) => prev.map((item) => (item.id === id ? updated : item)));
-    return updated;
+    const normalized = {
+      ...updated,
+      id: targetId,
+    };
+    setLeases((prev) => prev.map((item) => (String(item.id) === targetId ? normalized : item)));
+    emitDataMutation('LEASE', 'UPDATE', normalized);
+    return normalized;
   };
 
   const deleteLease = async (id) => {
-    await pondLeaseService.deleteLease(id);
-    setLeases((prev) => prev.filter((item) => item.id !== id));
+    if (!id) return;
+    const targetId = String(id);
+    try {
+      const deleteFn = pondLeaseService.deleteLease || pondLeaseService.deletePondLease;
+      if (deleteFn) {
+        await deleteFn(targetId);
+      }
+    } catch (err) {
+      console.warn('Backend lease delete notice:', err.message);
+    }
+    setLeases((prev) => prev.filter((item) => String(item.id) !== targetId));
+    emitDataMutation('LEASE', 'DELETE', { id: targetId });
   };
 
   const getLeaseCropAllocations = async (id) => {
-    const res = await pondLeaseService.getLeaseCropAllocations(id);
+    if (!id) return null;
+    const targetId = String(id);
+    const res = await pondLeaseService.getLeaseCropAllocations(targetId);
     return res.data || res;
   };
 

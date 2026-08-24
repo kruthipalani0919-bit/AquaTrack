@@ -150,9 +150,10 @@ export const SiteForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Site' : 'Save Site'}
+          {isEditing ? (isSubmitting ? 'Updating...' : 'Update Site') : (isSubmitting ? 'Registering...' : 'Save Site')}
         </Button>
       </div>
     </form>

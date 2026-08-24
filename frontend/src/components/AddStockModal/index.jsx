@@ -154,9 +154,10 @@ export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          Add Stock
+          {isSubmitting ? 'Adding...' : 'Add Stock'}
         </Button>
       </div>
     </form>

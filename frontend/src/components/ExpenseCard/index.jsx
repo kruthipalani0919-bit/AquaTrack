@@ -26,6 +26,7 @@ export const ExpenseCard = ({
     description,
     amount,
     paymentMode,
+    paymentModeDisplay,
     date,
     notes,
   } = expense || {};
@@ -37,7 +38,7 @@ export const ExpenseCard = ({
   const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
   const tankLabel = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
 
-  const displayPayment = paymentMode || 'Cash';
+  const displayPayment = paymentModeDisplay || (paymentMode === 'UPI' ? 'UPI / Net Banking' : paymentMode) || 'Cash';
   const displayDate = date || 'Not specified';
   const numericAmount = parseFloat(amount) || 0;
 
@@ -67,29 +68,29 @@ export const ExpenseCard = ({
       {/* 2. INFORMATION SPECIFICATION BOX */}
       <div className="py-4 border-b border-border/60">
         <div className="flex flex-col items-start p-3 rounded-lg bg-background/60 border border-border/40 space-y-2">
-          <div className="w-full flex items-center justify-between text-xs pb-1.5 border-b border-border/40">
-            <span className="text-[10px] uppercase font-bold text-primary tracking-wider">
-              Expense Amount
+          <div className="w-full flex items-center justify-between">
+            <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
+              Amount
             </span>
-            <span className="font-extrabold text-primary truncate ml-2">
-              ₹{numericAmount.toLocaleString()}
+            <span className="text-sm font-black text-text-primary tracking-tight">
+              ₹{numericAmount.toLocaleString('en-IN')}
             </span>
           </div>
 
-          <div className="w-full flex items-center justify-between text-xs">
+          <div className="w-full flex items-center justify-between pt-1 border-t border-border/40">
             <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
               Payment Mode
             </span>
-            <span className="font-bold text-text-primary truncate ml-2">
+            <span className="text-xs font-bold text-primary truncate">
               {displayPayment}
             </span>
           </div>
 
-          <div className="w-full flex items-center justify-between text-xs">
+          <div className="w-full flex items-center justify-between pt-1 border-t border-border/40">
             <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
               Date
             </span>
-            <span className="font-bold text-text-primary truncate ml-2">
+            <span className="text-xs font-semibold text-text-secondary truncate">
               {displayDate}
             </span>
           </div>

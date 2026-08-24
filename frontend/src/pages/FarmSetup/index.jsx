@@ -22,6 +22,8 @@ import { Badge } from '../../components/Badge';
 import { Loader } from '../../components/Loader';
 
 import farmService from '../../services/farmService';
+import { useAuth } from '../../context/AuthContext';
+import { emitDataMutation } from '../../utils/syncBus';
 
 // Zod Validation Schema for required frontend inputs
 const farmSetupSchema = z.object({
@@ -31,6 +33,7 @@ const farmSetupSchema = z.object({
 
 export default function FarmSetup() {
   const navigate = useNavigate();
+  const { refreshAuthData } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,16 +132,19 @@ export default function FarmSetup() {
     };
 
     try {
+      let savedData;
       if (existingFarmId) {
         const updatedRes = await farmService.updateFarm(existingFarmId, farmPayload);
-        const updated = updatedRes.data || updatedRes || farmPayload;
-        setExistingFarmData(updated);
+        savedData = updatedRes.data || updatedRes || farmPayload;
+        setExistingFarmData(savedData);
       } else {
         const createdRes = await farmService.createFarm(farmPayload);
-        const created = createdRes.data || createdRes;
-        setExistingFarmId(created?.id || 'new-farm');
-        setExistingFarmData(created || farmPayload);
+        savedData = createdRes.data || createdRes;
+        setExistingFarmId(savedData?.id || 'new-farm');
+        setExistingFarmData(savedData || farmPayload);
       }
+      await refreshAuthData();
+      emitDataMutation('FARM', existingFarmId ? 'UPDATE' : 'CREATE', savedData);
       setIsSubmitting(false);
       setIsCompleted(true);
     } catch (err) {
@@ -425,11 +431,12 @@ export default function FarmSetup() {
                         type="submit"
                         variant="primary"
                         isLoading={isSubmitting}
-                        icon={<CheckCircle2 className="w-4 h-4" />}
+                        disabled={isSubmitting}
+                        icon={!isSubmitting && <CheckCircle2 className="w-4 h-4" />}
                         iconPosition="right"
                         className="bg-success hover:bg-green-600 focus:ring-success/40 font-semibold"
                       >
-                        Register Farm ✓
+                        {isSubmitting ? 'Registering Farm...' : 'Register Farm ✓'}
                       </Button>
                     )}
                   </div>

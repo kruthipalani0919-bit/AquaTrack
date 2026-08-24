@@ -218,9 +218,10 @@ export const MedicineForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Treatment Record' : 'Save Treatment'}
+          {isEditing ? (isSubmitting ? 'Updating...' : 'Update Treatment Record') : (isSubmitting ? 'Recording...' : 'Save Treatment')}
         </Button>
       </div>
     </form>

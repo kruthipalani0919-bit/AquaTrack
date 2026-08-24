@@ -62,18 +62,17 @@ export const createHarvest = async (
     /*
      * Feed Cost
      */
-    const feedEntries =
-        await prisma.feedEntry.findMany({
-
-            where: {
-                cropId: crop.id
-            }
-
+    let feeds = [];
+    try {
+        feeds = await prisma.feedEntry.findMany({
+            where: { cropId: crop.id }
         });
-
+    } catch (e) {
+        feeds = [];
+    }
 
     const feedCost =
-        feedEntries.reduce(
+        feeds.reduce(
             (sum, item) =>
                 sum + item.totalCost,
             0
@@ -81,17 +80,16 @@ export const createHarvest = async (
 
 
     /*
-     * Expense Cost
+     * General Expenses
      */
-    const expenses =
-        await prisma.expense.findMany({
-
-            where: {
-                cropId: crop.id
-            }
-
+    let expenses = [];
+    try {
+        expenses = await prisma.expense.findMany({
+            where: { cropId: crop.id }
         });
-
+    } catch (e) {
+        expenses = [];
+    }
 
     const expenseCost =
         expenses.reduce(
@@ -104,15 +102,14 @@ export const createHarvest = async (
     /*
      * Medicine Cost
      */
-    const medicines =
-        await prisma.medicine.findMany({
-
-            where: {
-                tankId: tank.id
-            }
-
+    let medicines = [];
+    try {
+        medicines = await prisma.medicine.findMany({
+            where: { tankId: tank.id }
         });
-
+    } catch (e) {
+        medicines = [];
+    }
 
     const medicineCost =
         medicines.reduce(
@@ -125,9 +122,16 @@ export const createHarvest = async (
     /*
      * Pond Lease Cost
      */
-    const pondLeases = await prisma.pondLease.findMany({
-        where: { tankId: tank.id }
-    });
+    let pondLeases = [];
+    try {
+        if (prisma.pondLease && typeof prisma.pondLease.findMany === 'function') {
+            pondLeases = await prisma.pondLease.findMany({
+                where: { tankId: tank.id }
+            });
+        }
+    } catch (e) {
+        pondLeases = [];
+    }
 
     let pondLeaseCost = 0;
     if (pondLeases && pondLeases.length > 0) {
@@ -164,14 +168,12 @@ export const createHarvest = async (
 
     /*
      * Total Expense
-     *
-     * Includes Feed, Medicine, General Expense, Harvest Expense, and Pond Lease Cost.
      */
     const totalExpense =
         feedCost +
         expenseCost +
         medicineCost +
-        harvestData.harvestExpense +
+        (harvestData.harvestExpense || 0) +
         pondLeaseCost;
 
 
@@ -199,22 +201,13 @@ export const createHarvest = async (
                         harvestData.harvestDate
                     ),
 
-                production:
-                    harvestData.production ?? harvestData.shrimpCount ?? null,
-
-
-                /*
-                 * Store user-entered shrimp count
-                 */
                 shrimpCount:
-                    harvestData.shrimpCount ?? null,
+                    harvestData.shrimpCount,
 
+                production:
+                    productionVal,
 
-                /*
-                 * Store automatically calculated ABW
-                 */
                 averageWeight,
-
 
                 survivalRate:
                     harvestData.survivalRate ?? 85,
@@ -222,23 +215,32 @@ export const createHarvest = async (
                 sellingPrice:
                     harvestData.sellingPrice,
 
-                buyerName:
-                    harvestData.buyerName,
-
-
-                /*
-                 * No longer collected from frontend
-                 */
-                transportationCost:
-                    null,
-
+                revenue,
 
                 harvestExpense:
                     harvestData.harvestExpense || 0,
 
-                revenue,
+                profit,
 
-                profit
+                buyerName:
+                    harvestData.buyerName,
+
+                transportationCost:
+                    harvestData.transportationCost ?? null
+
+            },
+
+            include: {
+
+                crop: {
+
+                    include: {
+
+                        tank: true
+
+                    }
+
+                }
 
             }
 
@@ -246,22 +248,18 @@ export const createHarvest = async (
 
 
     /*
-     * Mark Crop as Completed
+     * Complete the Crop
      */
     await prisma.crop.update({
 
         where: {
-
             id:
                 crop.id
-
         },
 
         data: {
-
             status:
                 "COMPLETED"
-
         }
 
     });
@@ -273,7 +271,66 @@ export const createHarvest = async (
 
 
 /*
- * Get all Harvests
+ * Update Harvest
+ */
+export const updateHarvest = async (
+    userId,
+    harvestId,
+    updateData
+) => {
+
+    const existing =
+        await getHarvestById(userId, harvestId);
+
+    const productionVal = updateData.production !== undefined && updateData.production !== null
+        ? updateData.production
+        : (updateData.shrimpCount ?? existing.production ?? existing.shrimpCount);
+
+    const sellingPriceVal = updateData.sellingPrice ?? existing.sellingPrice;
+
+    const averageWeightVal = updateData.averageWeight
+        ? Number(updateData.averageWeight)
+        : (updateData.shrimpCount ? 1000 / updateData.shrimpCount : existing.averageWeight);
+
+    const revenueVal = productionVal * sellingPriceVal;
+
+    const harvestExpenseVal = updateData.harvestExpense !== undefined
+        ? updateData.harvestExpense
+        : existing.harvestExpense;
+
+    const updatedTotalExpense = ((existing.revenue - existing.profit) - (existing.harvestExpense || 0)) + harvestExpenseVal;
+    const profitVal = revenueVal - updatedTotalExpense;
+
+    const updated = await prisma.harvest.update({
+        where: { id: harvestId },
+        data: {
+            ...(updateData.harvestDate ? { harvestDate: new Date(updateData.harvestDate) } : {}),
+            ...(updateData.shrimpCount ? { shrimpCount: updateData.shrimpCount } : {}),
+            production: productionVal,
+            averageWeight: averageWeightVal,
+            ...(updateData.survivalRate !== undefined ? { survivalRate: updateData.survivalRate } : {}),
+            sellingPrice: sellingPriceVal,
+            revenue: revenueVal,
+            harvestExpense: harvestExpenseVal,
+            profit: profitVal,
+            ...(updateData.buyerName ? { buyerName: updateData.buyerName } : {}),
+            ...(updateData.transportationCost !== undefined ? { transportationCost: updateData.transportationCost } : {}),
+        },
+        include: {
+            crop: {
+                include: {
+                    tank: true,
+                },
+            },
+        },
+    });
+
+    return updated;
+};
+
+
+/*
+ * Get all Harvests for User's Farm
  */
 export const getHarvests = async (
     userId
@@ -310,8 +367,7 @@ export const getHarvests = async (
 
                 include: {
 
-                    tank:
-                        true
+                    tank: true
 
                 }
 
@@ -374,8 +430,7 @@ export const getHarvestById = async (
 
                     include: {
 
-                        tank:
-                            true
+                        tank: true
 
                     }
 
@@ -389,7 +444,7 @@ export const getHarvestById = async (
     if (!harvest) {
 
         throw new Error(
-            "Harvest not found."
+            "Harvest record not found."
         );
 
     }

@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Sprout, Calendar, Container, Tag } from 'lucide-react';
+import { Sprout, Calendar, Container, Tag, Scale } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -18,6 +18,10 @@ const cropSchema = z.object({
   stockingDate: z
     .string()
     .min(1, 'Stocking Date is required'),
+  seedQuantity: z
+    .coerce
+    .number({ invalid_type_error: 'Seed Quantity must be a number' })
+    .positive('Seed Quantity must be greater than 0'),
   seedVariety: z
     .string()
     .min(2, 'Seed Variety must be at least 2 characters')
@@ -35,9 +39,9 @@ const cropSchema = z.object({
  * Reusable CropForm component for Registering and Editing crops.
  * Contains exact user-requested layout:
  * - Row 1 (side-by-side): Tank & Stocking Date
- * - Highlighted "Crop Specifications" section: Seed Variety (full width) stacked above Batch Number (full width)
+ * - Highlighted "Crop Specifications" section: Seed Quantity (kg), Seed Variety (full width) stacked above Batch Number (full width)
  * - Row 3: Notes (Optional)
- * Sends exact required payload (tankId, stockingDate, seedVariety, batchNumber, notes) matching backend createCropSchema.
+ * Sends exact required payload (tankId, stockingDate, seedQuantity, seedVariety, batchNumber, notes) matching backend createCropSchema.
  */
 export const CropForm = ({
   initialData = null,
@@ -63,6 +67,7 @@ export const CropForm = ({
     defaultValues: {
       tankId: '',
       stockingDate: new Date().toISOString().split('T')[0],
+      seedQuantity: '',
       seedVariety: '',
       batchNumber: '',
       notes: '',
@@ -75,6 +80,7 @@ export const CropForm = ({
       reset({
         tankId: initialData.tankId || '',
         stockingDate: initialData.stockingDate || new Date().toISOString().split('T')[0],
+        seedQuantity: initialData.seedQuantity ?? '',
         seedVariety: initialData.seedVariety || '',
         batchNumber: initialData.batchNumber || initialData.cropName || '',
         notes: initialData.notes || '',
@@ -85,10 +91,11 @@ export const CropForm = ({
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
 
-    // Exact Backend Payload matching createCropSchema: { tankId, stockingDate, seedVariety, batchNumber, notes }
+    // Exact Backend Payload matching createCropSchema: { tankId, stockingDate, seedQuantity, seedVariety, batchNumber, notes }
     const cropPayload = {
       tankId: data.tankId,
       stockingDate: data.stockingDate,
+      seedQuantity: Number(data.seedQuantity),
       seedVariety: data.seedVariety.trim(),
       batchNumber: data.batchNumber.trim(),
       notes: data.notes ? data.notes.trim() : undefined,
@@ -134,7 +141,20 @@ export const CropForm = ({
           <Sprout className="w-3.5 h-3.5" /> Crop Specifications
         </h4>
         <div className="flex flex-col gap-3">
-          {/* 3. SEED VARIETY (Full Width Row) */}
+          {/* SEED QUANTITY (kg) (Full Width Row - ABOVE Seed Variety) */}
+          <Input
+            label="Seed Quantity (kg)"
+            type="number"
+            step="any"
+            min="0.01"
+            placeholder="Enter seed quantity in kg..."
+            required={true}
+            icon={<Scale className="w-4 h-4 text-primary" />}
+            error={errors.seedQuantity?.message}
+            {...register('seedQuantity')}
+          />
+
+          {/* SEED VARIETY (Full Width Row) */}
           <Input
             label="Seed Variety"
             type="text"
@@ -145,7 +165,7 @@ export const CropForm = ({
             {...register('seedVariety')}
           />
 
-          {/* 4. BATCH NUMBER (Full Width Row) */}
+          {/* BATCH NUMBER (Full Width Row) */}
           <Input
             label="Batch Number"
             type="text"
@@ -184,9 +204,10 @@ export const CropForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Crop' : 'Register Crop'}
+          {isEditing ? (isSubmitting ? 'Updating...' : 'Update Crop') : (isSubmitting ? 'Registering...' : 'Register Crop')}
         </Button>
       </div>
     </form>

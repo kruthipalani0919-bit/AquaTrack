@@ -77,6 +77,9 @@ export const createCrop = async (userId, cropData) => {
             stockingDate:
                 new Date(cropData.stockingDate),
 
+            seedQuantity:
+                cropData.seedQuantity,
+
             seedVariety:
                 cropData.seedVariety,
 

@@ -146,6 +146,8 @@ model Crop {
 
   cropName String?
 
+  seedQuantity Float?
+
   seedVariety String
 
   batchNumber String?

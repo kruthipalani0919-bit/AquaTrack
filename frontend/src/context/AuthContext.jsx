@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
 import farmService from '../services/farmService';
+import { subscribeToSyncBus } from '../utils/syncBus';
 
 const AuthContext = createContext(null);
 
@@ -49,6 +50,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     refreshAuthData();
   }, [refreshAuthData, token]);
+
+  // Listen to syncBus events for instant farm profile updates
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (detail.entityType === 'FARM') {
+        refreshAuthData();
+      }
+    });
+    return unsubscribe;
+  }, [refreshAuthData]);
 
   const login = async (credentials) => {
     const res = await authService.login(credentials);

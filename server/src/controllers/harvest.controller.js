@@ -2,6 +2,7 @@ import {
     createHarvest,
     getHarvests,
     getHarvestById,
+    updateHarvest,
     deleteHarvest,
     getHarvestSummary
 } from "../services/harvest.service.js";
@@ -23,6 +24,44 @@ export const createHarvestController = async (req, res) => {
             success: true,
 
             message: "Harvest created successfully",
+
+            data: harvest
+
+        });
+
+    } catch (error) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+export const updateHarvestController = async (req, res) => {
+
+    try {
+
+        const harvest = await updateHarvest(
+
+            req.user.id,
+
+            req.params.id,
+
+            req.body
+
+        );
+
+        return res.status(200).json({
+
+            success: true,
+
+            message: "Harvest updated successfully",
 
             data: harvest
 

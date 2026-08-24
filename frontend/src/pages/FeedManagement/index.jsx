@@ -38,12 +38,14 @@ export default function FeedManagement() {
   // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFeedLog, setEditingFeedLog] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingFeedLog, setViewingFeedLog] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingFeedLog, setDeletingFeedLog] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const safeAnalytics = {
     todaysFeedKg: analytics?.todaysFeedKg || 0,
@@ -51,43 +53,48 @@ export default function FeedManagement() {
     totalFeedCostRupees: analytics?.totalFeedCostRupees || 0,
   };
 
-  // Filter Logic (Tank & Date matching)
+  // Filter Feed Logs
   const filteredFeedLogs = useMemo(() => {
     const list = feedLogs || [];
-
     return list.filter((log) => {
       if (!log) return false;
       const matchesTank = tankFilter === '' || log.tankId === tankFilter;
-      const matchesDate = dateFilter === '' || log.feedingDate === dateFilter || log.date === dateFilter;
+
+      let matchesDate = true;
+      if (dateFilter) {
+        const logDateStr = log.date ? new Date(log.date).toISOString().split('T')[0] : '';
+        matchesDate = logDateStr === dateFilter;
+      }
 
       return matchesTank && matchesDate;
     });
   }, [feedLogs, tankFilter, dateFilter]);
 
-  // Handlers
+  // Form Handlers
   const handleOpenAdd = () => {
     setEditingFeedLog(null);
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (log) => {
-    setEditingFeedLog(log);
+  const handleOpenEdit = (feedLog) => {
+    setEditingFeedLog(feedLog);
     setIsFormOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleOpenDetails = (log) => {
-    setViewingFeedLog(log);
+  const handleOpenDetails = (feedLog) => {
+    setViewingFeedLog(feedLog);
     setIsDetailsOpen(true);
   };
 
-  const handleOpenDelete = (log) => {
-    setDeletingFeedLog(log);
+  const handleOpenDelete = (feedLog) => {
+    setDeletingFeedLog(feedLog);
     setIsDeleteOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
   const handleSaveFeed = async (formData) => {
+    setIsSubmitting(true);
     try {
       if (editingFeedLog) {
         await updateFeedLog(editingFeedLog.id, formData);
@@ -98,17 +105,22 @@ export default function FeedManagement() {
       setEditingFeedLog(null);
     } catch (err) {
       console.error('Error saving feed:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (deletingFeedLog) {
+      setIsDeleting(true);
       try {
         await deleteFeedLog(deletingFeedLog.id);
         setIsDeleteOpen(false);
         setDeletingFeedLog(null);
       } catch (err) {
         console.error('Error deleting feed log:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -239,6 +251,7 @@ export default function FeedManagement() {
             setIsFormOpen(false);
             setEditingFeedLog(null);
           }}
+          isSubmitting={isSubmitting}
         />
       </Modal>
 
@@ -268,9 +281,10 @@ export default function FeedManagement() {
             ? `Are you sure you want to delete feed record for "${deletingFeedLog.feedBrand || 'Feed'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this feed record?'
         }
-        confirmText="Delete Feed Record"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Feed Record'}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

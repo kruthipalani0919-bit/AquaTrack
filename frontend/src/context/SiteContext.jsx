@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import siteService from '../services/siteService';
 import { useAuth } from './AuthContext';
+import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
 
 const SiteContext = createContext(null);
 
@@ -35,6 +36,7 @@ export const SiteProvider = ({ children }) => {
         const validArea = !isNaN(areaNum) ? areaNum : null;
         return {
           ...s,
+          id: String(s.id),
           area: validArea,
           landArea: validArea,
         };
@@ -60,6 +62,16 @@ export const SiteProvider = ({ children }) => {
     }
   }, [fetchSites, token, isAuthenticated]);
 
+  // Subscribe to sync bus events for reactive platform-wide site updates
+  useEffect(() => {
+    const unsubscribe = subscribeToSyncBus((detail) => {
+      if (['SITE', 'TANK', 'CROP'].includes(detail.entityType)) {
+        fetchSites(true);
+      }
+    });
+    return unsubscribe;
+  }, [fetchSites]);
+
   const addSite = async (newSiteData) => {
     const areaVal = Number(newSiteData.landArea ?? newSiteData.area);
 
@@ -76,15 +88,18 @@ export const SiteProvider = ({ children }) => {
     const finalArea = created.area ?? areaVal;
     const result = {
       ...created,
+      id: String(created.id),
       area: finalArea,
       landArea: finalArea,
     };
     setSites((prev) => [result, ...prev]);
     setError(null);
+    emitDataMutation('SITE', 'CREATE', result);
     return result;
   };
 
   const updateSite = async (siteId, updatedData) => {
+    const targetId = String(siteId);
     const areaVal = (updatedData.landArea !== undefined || updatedData.area !== undefined)
       ? Number(updatedData.landArea ?? updatedData.area)
       : undefined;
@@ -97,29 +112,43 @@ export const SiteProvider = ({ children }) => {
       state: updatedData.state?.trim() || 'State',
     };
 
-    const res = await siteService.updateSite(siteId, payload);
+    const res = await siteService.updateSite(targetId, payload);
     const updated = res.data || res;
     const finalArea = updated.area ?? areaVal;
     const result = {
       ...updated,
+      id: targetId,
       area: finalArea,
       landArea: finalArea,
     };
     setSites((prev) =>
-      prev.map((site) => (site.id === siteId ? { ...site, ...result } : site))
+      prev.map((site) => (String(site.id) === targetId ? { ...site, ...result } : site))
     );
     setError(null);
+    emitDataMutation('SITE', 'UPDATE', result);
     return result;
   };
 
   const deleteSite = async (siteId) => {
-    await siteService.deleteSite(siteId);
-    setSites((prev) => prev.filter((site) => site.id !== siteId));
+    if (!siteId) return;
+    const targetId = String(siteId);
+
+    try {
+      await siteService.deleteSite(targetId);
+    } catch (err) {
+      console.warn('Backend site delete notice:', err.message);
+    }
+
+    setSites((prev) => prev.filter((site) => String(site.id) !== targetId));
     setError(null);
+
+    // Emit reactive cascade deletion mutation across the entire application
+    emitDataMutation('SITE', 'DELETE', { id: targetId, siteId: targetId });
   };
 
   const getSiteById = (siteId) => {
-    return sites.find((site) => site.id === siteId);
+    if (!siteId) return null;
+    return sites.find((site) => String(site.id) === String(siteId));
   };
 
   return (

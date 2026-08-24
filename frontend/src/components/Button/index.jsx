@@ -48,7 +48,7 @@ export const Button = ({
       {isLoading ? (
         <>
           <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-          <span>Loading...</span>
+          <span>{children}</span>
         </>
       ) : (
         <>

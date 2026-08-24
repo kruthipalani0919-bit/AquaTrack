@@ -7,7 +7,7 @@ import { Button } from '../Button';
 /**
  * Reusable CropCard component matching the exact visual language, structure,
  * padding, icon container, typography, and button styling of TankCard:
- * - Header: Sprout icon in pastel container, Batch Title (e.g. Batch 53), Tank Subtitle (e.g. Tank A1) directly below, Status Badge (Active) top right.
+ * - Header: Sprout icon in pastel container, Batch Title (e.g. Batch 53), Tank Subtitle (e.g. A1 or No Tank Assigned) directly below, Status Badge (Active) top right.
  * - Information Area: Single specification box displaying Seed Variety & Stocking Date.
  * - Footer Actions: View Details (primary outline button), Edit & Delete icon triggers.
  */
@@ -23,6 +23,7 @@ export const CropCard = ({
     tankName,
     cropName,
     batchNumber,
+    seedQuantity,
     seedVariety,
     stockingDate,
     status,
@@ -31,10 +32,10 @@ export const CropCard = ({
   const displayName = batchNumber ? `Batch ${batchNumber}` : cropName || 'Crop Batch';
   const displayVariety = seedVariety || 'Not specified';
 
-  // Format tank name cleanly: e.g. "Tank A1" without "Tank: A1" prefix or water source string
-  const rawTank = tankName || crop?.tank?.name || crop?.tank?.tankName || 'A1';
+  // Format tank name cleanly: e.g. "A1" or "No Tank Assigned" without fallback to generic "Tank" or "A1"
+  const rawTank = tankName || crop?.tank?.tankName || crop?.tank?.name || (crop?.tankId ? 'Tank' : 'No Tank Assigned');
   const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
-  const tankLabel = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
+  const tankLabel = cleanTank;
 
   const validStockingDate = stockingDate ? new Date(stockingDate) : null;
   const formattedStockingDate = validStockingDate && !isNaN(validStockingDate.getTime())
@@ -71,6 +72,17 @@ export const CropCard = ({
       {/* 2. INFORMATION SPECIFICATION BOX */}
       <div className="py-4 border-b border-border/60">
         <div className="flex flex-col items-start p-3 rounded-lg bg-background/60 border border-border/40 space-y-2">
+          {seedQuantity != null && (
+            <div className="w-full flex items-center justify-between pb-1.5 border-b border-border/40">
+              <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
+                Seed Quantity
+              </span>
+              <span className="text-xs font-bold text-text-primary truncate ml-2">
+                {seedQuantity} kg
+              </span>
+            </div>
+          )}
+
           <div className="w-full flex items-center justify-between">
             <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
               Seed Variety

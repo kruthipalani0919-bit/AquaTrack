@@ -40,12 +40,14 @@ export default function Tanks() {
   // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTank, setEditingTank] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingTank, setViewingTank] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingTank, setDeletingTank] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Tanks List Safely
   const filteredTanks = useMemo(() => {
@@ -115,6 +117,7 @@ export default function Tanks() {
   };
 
   const handleSaveTank = async (formData) => {
+    setIsSubmitting(true);
     try {
       if (editingTank) {
         await updateTank(editingTank.id, formData);
@@ -125,17 +128,22 @@ export default function Tanks() {
       setEditingTank(null);
     } catch (err) {
       console.error('Error saving tank:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (deletingTank) {
+      setIsDeleting(true);
       try {
         await deleteTank(deletingTank.id);
         setIsDeleteOpen(false);
         setDeletingTank(null);
       } catch (err) {
         console.error('Error deleting tank:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -289,6 +297,7 @@ export default function Tanks() {
             setIsFormOpen(false);
             setEditingTank(null);
           }}
+          isSubmitting={isSubmitting}
         />
       </Modal>
 
@@ -360,7 +369,7 @@ export default function Tanks() {
                   {viewingTank.hatcheryUnit ? (
                     <div className="bg-surface p-3 rounded-lg border border-border/50">
                       <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
-                        <Layers className="w-3 h-3 text-primary" /> Hatchery Unit
+                        <Tag className="w-3 h-3 text-primary" /> Hatchery Unit
                       </span>
                       <span className="text-sm font-bold text-text-primary mt-0.5 block truncate" title={viewingTank.hatcheryUnit}>
                         {viewingTank.hatcheryUnit}
@@ -371,14 +380,14 @@ export default function Tanks() {
               </div>
 
               {/* REMARKS / NOTES SECTION (ONLY SHOWN IF REMARKS EXIST) */}
-              {tankRemarks ? (
-                <div className="p-3.5 rounded-xl bg-background border border-border/80 text-xs shadow-2xs">
+              {tankRemarks && (
+                <div className="p-3.5 rounded-xl bg-background border border-border/60 text-xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1 mb-1">
-                    <FileText className="w-3.5 h-3.5 text-primary" /> Remarks / Notes
+                    <FileText className="w-3.5 h-3.5 text-primary" /> Remarks & Notes
                   </span>
                   <p className="text-text-secondary leading-relaxed">{tankRemarks}</p>
                 </div>
-              ) : null}
+              )}
 
               {/* FOOTER ACTIONS */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
@@ -421,9 +430,10 @@ export default function Tanks() {
             ? `Are you sure you want to delete "${deletingTank.name || deletingTank.tankName}"? This action cannot be undone.`
             : 'Are you sure you want to delete this tank?'
         }
-        confirmText="Delete Tank"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Tank'}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

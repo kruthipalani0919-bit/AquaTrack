@@ -1,39 +1,51 @@
 import React from 'react';
-import { Wheat, Container, Calendar, Eye, Edit3, Trash2, TrendingUp } from 'lucide-react';
+import { Wheat, Container, Calendar, Eye, Edit3, Trash2 } from 'lucide-react';
 import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Reusable HarvestCard component displaying harvest yield details, metrics, buyer info, and actions.
+ * Reusable HarvestCard component displaying relevant harvest yield details, metrics, buyer info, and actions.
+ * Metric Box displays ONLY relevant fields entered during registration:
+ * 1. Shrimp Count / Production
+ * 2. Average Weight / ABW (g)
+ * 3. Harvest Expense (₹)
  */
 export const HarvestCard = ({
   harvest = {},
   onView,
+  onViewDetails,
   onEdit,
   onDelete,
   className = '',
 }) => {
+  const handleView = onView || onViewDetails;
+
   const {
-    id,
     tankName,
     harvestDate,
     production,
+    shrimpCount,
     averageWeight,
-    survivalRate,
-    sellingPrice,
     buyerName,
-    transportationCost,
     harvestExpense,
   } = harvest;
 
+  const rawTank = tankName || harvest.crop?.tank?.tankName || harvest.crop?.tank?.name || 'A1';
+  const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+  const displayTank = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
+
   const displayBuyer = buyerName || 'Direct Market Buyer';
-  const displayTank = tankName || 'Tank';
-  const displayDate = harvestDate || 'Today';
-  const numericProd = parseFloat(production) || 0;
-  const numericAbw = parseFloat(averageWeight) || 0;
-  const numericSurvival = parseFloat(survivalRate) || 0;
-  const numericPrice = parseFloat(sellingPrice) || 0;
+  const displayDate = harvestDate
+    ? new Date(harvestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'Today';
+
+  const countVal = shrimpCount || production || 0;
+  const numericProd = parseFloat(production || shrimpCount) || 0;
+  const numericAbw = averageWeight !== undefined && averageWeight !== null
+    ? parseFloat(averageWeight)
+    : (numericProd > 0 ? parseFloat((1000 / numericProd).toFixed(2)) : 0);
+  const numericExpense = parseFloat(harvestExpense || 0);
 
   return (
     <Card
@@ -58,41 +70,38 @@ export const HarvestCard = ({
           </div>
         </div>
 
-        <Badge variant="success" size="sm" className="shrink-0">
+        <Badge variant="success" size="sm" className="shrink-0 font-semibold">
           Harvested
         </Badge>
       </div>
 
-      {/* Metrics Grid */}
+      {/* Metrics Grid Box (Shrimp Count, ABW, Expense) */}
       <div className="grid grid-cols-3 gap-2 py-3 border-b border-border/60 text-center">
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Production</span>
-          <span className="text-xs sm:text-sm font-bold text-text-primary mt-0.5">
-            {numericProd} <span className="text-[10px] font-normal text-text-secondary">kg</span>
+          <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Shrimp Count</span>
+          <span className="text-xs sm:text-sm font-extrabold text-text-primary mt-0.5">
+            {countVal}
           </span>
         </div>
 
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Avg Weight</span>
-          <span className="text-xs sm:text-sm font-bold text-text-primary mt-0.5">
+          <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Avg Weight</span>
+          <span className="text-xs sm:text-sm font-extrabold text-text-primary mt-0.5">
             {numericAbw} <span className="text-[10px] font-normal text-text-secondary">g</span>
           </span>
         </div>
 
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">Survival</span>
-          <span className="text-xs sm:text-sm font-bold text-emerald-700 mt-0.5">
-            {numericSurvival}%
+          <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Expense</span>
+          <span className="text-xs sm:text-sm font-extrabold text-amber-700 mt-0.5">
+            ₹{numericExpense.toLocaleString('en-IN')}
           </span>
         </div>
       </div>
 
-      {/* Selling Price & Date Row */}
-      <div className="py-2.5 text-xs text-text-secondary flex items-center justify-between">
-        <span className="font-semibold text-primary flex items-center gap-1">
-          <TrendingUp className="w-3.5 h-3.5" /> ₹{numericPrice}/kg
-        </span>
-        <span className="flex items-center gap-1 text-[11px]">
+      {/* Date Row (Selling price ₹100/kg removed as requested) */}
+      <div className="py-2.5 text-xs text-text-secondary flex items-center justify-end">
+        <span className="flex items-center gap-1 text-[11px] font-medium text-text-secondary">
           <Calendar className="w-3.5 h-3.5 text-text-secondary" /> {displayDate}
         </span>
       </div>
@@ -102,9 +111,9 @@ export const HarvestCard = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onView && onView(harvest)}
+          onClick={() => handleView && handleView(harvest)}
           icon={<Eye className="w-4 h-4 text-primary" />}
-          className="text-xs text-primary font-medium"
+          className="text-xs text-primary font-semibold hover:bg-primary-light/40"
         >
           View Details
         </Button>
@@ -115,22 +124,24 @@ export const HarvestCard = ({
               type="button"
               onClick={() => onEdit(harvest)}
               className="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-primary-light/50 transition-colors"
-              title="Edit Harvest"
+              title="Edit Harvest Record"
               aria-label={`Edit harvest for ${displayTank}`}
             >
               <Edit3 className="w-4 h-4" />
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => onDelete && onDelete(harvest)}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
-            title="Delete Harvest Record"
-            aria-label={`Delete harvest for ${displayTank}`}
-          >
-            <Trash2 className="w-4 h-4 text-danger/80" />
-          </button>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(harvest)}
+              className="p-1.5 rounded-lg text-text-secondary hover:text-danger hover:bg-danger-light/50 transition-colors"
+              title="Delete Harvest Record"
+              aria-label={`Delete harvest for ${displayTank}`}
+            >
+              <Trash2 className="w-4 h-4 text-danger/80" />
+            </button>
+          )}
         </div>
       </div>
     </Card>

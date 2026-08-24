@@ -24,9 +24,11 @@ export default function PondLeaseManagement() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingLease, setDeletingLease] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [selectedLeaseDetails, setSelectedLeaseDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form inputs state
   const [formData, setFormData] = useState({
@@ -113,6 +115,7 @@ export default function PondLeaseManagement() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       if (editingLease) {
         await updateLease(editingLease.id, formData);
@@ -123,12 +126,15 @@ export default function PondLeaseManagement() {
       setEditingLease(null);
     } catch (err) {
       setFormError(err.message || 'Failed to save pond lease');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Delete Handler
   const handleConfirmDelete = async () => {
     if (deletingLease) {
+      setIsDeleting(true);
       try {
         await deleteLease(deletingLease.id);
         setIsDeleteOpen(false);
@@ -138,6 +144,8 @@ export default function PondLeaseManagement() {
         }
       } catch (err) {
         console.error('Error deleting lease:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -557,6 +565,7 @@ export default function PondLeaseManagement() {
               variant="outline"
               size="sm"
               onClick={() => setIsFormOpen(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
@@ -564,8 +573,10 @@ export default function PondLeaseManagement() {
               type="submit"
               variant="primary"
               size="sm"
+              isLoading={isSubmitting}
+              disabled={isSubmitting}
             >
-              {editingLease ? 'Update Lease Record' : 'Save Pond Lease'}
+              {editingLease ? (isSubmitting ? 'Updating...' : 'Update Lease Record') : (isSubmitting ? 'Saving...' : 'Save Pond Lease')}
             </Button>
           </div>
         </form>
@@ -585,9 +596,10 @@ export default function PondLeaseManagement() {
             ? `Are you sure you want to delete the lease record for "${deletingLease.tank?.tankName || 'this tank'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this lease record?'
         }
-        confirmText="Delete Lease"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Lease'}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );
