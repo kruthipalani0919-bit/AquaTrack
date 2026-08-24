@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import medicineService from '../services/medicineService';
 import { useAuth } from './AuthContext';
+import { useStocking } from './StockingContext';
 
 const MedicineContext = createContext(null);
 
 export const MedicineProvider = ({ children }) => {
   const { token, isAuthenticated } = useAuth();
+  const { fetchStockings } = useStocking();
   const [medicineRecords, setMedicineRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -63,6 +65,15 @@ export const MedicineProvider = ({ children }) => {
       status: 'Completed',
     };
     setMedicineRecords((prev) => [normalized, ...prev]);
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings();
+      } catch (err) {
+        console.error('Error refreshing stock data after medicine addition:', err);
+      }
+    }
+
     return normalized;
   };
 
@@ -86,12 +97,29 @@ export const MedicineProvider = ({ children }) => {
       status: 'Completed',
     };
     setMedicineRecords((prev) => prev.map((rec) => (rec.id === id ? { ...rec, ...normalized } : rec)));
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings();
+      } catch (err) {
+        console.error('Error refreshing stock data after medicine update:', err);
+      }
+    }
+
     return normalized;
   };
 
   const deleteMedicineRecord = async (id) => {
     await medicineService.deleteMedicine(id);
     setMedicineRecords((prev) => prev.filter((rec) => rec.id !== id));
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings();
+      } catch (err) {
+        console.error('Error refreshing stock data after medicine deletion:', err);
+      }
+    }
   };
 
   const getMedicineRecordById = (id) => {

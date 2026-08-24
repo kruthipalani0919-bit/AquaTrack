@@ -18,19 +18,19 @@ export default function App() {
         <SiteProvider>
           <TankProvider>
             <CropProvider>
-              <FeedProvider>
-                <MedicineProvider>
-                  <ExpenseProvider>
-                    <HarvestProvider>
-                      <StockingProvider>
+              <StockingProvider>
+                <FeedProvider>
+                  <MedicineProvider>
+                    <ExpenseProvider>
+                      <HarvestProvider>
                         <PondLeaseProvider>
                           <AppRoutes />
                         </PondLeaseProvider>
-                      </StockingProvider>
-                    </HarvestProvider>
-                  </ExpenseProvider>
-                </MedicineProvider>
-              </FeedProvider>
+                      </HarvestProvider>
+                    </ExpenseProvider>
+                  </MedicineProvider>
+                </FeedProvider>
+              </StockingProvider>
             </CropProvider>
           </TankProvider>
         </SiteProvider>

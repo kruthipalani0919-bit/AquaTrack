@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import feedService from '../services/feedService';
 import { useAuth } from './AuthContext';
+import { useStocking } from './StockingContext';
 
 const FeedContext = createContext(null);
 
 export const FeedProvider = ({ children }) => {
   const { token, isAuthenticated } = useAuth();
+  const { fetchStockings } = useStocking();
   const [feedLogs, setFeedLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -64,6 +66,15 @@ export const FeedProvider = ({ children }) => {
       cropName: newFeedData.cropName || 'Crop',
     };
     setFeedLogs((prev) => [normalized, ...prev]);
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings();
+      } catch (err) {
+        console.error('Error refreshing stock data after feed addition:', err);
+      }
+    }
+
     return normalized;
   };
 
@@ -91,12 +102,29 @@ export const FeedProvider = ({ children }) => {
       cropName: updated.crop?.cropName || 'Crop',
     };
     setFeedLogs((prev) => prev.map((log) => (log.id === id ? { ...log, ...normalized } : log)));
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings();
+      } catch (err) {
+        console.error('Error refreshing stock data after feed update:', err);
+      }
+    }
+
     return normalized;
   };
 
   const deleteFeedLog = async (id) => {
     await feedService.deleteFeed(id);
     setFeedLogs((prev) => prev.filter((log) => log.id !== id));
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings();
+      } catch (err) {
+        console.error('Error refreshing stock data after feed deletion:', err);
+      }
+    }
   };
 
   const getFeedLogById = (id) => {

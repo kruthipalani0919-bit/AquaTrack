@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus,
   ArrowUpRight,
@@ -28,8 +28,14 @@ import { useStocking } from '../../context/StockingContext';
 import { useSites } from '../../context/SiteContext';
 
 export default function Stocking() {
-  const { stockings = [], loading, error, addStock, updateStock, deleteStock, allocateStock } = useStocking();
+  const { stockings = [], loading, error, fetchStockings, addStock, updateStock, deleteStock, allocateStock } = useStocking();
   const { sites = [], loading: sitesLoading } = useSites();
+
+  useEffect(() => {
+    if (fetchStockings) {
+      fetchStockings();
+    }
+  }, [fetchStockings]);
 
   // Modal states
   const [isAddStockOpen, setIsAddStockOpen] = useState(false);
