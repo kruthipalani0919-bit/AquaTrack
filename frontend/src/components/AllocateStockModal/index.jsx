@@ -208,6 +208,14 @@ export const AllocateStockForm = ({
         </div>
       </div>
 
+      {/* NO SITES WARNING */}
+      {sites.length === 0 && (
+        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 text-xs font-medium flex items-center gap-2">
+          <Info className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>No sites found. Please create a farm site before allocating stock.</span>
+        </div>
+      )}
+
       {/* Bottom Action Buttons */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/80">
         <Button
@@ -224,11 +232,12 @@ export const AllocateStockForm = ({
           variant="primary"
           isLoading={isSubmitting}
           className="font-semibold"
-          disabled={maxAvailable <= 0}
+          disabled={maxAvailable <= 0 || sites.length === 0}
         >
           Allocate Stock
         </Button>
       </div>
+
     </form>
   );
 };

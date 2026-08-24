@@ -2,11 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import feedService from '../services/feedService';
 import { useAuth } from './AuthContext';
 import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
+import { useStocking } from './StockingContext';
 
 const FeedContext = createContext(null);
 
 export const FeedProvider = ({ children }) => {
   const { token, isAuthenticated } = useAuth();
+  const { fetchStockings } = useStocking();
   const [feedLogs, setFeedLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -83,6 +85,15 @@ export const FeedProvider = ({ children }) => {
     };
     setFeedLogs((prev) => [normalized, ...prev]);
     emitDataMutation('FEED', 'CREATE', normalized);
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings(true);
+      } catch (err) {
+        console.error('Error refreshing stock data after feed addition:', err);
+      }
+    }
+
     return normalized;
   };
 
@@ -109,8 +120,17 @@ export const FeedProvider = ({ children }) => {
       tankName: updated.crop?.tank?.tankName || 'Tank',
       cropName: updated.crop?.cropName || 'Crop',
     };
-    setFeedLogs((prev) => prev.map((log) => (log.id === id ? { ...log, ...normalized } : log)));
+    setFeedLogs((prev) => prev.map((log) => (String(log.id) === String(id) ? { ...log, ...normalized } : log)));
     emitDataMutation('FEED', 'UPDATE', normalized);
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings(true);
+      } catch (err) {
+        console.error('Error refreshing stock data after feed update:', err);
+      }
+    }
+
     return normalized;
   };
 
@@ -123,6 +143,14 @@ export const FeedProvider = ({ children }) => {
     }
     setFeedLogs((prev) => prev.filter((log) => String(log.id) !== String(id)));
     emitDataMutation('FEED', 'DELETE', { id: String(id) });
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings(true);
+      } catch (err) {
+        console.error('Error refreshing stock data after feed deletion:', err);
+      }
+    }
   };
 
   const getFeedLogById = (id) => {

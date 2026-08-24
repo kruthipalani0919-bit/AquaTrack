@@ -114,3 +114,40 @@ export const allocateStockSchema = z.object({
         .optional()
 
 });
+
+
+/*
+ * Update Farm Stock
+ */
+export const updateStockingSchema = z.object({
+
+    category: z.enum(
+        ["FEED", "MEDICINE", "SEED"],
+        {
+            errorMap: () => ({
+                message:
+                    "Category must be FEED, MEDICINE or SEED"
+            })
+        }
+    ).optional(),
+
+    totalQuantity: z
+        .number()
+        .positive(
+            "Total quantity must be greater than 0"
+        )
+        .optional(),
+
+    unit: z
+        .string()
+        .min(1, "Unit is required")
+        .optional(),
+
+    costPerKg: z
+        .number()
+        .positive(
+            "Cost per kg must be greater than 0"
+        )
+        .optional()
+
+});

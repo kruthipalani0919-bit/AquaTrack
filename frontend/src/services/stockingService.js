@@ -35,6 +35,26 @@ export const getStockingById = async (id) => {
   }
 };
 
+// Update Farm Stock (PUT /api/stocking/:id)
+export const updateStocking = async (id, data) => {
+  try {
+    const response = await api.put(`/stocking/${id}`, data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to update stock #${id}`);
+  }
+};
+
+// Delete Farm Stock (DELETE /api/stocking/:id)
+export const deleteStocking = async (id) => {
+  try {
+    const response = await api.delete(`/stocking/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || `Failed to delete stock #${id}`);
+  }
+};
+
 // Allocate Stock to Site (POST /api/stocking/:id/allocate)
 export const allocateStock = async (stockingId, data) => {
   try {
@@ -59,8 +79,11 @@ export const stockingService = {
   createStocking,
   getStockings,
   getStockingById,
+  updateStocking,
+  deleteStocking,
   allocateStock,
   getSiteStockAllocations,
 };
 
 export default stockingService;
+

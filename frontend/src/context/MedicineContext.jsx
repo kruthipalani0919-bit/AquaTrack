@@ -2,11 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import medicineService from '../services/medicineService';
 import { useAuth } from './AuthContext';
 import { emitDataMutation, subscribeToSyncBus } from '../utils/syncBus';
+import { useStocking } from './StockingContext';
 
 const MedicineContext = createContext(null);
 
 export const MedicineProvider = ({ children }) => {
   const { token, isAuthenticated } = useAuth();
+  const { fetchStockings } = useStocking();
   const [medicineRecords, setMedicineRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -83,6 +85,15 @@ export const MedicineProvider = ({ children }) => {
     };
     setMedicineRecords((prev) => [normalized, ...prev]);
     emitDataMutation('MEDICINE', 'CREATE', normalized);
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings(true);
+      } catch (err) {
+        console.error('Error refreshing stock data after medicine addition:', err);
+      }
+    }
+
     return normalized;
   };
 
@@ -111,6 +122,15 @@ export const MedicineProvider = ({ children }) => {
     };
     setMedicineRecords((prev) => prev.map((rec) => (String(rec.id) === String(id) ? { ...rec, ...normalized } : rec)));
     emitDataMutation('MEDICINE', 'UPDATE', normalized);
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings(true);
+      } catch (err) {
+        console.error('Error refreshing stock data after medicine update:', err);
+      }
+    }
+
     return normalized;
   };
 
@@ -123,6 +143,14 @@ export const MedicineProvider = ({ children }) => {
     }
     setMedicineRecords((prev) => prev.filter((rec) => String(rec.id) !== String(id)));
     emitDataMutation('MEDICINE', 'DELETE', { id: String(id) });
+
+    if (fetchStockings) {
+      try {
+        await fetchStockings(true);
+      } catch (err) {
+        console.error('Error refreshing stock data after medicine deletion:', err);
+      }
+    }
   };
 
   const getMedicineRecordById = (id) => {

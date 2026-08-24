@@ -59,12 +59,6 @@ export const TankProvider = ({ children }) => {
     return unsubscribe;
   }, [fetchTanks]);
 
-  const cleanString = (val) => {
-    if (val === null || val === undefined) return undefined;
-    const s = String(val).trim();
-    return s.length > 0 ? s : undefined;
-  };
-
   const addTank = async (newTankData) => {
     const payload = {
       siteId: newTankData.siteId,
@@ -72,16 +66,10 @@ export const TankProvider = ({ children }) => {
       area: parseFloat(newTankData.area),
       depth: parseFloat(newTankData.depth || 6),
       waterSource: newTankData.waterSource || 'Borewell',
+      ...(newTankData.hatcheryName && String(newTankData.hatcheryName).trim() ? { hatcheryName: String(newTankData.hatcheryName).trim() } : {}),
+      ...(newTankData.hatcheryUnit && String(newTankData.hatcheryUnit).trim() ? { hatcheryUnit: String(newTankData.hatcheryUnit).trim() } : {}),
+      ...(newTankData.remarks && String(newTankData.remarks).trim() ? { remarks: String(newTankData.remarks).trim() } : {}),
     };
-
-    const hName = cleanString(newTankData.hatcheryName);
-    if (hName) payload.hatcheryName = hName;
-
-    const hUnit = cleanString(newTankData.hatcheryUnit);
-    if (hUnit) payload.hatcheryUnit = hUnit;
-
-    const rem = cleanString(newTankData.remarks);
-    if (rem) payload.remarks = rem;
 
     const res = await tankService.createTank(payload);
     const created = res.data || res;
@@ -114,16 +102,10 @@ export const TankProvider = ({ children }) => {
       area: parseFloat(updatedData.area),
       depth: parseFloat(updatedData.depth || 6),
       waterSource: updatedData.waterSource || 'Borewell',
+      ...(updatedData.hatcheryName && String(updatedData.hatcheryName).trim() ? { hatcheryName: String(updatedData.hatcheryName).trim() } : {}),
+      ...(updatedData.hatcheryUnit && String(updatedData.hatcheryUnit).trim() ? { hatcheryUnit: String(updatedData.hatcheryUnit).trim() } : {}),
+      ...(updatedData.remarks && String(updatedData.remarks).trim() ? { remarks: String(updatedData.remarks).trim() } : {}),
     };
-
-    const hName = cleanString(updatedData.hatcheryName);
-    if (hName !== undefined) payload.hatcheryName = hName;
-
-    const hUnit = cleanString(updatedData.hatcheryUnit);
-    if (hUnit !== undefined) payload.hatcheryUnit = hUnit;
-
-    const rem = cleanString(updatedData.remarks);
-    if (rem !== undefined) payload.remarks = rem;
 
     const res = await tankService.updateTank(targetId, payload);
     const updated = res.data || res;

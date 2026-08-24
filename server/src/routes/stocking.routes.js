@@ -6,6 +6,8 @@ import {
     createStockingController,
     getStockingsController,
     getStockingByIdController,
+    updateStockingController,
+    deleteStockingController,
     allocateStockToSiteController,
     getSiteStockAllocationsController
 } from "../controllers/stocking.controller.js";
@@ -14,6 +16,7 @@ import validate from "../middleware/validate.middleware.js";
 
 import {
     createStockingSchema,
+    updateStockingSchema,
     allocateStockSchema
 } from "../validations/stocking.validation.js";
 
@@ -42,12 +45,44 @@ router.get(
 
 
 /*
+ * Get Stock Allocations for a Site
+ */
+router.get(
+    "/site/:siteId",
+    auth,
+    getSiteStockAllocationsController
+);
+
+
+/*
  * Get Stock by ID
  */
 router.get(
     "/:id",
     auth,
     getStockingByIdController
+);
+
+
+
+/*
+ * Update Stock
+ */
+router.put(
+    "/:id",
+    auth,
+    validate(updateStockingSchema),
+    updateStockingController
+);
+
+
+/*
+ * Delete Stock
+ */
+router.delete(
+    "/:id",
+    auth,
+    deleteStockingController
 );
 
 
@@ -62,14 +97,5 @@ router.post(
 );
 
 
-/*
- * Get Stock Allocations for a Site
- */
-router.get(
-    "/site/:siteId",
-    auth,
-    getSiteStockAllocationsController
-);
-
-
 export default router;
+
