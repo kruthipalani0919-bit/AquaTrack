@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Wheat, Weight, IndianRupee } from 'lucide-react';
+import { Plus, Fish, Weight, IndianRupee, AlertCircle } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
@@ -15,20 +15,26 @@ import { HarvestDetailsModal } from '../../components/HarvestDetailsModal';
 import { useHarvests } from '../../context/HarvestContext';
 
 export default function Harvest() {
-  const { harvests = [], addHarvest, updateHarvest, deleteHarvest, loading, error } = useHarvests();
+  const { harvests = [], addHarvest, updateHarvest, deleteHarvest, loading, error: contextError } = useHarvests();
 
   // Filter State
   const [tankFilter, setTankFilter] = useState('');
 
-  // Modal Controls
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingHarvest, setEditingHarvest] = useState(null);
-
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  // Explicit, Isolated State for Viewing, Editing, and Deleting
   const [viewingHarvest, setViewingHarvest] = useState(null);
-
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [editingHarvest, setEditingHarvest] = useState(null);
   const [deletingHarvest, setDeletingHarvest] = useState(null);
+
+  // Modal Control States
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  // Form & Action Loading & Error States
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   // Filter Harvest List Safely
   const filteredHarvests = useMemo(() => {
@@ -36,7 +42,8 @@ export default function Harvest() {
 
     return list.filter((harv) => {
       if (!harv) return false;
-      return tankFilter === '' || harv.tankId === tankFilter;
+      const targetTankId = harv.tankId || harv.tank?.id || harv.crop?.tankId;
+      return tankFilter === '' || targetTankId === tankFilter;
     });
   }, [harvests, tankFilter]);
 
@@ -44,7 +51,7 @@ export default function Harvest() {
   const stats = useMemo(() => {
     const list = harvests || [];
     const totalCount = list.length;
-    const totalProductionKg = list.reduce((acc, h) => acc + (parseFloat(h?.production || h?.shrimpCount) || 0), 0);
+    const totalShrimpCount = list.reduce((acc, h) => acc + (parseFloat(h?.shrimpCount) || 0), 0);
     const avgAbwGrams = totalCount > 0
       ? (list.reduce((acc, h) => acc + (parseFloat(h?.averageWeight) || 0), 0) / totalCount).toFixed(1)
       : 0;
@@ -54,7 +61,7 @@ export default function Harvest() {
 
     return {
       totalCount,
-      totalProductionKg,
+      totalShrimpCount,
       avgAbwGrams,
       avgPricePerKg,
     };
@@ -63,30 +70,46 @@ export default function Harvest() {
   // Handlers
   const handleOpenAdd = () => {
     setEditingHarvest(null);
+    setFormError('');
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (harvest) => {
-    setEditingHarvest(harvest);
+    if (!harvest || !harvest.id) return;
+    setEditingHarvest({ ...harvest });
+    setFormError('');
     setIsFormOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
   const handleOpenDetails = (harvest) => {
-    setViewingHarvest(harvest);
+    if (!harvest || !harvest.id) return;
+    setViewingHarvest({ ...harvest });
     setIsDetailsOpen(true);
   };
 
   const handleOpenDelete = (harvest) => {
-    setDeletingHarvest(harvest);
+    if (!harvest || !harvest.id) return;
+    setDeletingHarvest({ ...harvest });
+    setDeleteError('');
     setIsDeleteOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
+  // Connected submit handler for Add & Update Harvest
   const handleSaveHarvest = async (formData) => {
+    setFormError('');
+    setIsSubmitting(true);
     try {
-      if (editingHarvest) {
-        await updateHarvest(editingHarvest.id, formData);
+      if (editingHarvest && editingHarvest.id) {
+        const updated = await updateHarvest(editingHarvest.id, formData);
+        if (viewingHarvest && String(viewingHarvest.id) === String(editingHarvest.id)) {
+          setViewingHarvest((prev) => ({
+            ...prev,
+            ...updated,
+            ...formData,
+          }));
+        }
       } else {
         await addHarvest(formData);
       }
@@ -94,18 +117,32 @@ export default function Harvest() {
       setEditingHarvest(null);
     } catch (err) {
       console.error('Error saving harvest:', err);
+      setFormError(err.message || 'Failed to save harvest record. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  // Connected handler for Delete Harvest
   const handleConfirmDelete = async () => {
-    if (deletingHarvest) {
-      try {
-        await deleteHarvest(deletingHarvest.id);
-        setIsDeleteOpen(false);
-        setDeletingHarvest(null);
-      } catch (err) {
-        console.error('Error deleting harvest:', err);
+    if (!deletingHarvest || !deletingHarvest.id) return;
+    const targetId = deletingHarvest.id;
+    setDeleteError('');
+    setIsDeleting(true);
+
+    try {
+      await deleteHarvest(targetId);
+      setIsDeleteOpen(false);
+      setDeletingHarvest(null);
+      if (viewingHarvest && String(viewingHarvest.id) === String(targetId)) {
+        setIsDetailsOpen(false);
+        setViewingHarvest(null);
       }
+    } catch (err) {
+      console.error('Error deleting harvest:', err);
+      setDeleteError(err.message || 'Failed to delete harvest record.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -115,10 +152,10 @@ export default function Harvest() {
 
   return (
     <div className="space-y-6">
-      {/* 1. PAGE HEADER (Harvest Logs badge removed) */}
+      {/* 1. PAGE HEADER */}
       <PageHeader
         title="Harvest Management"
-        subtitle="Log pond harvest yields, body weights (ABW), selling prices, and buyer details."
+        subtitle="Log pond harvest records, body weights (ABW), selling prices, and buyer details."
         actions={
           <Button
             variant="primary"
@@ -132,16 +169,36 @@ export default function Harvest() {
         }
       />
 
+      {/* Context Error Banner if any */}
+      {(contextError || formError || deleteError) && (
+        <div className="p-3.5 rounded-xl bg-danger-light/50 border border-danger/30 text-danger text-xs font-semibold flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{deleteError || formError || contextError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFormError('');
+              setDeleteError('');
+            }}
+            className="text-danger hover:underline cursor-pointer font-bold ml-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* 2. OPERATIONAL METRICS SUMMARY */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Wheat className="w-4 h-4" />
+              <Fish className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Production</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalProductionKg.toLocaleString()}</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Shrimp Count</span>
+              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalShrimpCount > 0 ? stats.totalShrimpCount.toLocaleString() : stats.totalCount}</span>
             </div>
           </div>
         </Card>
@@ -171,7 +228,7 @@ export default function Harvest() {
         </Card>
       </div>
 
-      {/* 3. FILTERS AREA (Select Tank Dropdown) */}
+      {/* 3. FILTERS AREA */}
       <HarvestFilters
         tankFilter={tankFilter}
         onTankChange={setTankFilter}
@@ -198,7 +255,7 @@ export default function Harvest() {
             description={
               tankFilter
                 ? "No harvest logs match your selected tank filter. Try resetting filters."
-                : "Register pond harvest yields to track production revenue."
+                : "Register pond harvest records to track sales revenue."
             }
             actionLabel={
               tankFilter ? "Reset Filters" : "Register New Harvest"
@@ -216,6 +273,7 @@ export default function Harvest() {
         onClose={() => {
           setIsFormOpen(false);
           setEditingHarvest(null);
+          setFormError('');
         }}
         title={editingHarvest ? 'Edit Harvest Record' : 'Register New Harvest'}
         description={
@@ -231,7 +289,10 @@ export default function Harvest() {
           onCancel={() => {
             setIsFormOpen(false);
             setEditingHarvest(null);
+            setFormError('');
           }}
+          isSubmitting={isSubmitting}
+          errorMessage={formError}
         />
       </Modal>
 
@@ -253,6 +314,7 @@ export default function Harvest() {
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingHarvest(null);
+          setDeleteError('');
         }}
         onConfirm={handleConfirmDelete}
         title="Delete Harvest Record"
@@ -264,6 +326,7 @@ export default function Harvest() {
         confirmText="Delete Harvest Record"
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

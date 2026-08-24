@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Wheat, Calendar, Weight, IndianRupee, User, Container } from 'lucide-react';
+import { Wheat, Calendar, Weight, IndianRupee, User, Container, AlertCircle } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -40,30 +40,45 @@ const harvestSchema = z.object({
 });
 
 /**
- * Reusable HarvestForm component with dynamic Tank dropdown from TankContext.
- * Fields:
- * BASIC INFORMATION: Tank *, Harvest Date *, Buyer Name *, Selling Price (₹/kg) *
- * HARVEST DETAILS: Shrimp Count *, Average Weight (ABW in grams) [Auto-calculated], Harvest Expense (₹) *
+ * Reusable HarvestForm component for both Registering New Harvest and Editing Existing Harvest.
  */
 export const HarvestForm = ({
   initialData = null,
   onSubmit,
   onCancel,
   isSubmitting = false,
+  errorMessage = '',
 }) => {
   const { tanks = [] } = useTanks();
   const isEditing = Boolean(initialData?.id);
 
   // Clean tank labels without water source string
-  const tankSelectOptions = tanks.map((tank) => {
-    const rawName = tank.name || tank.tankName || 'Tank';
-    const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
-    const areaSuffix = tank.area ? ` (${tank.area} Acres)` : '';
-    return {
-      value: tank.id,
-      label: `${cleanName}${areaSuffix}`,
-    };
-  });
+  const tankSelectOptions = useMemo(() => {
+    const options = tanks.map((tank) => {
+      const rawName = tank.name || tank.tankName || 'Tank';
+      const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      const areaSuffix = tank.area ? ` (${tank.area} Acres)` : '';
+      return {
+        value: tank.id,
+        label: `${cleanName}${areaSuffix}`,
+      };
+    });
+
+    // When editing an existing harvest, ensure assigned tank is present in options list
+    if (isEditing && initialData) {
+      const currentTankId = initialData.tankId || initialData.tank?.id || initialData.crop?.tankId || initialData.crop?.tank?.id;
+      if (currentTankId && !options.some((opt) => opt.value === currentTankId)) {
+        const rawName = initialData.tankName || initialData.crop?.tank?.tankName || initialData.tank?.name || 'Assigned Tank';
+        const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+        options.unshift({
+          value: currentTankId,
+          label: cleanName,
+        });
+      }
+    }
+
+    return options;
+  }, [tanks, isEditing, initialData]);
 
   const {
     register,
@@ -92,13 +107,16 @@ export const HarvestForm = ({
 
   useEffect(() => {
     if (initialData) {
+      const resolvedTankId = initialData.tankId || initialData.tank?.id || initialData.crop?.tankId || initialData.crop?.tank?.id || '';
       reset({
-        tankId: initialData.tankId || '',
-        harvestDate: initialData.harvestDate || new Date().toISOString().split('T')[0],
-        shrimpCount: initialData.shrimpCount || initialData.production || '',
-        sellingPrice: initialData.sellingPrice || '',
+        tankId: resolvedTankId,
+        harvestDate: initialData.harvestDate
+          ? new Date(initialData.harvestDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0],
+        shrimpCount: initialData.shrimpCount !== undefined && initialData.shrimpCount !== null ? initialData.shrimpCount : (initialData.production || ''),
+        sellingPrice: initialData.sellingPrice !== undefined && initialData.sellingPrice !== null ? initialData.sellingPrice : '',
         buyerName: initialData.buyerName || '',
-        harvestExpense: initialData.harvestExpense || '0',
+        harvestExpense: initialData.harvestExpense !== undefined && initialData.harvestExpense !== null ? initialData.harvestExpense : '0',
         notes: initialData.notes || '',
       });
     }
@@ -106,18 +124,19 @@ export const HarvestForm = ({
 
   const handleFormSubmit = (data) => {
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
-    const rawTankName = selectedTankObj ? selectedTankObj.name || selectedTankObj.tankName : 'Selected Tank';
+    const rawTankName = selectedTankObj
+      ? selectedTankObj.name || selectedTankObj.tankName
+      : (initialData?.tankName || initialData?.crop?.tank?.tankName || 'Selected Tank');
     const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
     const numericCount = parseFloat(data.shrimpCount);
     const autoAbw = numericCount > 0 ? parseFloat((1000 / numericCount).toFixed(2)) : 0;
 
-    // Backend Request Model: { tankId, harvestDate, shrimpCount, production, averageWeight, sellingPrice, buyerName, transportationCost, harvestExpense, notes }
     const harvestPayload = {
       tankId: data.tankId,
       harvestDate: data.harvestDate,
       shrimpCount: numericCount,
-      production: numericCount, // Map to production for complete backward compatibility
+      production: numericCount,
       averageWeight: autoAbw,
       survivalRate: 85,
       sellingPrice: parseFloat(data.sellingPrice),
@@ -137,6 +156,14 @@ export const HarvestForm = ({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
+      {/* Error Message Banner */}
+      {errorMessage && (
+        <div className="p-3 rounded-lg bg-danger-light/50 border border-danger/30 text-danger text-xs font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
       {/* BASIC INFORMATION SECTION */}
       <div className="space-y-3">
         <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">

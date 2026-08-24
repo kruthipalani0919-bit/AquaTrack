@@ -9,9 +9,16 @@ export const EXPENSE_CATEGORY_OPTIONS = [
 ];
 
 export const PAYMENT_MODE_OPTIONS = [
-  { value: 'Cash', label: 'Cash' },
-  { value: 'UPI / Net Banking', label: 'UPI / Net Banking' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'UPI', label: 'UPI / Net Banking' },
 ];
+
+export const formatPaymentModeDisplay = (mode) => {
+  if (!mode) return 'Cash';
+  const u = String(mode).trim().toUpperCase();
+  if (u.includes('UPI') || u.includes('NET') || u.includes('BANK')) return 'UPI / Net Banking';
+  return 'Cash';
+};
 
 export const MOCK_EXPENSES = [
   {

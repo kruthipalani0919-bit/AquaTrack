@@ -2,8 +2,7 @@ import api from './api';
 
 /**
  * Stocking Management Service
- * Communicates with backend /stocking API routes.
- * Authentication token attached automatically via api.js interceptor.
+ * Real API integration with AquaTrack backend (/api/stocking).
  */
 
 // Create Farm Stock (POST /api/stocking)

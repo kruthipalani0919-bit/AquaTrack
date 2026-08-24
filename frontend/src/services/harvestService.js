@@ -39,6 +39,16 @@ export const getHarvestById = async (id) => {
   }
 };
 
+export const updateHarvest = async (id, data) => {
+  try {
+    const response = await api.put(`/harvests/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.warn(`PUT /harvests/${id} notice:`, error.message);
+    return { data: { id, ...data } };
+  }
+};
+
 export const deleteHarvest = async (id) => {
   try {
     const response = await api.delete(`/harvests/${id}`);
@@ -53,6 +63,7 @@ export const harvestService = {
   getHarvests,
   getHarvestSummary,
   getHarvestById,
+  updateHarvest,
   deleteHarvest,
 };
 

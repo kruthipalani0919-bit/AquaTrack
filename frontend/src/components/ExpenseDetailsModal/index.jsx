@@ -2,6 +2,7 @@ import React from 'react';
 import { Container, Calendar, CreditCard, Edit3, Trash2, Tag, IndianRupee, FileText, Receipt } from 'lucide-react';
 import { Modal } from '../Modal';
 import { Button } from '../Button';
+import { formatPaymentModeDisplay } from '../../constants/expenseData';
 
 /**
  * Redesigned ExpenseDetailsModal component featuring clean visual sectioning:
@@ -66,7 +67,7 @@ export const ExpenseDetailsModal = ({
                 <CreditCard className="w-3 h-3 text-primary" /> Payment Mode
               </span>
               <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
-                {expense.paymentMode || 'Cash'}
+                {formatPaymentModeDisplay(expense.paymentMode)}
               </span>
             </div>
 

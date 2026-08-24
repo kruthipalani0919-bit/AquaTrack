@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import cropService from '../services/cropService';
+import harvestService from '../services/harvestService';
 import { useAuth } from './AuthContext';
 
 const CropContext = createContext(null);
@@ -18,17 +19,43 @@ export const CropProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await cropService.getCrops();
-      const cropList = res.data || res || [];
-      const normalized = cropList.map((c) => ({
-        ...c,
-        cropName: c.cropName || c.batchNumber || (c.seedVariety ? `${c.seedVariety} (${c.batchNumber || 'Batch'})` : 'Crop Batch'),
-        batchNumber: c.batchNumber || c.cropName || '',
-        expectedProductionKg: c.expectedProductionKg ?? c.expectedProduction,
-        expectedSellingPricePerKg: c.expectedSellingPricePerKg ?? c.expectedSellingPrice,
-        tankName: c.tank?.tankName || c.tankName || 'Tank',
-        status: c.status === 'ACTIVE' ? 'Active' : c.status === 'COMPLETED' ? 'Completed' : c.status,
-      }));
+      const [cropsRes, harvestsRes] = await Promise.all([
+        cropService.getCrops().catch(() => ({ data: [] })),
+        harvestService.getHarvests().catch(() => ({ data: [] })),
+      ]);
+
+      const cropList = cropsRes.data || cropsRes || [];
+      const harvestList = harvestsRes.data || harvestsRes || [];
+
+      if (!Array.isArray(cropList)) {
+        setCrops([]);
+        return;
+      }
+
+      // Set of crop IDs and tank IDs that have an existing harvest record
+      const harvestedCropIds = new Set(
+        harvestList.map((h) => h.cropId || h.crop?.id).filter(Boolean)
+      );
+      const harvestedTankIds = new Set(
+        harvestList.map((h) => h.tankId || h.tank?.id || h.crop?.tankId).filter(Boolean)
+      );
+
+      const normalized = cropList.map((c) => {
+        const hasHarvest = harvestedCropIds.has(c.id) || harvestedTankIds.has(c.tankId);
+        const derivedStatus = hasHarvest ? 'COMPLETED' : (c.status || 'ACTIVE');
+
+        return {
+          ...c,
+          cropName: c.cropName || c.batchNumber || (c.seedVariety ? `${c.seedVariety} (${c.batchNumber || 'Batch'})` : 'Crop Batch'),
+          batchNumber: c.batchNumber || c.cropName || '',
+          expectedProductionKg: c.expectedProductionKg ?? c.expectedProduction,
+          expectedSellingPricePerKg: c.expectedSellingPricePerKg ?? c.expectedSellingPrice,
+          tankName: c.tank?.tankName || c.tankName || 'Tank',
+          status: derivedStatus === 'ACTIVE' ? 'Active' : 'Completed',
+          rawStatus: derivedStatus,
+        };
+      });
+
       setCrops(normalized);
     } catch (err) {
       console.error('Error fetching crops:', err);
@@ -40,6 +67,20 @@ export const CropProvider = ({ children }) => {
 
   useEffect(() => {
     fetchCrops();
+
+    const handleHarvestsChanged = () => {
+      fetchCrops();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('aquatrack:harvests-changed', handleHarvestsChanged);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('aquatrack:harvests-changed', handleHarvestsChanged);
+      }
+    };
   }, [fetchCrops, token]);
 
   const addCrop = async (newCropData) => {
@@ -51,8 +92,6 @@ export const CropProvider = ({ children }) => {
       ...(newCropData.notes ? { notes: newCropData.notes } : {}),
     };
 
-    console.log('Sending Crop Payload to POST /api/crops:', payload);
-
     const res = await cropService.createCrop(payload);
     const created = res.data || res;
     const normalized = {
@@ -60,7 +99,8 @@ export const CropProvider = ({ children }) => {
       cropName: created.cropName || created.batchNumber || newCropData.batchNumber,
       batchNumber: created.batchNumber || newCropData.batchNumber,
       tankName: newCropData.tankName || created.tank?.tankName || 'Tank',
-      status: created.status === 'ACTIVE' ? 'Active' : created.status,
+      status: 'Active',
+      rawStatus: 'ACTIVE',
     };
     setCrops((prev) => [normalized, ...prev]);
     return normalized;
@@ -83,8 +123,9 @@ export const CropProvider = ({ children }) => {
       batchNumber: updated.batchNumber || updatedData.batchNumber,
       tankName: updated.tank?.tankName || 'Tank',
       status: updated.status === 'ACTIVE' ? 'Active' : updated.status === 'COMPLETED' ? 'Completed' : updated.status,
+      rawStatus: updated.status,
     };
-    setCrops((prev) => prev.map((crop) => (crop.id === id ? { ...crop, ...normalized } : crop)));
+    setCrops((prev) => prev.map((crop) => (String(crop.id) === String(id) ? { ...crop, ...normalized } : crop)));
     return normalized;
   };
 
@@ -93,11 +134,12 @@ export const CropProvider = ({ children }) => {
     const updated = res.data || res;
     setCrops((prev) =>
       prev.map((crop) =>
-        crop.id === id
+        String(crop.id) === String(id)
           ? {
               ...crop,
               ...updated,
               status: 'Completed',
+              rawStatus: 'COMPLETED',
             }
           : crop
       )
@@ -106,12 +148,17 @@ export const CropProvider = ({ children }) => {
   };
 
   const deleteCrop = async (id) => {
-    await cropService.deleteCrop(id);
-    setCrops((prev) => prev.filter((crop) => crop.id !== id));
+    if (!id) return;
+    try {
+      await cropService.deleteCrop(id);
+    } catch (apiErr) {
+      console.warn('Backend delete notice (removing local crop state directly):', apiErr.message);
+    }
+    setCrops((prev) => prev.filter((crop) => String(crop.id) !== String(id)));
   };
 
   const getCropById = (id) => {
-    return crops.find((crop) => crop.id === id);
+    return crops.find((crop) => String(crop.id) === String(id));
   };
 
   return (

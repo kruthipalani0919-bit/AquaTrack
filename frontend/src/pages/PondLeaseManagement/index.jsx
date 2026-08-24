@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ArrowLeft, Landmark, Calendar, IndianRupee, Eye, Trash2, Edit2, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, ArrowLeft, Landmark, Calendar, IndianRupee, Eye, Trash2, Edit2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
@@ -15,8 +15,8 @@ import { useTanks } from '../../context/TankContext';
 
 export default function PondLeaseManagement() {
   const navigate = useNavigate();
-  const { leases, loading, addLease, updateLease, deleteLease, getLeaseCropAllocations } = usePondLeases();
-  const { tanks } = useTanks();
+  const { leases = [], loading, addLease, updateLease, deleteLease, getLeaseCropAllocations, error: contextError } = usePondLeases();
+  const { tanks = [] } = useTanks();
 
   // Modals & Active View State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -24,9 +24,9 @@ export default function PondLeaseManagement() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingLease, setDeletingLease] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [selectedLeaseDetails, setSelectedLeaseDetails] = useState(null);
-  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Form inputs state
   const [formData, setFormData] = useState({
@@ -38,6 +38,7 @@ export default function PondLeaseManagement() {
   });
 
   const [formError, setFormError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   // Calculate live days & daily cost for form preview
   const formCalculations = useMemo(() => {
@@ -78,6 +79,7 @@ export default function PondLeaseManagement() {
 
   // Open Edit Form
   const handleOpenEdit = (lease) => {
+    if (!lease || !lease.id) return;
     setEditingLease(lease);
     setFormData({
       tankId: lease.tankId,
@@ -114,7 +116,7 @@ export default function PondLeaseManagement() {
     }
 
     try {
-      if (editingLease) {
+      if (editingLease && editingLease.id) {
         await updateLease(editingLease.id, formData);
       } else {
         await addLease(formData);
@@ -126,32 +128,43 @@ export default function PondLeaseManagement() {
     }
   };
 
-  // Delete Handler
+  // Open Delete Dialog
+  const handleOpenDelete = (lease) => {
+    if (!lease || !lease.id) return;
+    setDeletingLease(lease);
+    setDeleteError('');
+    setIsDeleteOpen(true);
+  };
+
+  // Connected Delete Handler
   const handleConfirmDelete = async () => {
-    if (deletingLease) {
-      try {
-        await deleteLease(deletingLease.id);
-        setIsDeleteOpen(false);
-        setDeletingLease(null);
-        if (selectedLeaseDetails?.lease?.id === deletingLease.id) {
-          setSelectedLeaseDetails(null);
-        }
-      } catch (err) {
-        console.error('Error deleting lease:', err);
+    if (!deletingLease || !deletingLease.id) return;
+    const targetId = deletingLease.id;
+    setDeleteError('');
+    setIsDeleting(true);
+
+    try {
+      await deleteLease(targetId);
+      setIsDeleteOpen(false);
+      setDeletingLease(null);
+      if (selectedLeaseDetails?.lease?.id && String(selectedLeaseDetails.lease.id) === String(targetId)) {
+        setSelectedLeaseDetails(null);
       }
+    } catch (err) {
+      console.error('Error deleting lease:', err);
+      setDeleteError(err.message || 'Failed to delete pond lease record.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   // View Details Handler
   const handleViewDetails = async (lease) => {
-    setDetailsLoading(true);
     try {
       const details = await getLeaseCropAllocations(lease.id);
       setSelectedLeaseDetails(details);
     } catch (err) {
       console.error('Error loading crop allocations:', err);
-    } finally {
-      setDetailsLoading(false);
     }
   };
 
@@ -195,6 +208,26 @@ export default function PondLeaseManagement() {
         }
       />
 
+      {/* Error Alert Banner if any */}
+      {(contextError || deleteError || formError) && (
+        <div className="p-3.5 rounded-xl bg-danger-light/50 border border-danger/30 text-danger text-xs font-semibold flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{deleteError || formError || contextError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError('');
+              setFormError('');
+            }}
+            className="text-danger hover:underline cursor-pointer font-bold ml-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* 2. LEASE SUMMARY STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80 shadow-2xs">
@@ -217,7 +250,7 @@ export default function PondLeaseManagement() {
             <div>
               <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Lease Outlay</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">
-                ₹{leases.reduce((sum, l) => sum + (l.totalLeaseAmount || 0), 0).toLocaleString()}
+                ₹{leases.reduce((sum, l) => sum + (parseFloat(l.totalLeaseAmount) || 0), 0).toLocaleString()}
               </span>
             </div>
           </div>
@@ -265,7 +298,7 @@ export default function PondLeaseManagement() {
                 {leases.map((lease) => (
                   <tr key={lease.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-4 px-6 font-semibold text-text-primary">
-                      {lease.tank?.tankName || 'Tank'}
+                      {lease.tank?.tankName || lease.tank?.name || 'Tank'}
                       {lease.tank?.site?.siteName && (
                         <span className="block text-xs font-normal text-text-secondary">
                           {lease.tank.site.siteName}
@@ -273,7 +306,7 @@ export default function PondLeaseManagement() {
                       )}
                     </td>
                     <td className="py-4 px-6 font-bold text-emerald-700">
-                      ₹{(lease.totalLeaseAmount || 0).toLocaleString()}
+                      ₹{(parseFloat(lease.totalLeaseAmount) || 0).toLocaleString()}
                     </td>
                     <td className="py-4 px-6 text-text-secondary">{formatDate(lease.leaseStartDate)}</td>
                     <td className="py-4 px-6 text-text-secondary">{formatDate(lease.leaseEndDate)}</td>
@@ -281,7 +314,7 @@ export default function PondLeaseManagement() {
                       {lease.totalLeaseDays} Days
                     </td>
                     <td className="py-4 px-6 font-semibold text-teal-700">
-                      ₹{Math.round(lease.dailyLeaseCost || 0).toLocaleString()}/day
+                      ₹{Math.round(parseFloat(lease.dailyLeaseCost) || 0).toLocaleString()}/day
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -297,20 +330,19 @@ export default function PondLeaseManagement() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleOpenEdit(lease)}
-                          className="text-text-secondary hover:text-text-primary p-1.5"
+                          className="text-text-secondary hover:text-text-primary p-1.5 cursor-pointer"
+                          title="Edit Lease"
                         >
                           <Edit2 className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setDeletingLease(lease);
-                            setIsDeleteOpen(true);
-                          }}
-                          className="text-red-500 hover:text-red-700 p-1.5"
+                          onClick={() => handleOpenDelete(lease)}
+                          className="text-red-500 hover:text-red-700 p-1.5 cursor-pointer"
+                          title="Delete Lease"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-danger/80" />
                         </Button>
                       </div>
                     </td>
@@ -339,7 +371,7 @@ export default function PondLeaseManagement() {
               <div className="flex items-center gap-2">
                 <Badge variant="success" size="md">Tank Lease Allocation</Badge>
                 <h3 className="text-xl font-bold text-text-primary">
-                  {selectedLeaseDetails.lease?.tank?.tankName || 'Selected Tank'}
+                  {selectedLeaseDetails.lease?.tank?.tankName || selectedLeaseDetails.lease?.tank?.name || 'Selected Tank'}
                 </h3>
               </div>
               <p className="text-xs text-text-secondary mt-1">
@@ -360,7 +392,7 @@ export default function PondLeaseManagement() {
             <div>
               <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider block">Total Lease Amount</span>
               <span className="text-base font-bold text-text-primary">
-                ₹{(selectedLeaseDetails.lease?.totalLeaseAmount || 0).toLocaleString()}
+                ₹{(parseFloat(selectedLeaseDetails.lease?.totalLeaseAmount) || 0).toLocaleString()}
               </span>
             </div>
             <div>
@@ -372,7 +404,7 @@ export default function PondLeaseManagement() {
             <div>
               <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider block">Daily Lease Cost</span>
               <span className="text-base font-bold text-teal-700">
-                ₹{Math.round(selectedLeaseDetails.dailyLeaseCost || 0).toLocaleString()} / day
+                ₹{Math.round(parseFloat(selectedLeaseDetails.dailyLeaseCost) || 0).toLocaleString()} / day
               </span>
             </div>
             <div>
@@ -452,7 +484,11 @@ export default function PondLeaseManagement() {
       {/* 5. ADD / EDIT POND LEASE MODAL */}
       <Modal
         isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingLease(null);
+          setFormError('');
+        }}
         title={editingLease ? 'Edit Pond Lease' : 'Add Pond Lease'}
         description="Configure pond lease period and total amount to calculate daily and crop lease cost allocation."
         size="md"
@@ -556,7 +592,11 @@ export default function PondLeaseManagement() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setIsFormOpen(false)}
+              onClick={() => {
+                setIsFormOpen(false);
+                setEditingLease(null);
+                setFormError('');
+              }}
             >
               Cancel
             </Button>
@@ -577,17 +617,19 @@ export default function PondLeaseManagement() {
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingLease(null);
+          setDeleteError('');
         }}
         onConfirm={handleConfirmDelete}
         title="Delete Pond Lease"
         message={
           deletingLease
-            ? `Are you sure you want to delete the lease record for "${deletingLease.tank?.tankName || 'this tank'}"? This action cannot be undone.`
+            ? `Are you sure you want to delete the lease record for "${deletingLease.tank?.tankName || deletingLease.tank?.name || 'this tank'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this lease record?'
         }
         confirmText="Delete Lease"
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

@@ -38,17 +38,25 @@ export const ExpenseProvider = ({ children }) => {
     fetchExpenses();
   }, [fetchExpenses, token]);
 
+  const mapPaymentModeToApi = (mode) => {
+    if (!mode) return 'CASH';
+    const u = String(mode).trim().toUpperCase();
+    if (u.includes('UPI') || u.includes('NET') || u.includes('BANK')) return 'UPI';
+    return 'CASH';
+  };
+
   const addExpense = async (newExpenseData) => {
     const payload = {
       tankId: newExpenseData.tankId,
       category: newExpenseData.category,
       description: newExpenseData.description || `${newExpenseData.category} expense`,
       amount: parseFloat(newExpenseData.amount),
-      paymentMode: (newExpenseData.paymentMode || 'CASH').toUpperCase(),
+      paymentMode: mapPaymentModeToApi(newExpenseData.paymentMode),
       date: newExpenseData.date || new Date().toISOString().split('T')[0],
       notes: newExpenseData.notes || undefined,
     };
 
+    console.log('[ExpenseContext] Creating expense with payload:', payload);
     const res = await expenseService.createExpense(payload);
     const created = res.data || res;
     const normalized = {
@@ -65,11 +73,12 @@ export const ExpenseProvider = ({ children }) => {
       ...(updatedData.category ? { category: updatedData.category } : {}),
       ...(updatedData.description ? { description: updatedData.description } : {}),
       ...(updatedData.amount ? { amount: parseFloat(updatedData.amount) } : {}),
-      ...(updatedData.paymentMode ? { paymentMode: updatedData.paymentMode.toUpperCase() } : {}),
+      ...(updatedData.paymentMode ? { paymentMode: mapPaymentModeToApi(updatedData.paymentMode) } : {}),
       ...(updatedData.date ? { date: updatedData.date } : {}),
       ...(updatedData.notes !== undefined ? { notes: updatedData.notes } : {}),
     };
 
+    console.log('[ExpenseContext] Updating expense #' + id + ' with payload:', payload);
     const res = await expenseService.updateExpense(id, payload);
     const updated = res.data || res;
     const normalized = {

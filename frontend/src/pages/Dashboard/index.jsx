@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Boxes,
@@ -8,55 +8,57 @@ import {
   ArrowRight,
   Waves,
   Sprout,
-  IndianRupee
+  CheckCircle2
 } from 'lucide-react';
 
-import { Card, CardHeader, CardTitle, CardDescription, CardBody } from '../../components/Card';
+import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import dashboardService from '../../services/dashboardService';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated, user, farm: authFarm } = useAuth();
+  const { isAuthenticated, farm: authFarm } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function loadDashboard() {
-      if (!isAuthenticated) return;
-      try {
-        setLoading(true);
-        const res = await dashboardService.getDashboard();
-        if (isMounted) {
-          setDashboardData(res.data || res);
-        }
-      } catch (err) {
-        console.log('Dashboard fetch status:', err.message);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
+  // Automatic Frontend Data Loading on Mount and Window Focus
+  const loadDashboardData = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setLoading(true);
+      const res = await dashboardService.getDashboard();
+      setDashboardData(res.data || res);
+    } catch (err) {
+      console.log('Dashboard fetch notice:', err.message);
+    } finally {
+      setLoading(false);
     }
-    loadDashboard();
-    return () => {
-      isMounted = false;
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    loadDashboardData();
+
+    const handleFocus = () => {
+      loadDashboardData();
     };
-  }, [isAuthenticated, user]);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadDashboardData]);
 
   const stats = dashboardData?.statistics || {};
-  const finance = dashboardData?.finance || {};
   const farm = dashboardData?.farm || authFarm || {};
-  const activeCropsOverview = dashboardData?.activeCropOverview || [];
 
-  const hasFarmConfigured = Boolean(farm?.farmName || authFarm?.farmName || stats.totalTanks > 0);
+  const hasFarmConfigured = Boolean(farm?.farmName || authFarm?.farmName || (stats.totalTanks || 0) > 0);
 
+  // Farm Operational Metrics (Exactly 3 Summary Cards)
   const operationalMetrics = [
     {
       id: 'tanks',
-      title: 'Total Tanks / Ponds',
+      title: 'Total Tanks',
       value: stats.totalTanks ?? 0,
       description: farm.farmName ? `${farm.farmName} (${farm.totalAcres || 0} Acres)` : 'Configured farm ponds',
       icon: Waves,
@@ -71,29 +73,21 @@ export default function Dashboard() {
       bgColor: 'bg-emerald-50 text-emerald-700',
     },
     {
-      id: 'expenses',
-      title: 'Total Farm Expenses',
-      value: `₹${((finance.totalExpenseCost || 0) + (finance.totalFeedCost || 0) + (finance.totalMedicineCost || 0)).toLocaleString()}`,
-      description: `Feed: ₹${(finance.totalFeedCost || 0).toLocaleString()}`,
-      icon: Receipt,
-      bgColor: 'bg-amber-50 text-amber-700',
-    },
-    {
-      id: 'revenue',
-      title: 'Harvest Revenue',
-      value: `₹${(finance.totalRevenue || 0).toLocaleString()}`,
-      description: `Net Profit: ₹${(finance.totalProfit || 0).toLocaleString()}`,
-      icon: IndianRupee,
-      bgColor: 'bg-cyan-50 text-cyan-700',
+      id: 'completed',
+      title: 'Completed Batches',
+      value: stats.completedCrops ?? 0,
+      description: 'Finished crop harvests',
+      icon: CheckCircle2,
+      bgColor: 'bg-indigo-50 text-indigo-700',
     },
   ];
 
-  // Exact 4 Quick Actions Modules. ALL 4 modules are highlighted with the active blue style.
+  // Quick Actions Navigation Links
   const quickActions = [
-    { label: 'Stocking Management', path: '/stocking', icon: Boxes, isHighlighted: true },
-    { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed, isHighlighted: true },
-    { label: 'Expenses', path: '/expenses', icon: Receipt, isHighlighted: true },
-    { label: 'Reports', path: '/reports', icon: FileSpreadsheet, isHighlighted: true },
+    { label: 'Stocking Management', path: '/stocking', icon: Boxes },
+    { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed },
+    { label: 'Expenses', path: '/expenses', icon: Receipt },
+    { label: 'Reports', path: '/reports', icon: FileSpreadsheet },
   ];
 
   return (
@@ -127,7 +121,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 2. QUICK ACTIONS (Directly below Welcome section) */}
+      {/* 2. QUICK ACTIONS */}
       <div className="bg-surface border border-border/80 rounded-2xl p-5 shadow-2xs space-y-3.5">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
@@ -158,18 +152,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 3. FARM SUMMARY (Below Quick Actions) */}
+      {/* 3. FARM SUMMARY (3 Cards in One Clean Row) */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
             Farm Summary
           </h2>
           <span className="text-[11px] text-text-secondary font-medium">
-            {loading ? 'Loading...' : 'Operational Overview'}
+            {loading ? 'Loading statistics...' : 'Operational Overview'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {operationalMetrics.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -202,42 +196,6 @@ export default function Dashboard() {
           })}
         </div>
       </div>
-
-      {/* 4. ACTIVE CROPS OVERVIEW */}
-      {activeCropsOverview.length > 0 && (
-        <Card padding="relaxed" className="border-border/80 shadow-2xs">
-          <CardHeader>
-            <CardTitle>Active Crops Overview</CardTitle>
-            <CardDescription>Live active crop tracking and day-of-culture (DOC) status</CardDescription>
-          </CardHeader>
-          <CardBody>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-background text-text-secondary uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="p-3">Crop Name</th>
-                    <th className="p-3">Tank Name</th>
-                    <th className="p-3">Days Running (DOC)</th>
-                    <th className="p-3">Days Remaining</th>
-                    <th className="p-3">Expected Harvest</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {activeCropsOverview.map((item) => (
-                    <tr key={item.cropId} className="hover:bg-background/40">
-                      <td className="p-3 font-bold text-text-primary">{item.cropName}</td>
-                      <td className="p-3 text-text-secondary">{item.tankName}</td>
-                      <td className="p-3 font-semibold text-primary">Day {item.currentDay}</td>
-                      <td className="p-3 font-semibold text-accent">{item.daysRemaining} Days</td>
-                      <td className="p-3 text-text-secondary">{new Date(item.expectedHarvestDate).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardBody>
-        </Card>
-      )}
     </div>
   );
 }

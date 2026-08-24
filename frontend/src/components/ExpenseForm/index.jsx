@@ -83,11 +83,13 @@ export const ExpenseForm = ({
 
   useEffect(() => {
     if (initialData) {
+      const mode = initialData.paymentMode ? String(initialData.paymentMode).toUpperCase() : '';
+      const mappedMode = mode.includes('UPI') || mode.includes('NET') || mode.includes('BANK') ? 'UPI' : 'CASH';
       reset({
         tankId: initialData.tankId || '',
         category: initialData.category || '',
         amount: initialData.amount || '',
-        paymentMode: initialData.paymentMode || '',
+        paymentMode: initialData.paymentMode ? mappedMode : '',
         date: initialData.date || new Date().toISOString().split('T')[0],
         notes: initialData.notes || '',
       });

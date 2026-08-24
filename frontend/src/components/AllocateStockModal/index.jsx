@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MapPin, ShieldAlert, Package, Scale, Layers } from 'lucide-react';
+import { MapPin, ShieldAlert, Package, Scale, Layers, Info } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -34,22 +34,17 @@ const UNIT_OPTIONS = [
   { value: 'units', label: 'Units' },
 ];
 
-/**
- * Reusable AllocateStockForm component styled consistently with AquaTrack registration modals:
- * - Visually highlighted Allocation Details section card
- * - Stock Category *, Select Site *, Allocated Quantity *, Unit * fields with icons
- * - Bottom right action buttons: Cancel, Allocate Stock
- */
 export const AllocateStockForm = ({
   onSubmit,
   onCancel,
   isSubmitting = false,
   availableStockings = [],
+  initialRecord = null,
 }) => {
   const { sites = [], loading: sitesLoading } = useSites();
   const [formError, setFormError] = useState('');
 
-  // Clean Site label formatting without district or null
+  // Clean Site label formatting
   const siteOptions = sites.map((s) => {
     const siteName = s.siteName || 'Site';
     const locationSuffix = s.location ? ` (${s.location})` : '';
@@ -58,6 +53,9 @@ export const AllocateStockForm = ({
       label: `${siteName}${locationSuffix}`,
     };
   });
+
+  const defaultCategory = initialRecord?.category?.toUpperCase() || 'FEED';
+  const defaultUnit = initialRecord?.unit || (defaultCategory === 'MEDICINE' ? 'L' : 'kg');
 
   const {
     register,
@@ -68,17 +66,36 @@ export const AllocateStockForm = ({
   } = useForm({
     resolver: zodResolver(allocateStockSchema),
     defaultValues: {
-      category: 'FEED',
+      category: defaultCategory,
       siteId: sites.length === 1 ? sites[0].id : '',
       allocatedQuantity: '',
-      unit: 'kg',
+      unit: defaultUnit,
     },
     mode: 'onTouched',
   });
 
   const selectedCategory = watch('category');
+  const selectedUnit = watch('unit');
 
-  // Auto-set unit default based on category if unchanged
+  // Auto-set siteId when sites finish loading asynchronously
+  useEffect(() => {
+    if (sites.length === 1) {
+      setValue('siteId', sites[0].id);
+    }
+  }, [sites, setValue]);
+
+  // Calculate Available Unallocated Quantity for the selected category or specific record
+  const maxAvailable = React.useMemo(() => {
+    if (initialRecord) {
+      return initialRecord.unallocatedQuantity ?? Math.max((parseFloat(initialRecord.totalQuantity) || 0) - (parseFloat(initialRecord.totalAllocated) || 0), 0);
+    }
+    const categoryItems = availableStockings.filter(s => s.category?.toUpperCase() === selectedCategory?.toUpperCase());
+    return categoryItems.reduce((sum, item) => {
+      const itemUnallocated = item.unallocatedQuantity ?? Math.max((parseFloat(item.totalQuantity) || 0) - (parseFloat(item.totalAllocated) || 0), 0);
+      return sum + itemUnallocated;
+    }, 0);
+  }, [initialRecord, availableStockings, selectedCategory]);
+
   const handleCategoryChange = (e) => {
     const val = e.target.value;
     setValue('category', val);
@@ -94,11 +111,22 @@ export const AllocateStockForm = ({
 
   const handleFormSubmit = async (data) => {
     setFormError('');
+    const requestedQty = parseFloat(data.allocatedQuantity);
+
+    if (requestedQty > maxAvailable) {
+      setFormError(`Allocated quantity (${requestedQty} ${selectedUnit}) cannot exceed available stock (${maxAvailable} ${selectedUnit}).`);
+      return;
+    }
+
     try {
       if (onSubmit) {
-        await onSubmit(data);
+        await onSubmit({
+          ...data,
+          stockingId: initialRecord?.id
+        });
       }
     } catch (err) {
+      console.error('[AllocateStockForm] Error during allocation submit:', err);
       setFormError(err.message || 'Failed to allocate stock to site');
     }
   };
@@ -111,6 +139,16 @@ export const AllocateStockForm = ({
           <span>{formError}</span>
         </div>
       )}
+
+      {/* AVAILABLE UNALLOCATED STOCK BANNER */}
+      <div className="p-3 rounded-xl bg-primary-light/40 border border-primary/20 flex items-center justify-between text-xs">
+        <span className="font-semibold text-text-secondary flex items-center gap-1.5">
+          <Info className="w-4 h-4 text-primary" /> Available Unallocated Stock:
+        </span>
+        <span className="font-extrabold text-sm text-primary">
+          {maxAvailable} {selectedUnit || defaultUnit}
+        </span>
+      </div>
 
       {/* ALLOCATION DETAILS SECTION */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-4 shadow-2xs">
@@ -127,7 +165,7 @@ export const AllocateStockForm = ({
           error={errors.category?.message}
           value={selectedCategory}
           onChange={handleCategoryChange}
-          disabled={isSubmitting}
+          disabled={isSubmitting || Boolean(initialRecord)}
         />
 
         {/* Site Select */}
@@ -148,11 +186,12 @@ export const AllocateStockForm = ({
             label="Allocated Quantity"
             type="number"
             step="0.1"
-            placeholder="e.g. 100"
+            max={maxAvailable}
+            placeholder={`Max: ${maxAvailable}`}
             required={true}
             icon={<Package className="w-4 h-4 text-primary" />}
             error={errors.allocatedQuantity?.message}
-            disabled={isSubmitting}
+            disabled={isSubmitting || maxAvailable <= 0}
             {...register('allocatedQuantity')}
           />
 
@@ -185,6 +224,7 @@ export const AllocateStockForm = ({
           variant="primary"
           isLoading={isSubmitting}
           className="font-semibold"
+          disabled={maxAvailable <= 0}
         >
           Allocate Stock
         </Button>

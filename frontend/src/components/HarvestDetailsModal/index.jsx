@@ -1,11 +1,24 @@
 import React from 'react';
-import { Wheat, Container, Calendar, Weight, User, IndianRupee, Truck, Edit3, Trash2 } from 'lucide-react';
+import {
+  Container,
+  User,
+  Calendar,
+  Fish,
+  Scale,
+  TrendingUp,
+  Receipt,
+  FileText,
+  Edit3,
+  Trash2
+} from 'lucide-react';
 import { Modal } from '../Modal';
-import { Badge } from '../Badge';
 import { Button } from '../Button';
 
 /**
- * Reusable HarvestDetailsModal component to view full harvest record details.
+ * HarvestDetailsModal component:
+ * - TOP SECTION (Normal Surface): Tank, Buyer Name, Harvest Date.
+ * - BOTTOM HIGHLIGHTED SECTION (Teal/Blue): Shrimp Count, ABW, Selling Price (/kg), Harvest Expense.
+ * - Edit Record and Delete action buttons at bottom.
  */
 export const HarvestDetailsModal = ({
   isOpen,
@@ -16,96 +29,161 @@ export const HarvestDetailsModal = ({
 }) => {
   if (!harvest) return null;
 
+  const displayBuyer = harvest.buyerName || 'Direct Market Buyer';
+  const rawTank = harvest.tankName || harvest.tank?.name || harvest.tank?.tankName || 'Not assigned';
+  const displayTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
+
+  const numericShrimpCount = parseFloat(harvest.shrimpCount) || 0;
+  const numericAbw = parseFloat(harvest.averageWeight) || 0;
+  const numericPrice = parseFloat(harvest.sellingPrice) || 0;
+  const numericExpense = parseFloat(harvest.harvestExpense) || 0;
+
+  const formattedDate = harvest.harvestDate
+    ? new Date(harvest.harvestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'Not specified';
+
+  const handleEditClick = () => {
+    onClose();
+    if (onEdit) onEdit(harvest);
+  };
+
+  const handleDeleteClick = () => {
+    onClose();
+    if (onDelete) onDelete(harvest);
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Harvest Details - ${harvest.tankName || 'Tank'}`}
-      description="Harvest yield metrics and transaction details"
+      title="Harvest Details"
+      description="Harvest transaction details"
       size="md"
     >
-      <div className="space-y-6">
-        {/* Header Tank & Buyer */}
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-background border border-border">
-          <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-            <Container className="w-4 h-4 text-primary" /> {harvest.tankName || 'Tank 1'}
-          </span>
-          <Badge variant="success">
-            Harvested
-          </Badge>
-        </div>
+      <div className="space-y-4">
+        {/* 1. TOP SECTION — NORMAL / SIMPLE DETAILS (Surface Background) */}
+        <div className="p-4 rounded-xl bg-surface border border-border/80 space-y-3 shadow-2xs">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1.5 border-b border-border/60 pb-2">
+            <FileText className="w-4 h-4 text-text-secondary" /> RECORD DETAILS
+          </h4>
 
-        {/* Spec Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Production</span>
-            <span className="text-sm font-extrabold text-text-primary mt-1 block">{harvest.production} kg</span>
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            {/* Tank */}
+            <div className="p-3 rounded-lg bg-background border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Container className="w-3 h-3 text-text-secondary" /> Tank
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {displayTank}
+              </span>
+            </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Avg Weight (ABW)</span>
-            <span className="text-sm font-extrabold text-text-primary mt-1 block">{harvest.averageWeight} g</span>
-          </div>
+            {/* Buyer Name */}
+            <div className="p-3 rounded-lg bg-background border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <User className="w-3 h-3 text-text-secondary" /> Buyer Name
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {displayBuyer}
+              </span>
+            </div>
 
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Survival Rate</span>
-            <span className="text-sm font-extrabold text-emerald-700 mt-1 block">{harvest.survivalRate}%</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Selling Price</span>
-            <span className="text-sm font-extrabold text-primary mt-1 block">₹{harvest.sellingPrice}/kg</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Transport Cost</span>
-            <span className="text-sm font-bold text-text-primary mt-1 block">₹{harvest.transportationCost}</span>
-          </div>
-
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <span className="text-[10px] text-text-secondary uppercase font-semibold block">Harvest Expense</span>
-            <span className="text-sm font-bold text-text-primary mt-1 block">₹{harvest.harvestExpense}</span>
+            {/* Harvest Date */}
+            <div className="p-3 rounded-lg bg-background border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-text-secondary" /> Harvest Date
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {formattedDate}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Buyer & Date Section */}
-        <div className="p-3.5 rounded-xl bg-background border border-border space-y-2 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-text-secondary flex items-center gap-1.5 font-medium">
-              <User className="w-3.5 h-3.5 text-primary" /> Buyer / Trader
+        {/* 2. BOTTOM HIGHLIGHTED SECTION — HARVEST PERFORMANCE & METRICS (Teal/Blue) */}
+        <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3.5 shadow-2xs">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-2">
+            <Receipt className="w-4 h-4 text-primary" /> HARVEST PERFORMANCE & FINANCIAL DETAILS
+          </h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {/* Shrimp Count */}
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Fish className="w-3 h-3 text-primary" /> Shrimp Count
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {numericShrimpCount > 0 ? numericShrimpCount.toLocaleString() : 'N/A'}
+              </span>
+            </div>
+
+            {/* Average Weight (ABW) */}
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Scale className="w-3 h-3 text-primary" /> Average Weight (ABW)
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {numericAbw} g
+              </span>
+            </div>
+
+            {/* Selling Price (/kg) */}
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <TrendingUp className="w-3 h-3 text-primary" /> Selling Price (/kg)
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                ₹{numericPrice}
+              </span>
+            </div>
+
+            {/* Harvest Expense */}
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                <Receipt className="w-3 h-3 text-primary" /> Harvest Expense
+              </span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                ₹{numericExpense.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Notes (Rendered if exist) */}
+        {harvest.notes && (
+          <div className="p-3.5 rounded-xl bg-background border border-border/60 text-xs shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1 mb-1">
+              <FileText className="w-3.5 h-3.5 text-text-secondary" /> Notes
             </span>
-            <span className="font-bold text-text-primary">{harvest.buyerName || 'Buyer'}</span>
+            <p className="text-text-secondary leading-relaxed">{harvest.notes}</p>
           </div>
-
-          <div className="flex items-center justify-between border-t border-border/60 pt-2">
-            <span className="text-text-secondary flex items-center gap-1.5 font-medium">
-              <Calendar className="w-3.5 h-3.5 text-accent" /> Harvest Date
-            </span>
-            <span className="font-bold text-text-primary">{harvest.harvestDate}</span>
-          </div>
-        </div>
+        )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
           {onEdit && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onEdit(harvest)}
+              onClick={handleEditClick}
               icon={<Edit3 className="w-4 h-4" />}
+              className="font-semibold"
             >
               Edit Record
             </Button>
           )}
 
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => onDelete(harvest)}
-            icon={<Trash2 className="w-4 h-4" />}
-          >
-            Delete
-          </Button>
+          {onDelete && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteClick}
+              icon={<Trash2 className="w-4 h-4" />}
+              className="font-semibold"
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

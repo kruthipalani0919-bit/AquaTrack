@@ -169,7 +169,7 @@ export default function Tanks() {
         }
       />
 
-      {/* 2. OPERATIONAL SUMMARY METRICS */}
+      {/* 2. OPERATIONAL SUMMARY METRICS (Exclusively 2 Cards: Total Tanks & Total Area) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Card padding="compact" className="border-border/80">
           <div className="flex items-center gap-3">
@@ -189,7 +189,7 @@ export default function Tanks() {
               <Maximize2 className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Water Area</span>
+              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Area</span>
               <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalArea} Acres</span>
             </div>
           </div>
@@ -292,7 +292,7 @@ export default function Tanks() {
         />
       </Modal>
 
-      {/* 6. TANK DETAILS MODAL (REDESIGNED CLIENT-FRIENDLY STRUCTURE) */}
+      {/* 6. TANK DETAILS MODAL */}
       {viewingTank && (() => {
         const tankTitle = viewingTank.name || viewingTank.tankName || 'Tank Details';
         const targetSite = sites.find((s) => s.id === viewingTank.siteId);
@@ -370,7 +370,7 @@ export default function Tanks() {
                 </div>
               </div>
 
-              {/* REMARKS / NOTES SECTION (ONLY SHOWN IF REMARKS EXIST) */}
+              {/* REMARKS / NOTES SECTION */}
               {tankRemarks ? (
                 <div className="p-3.5 rounded-xl bg-background border border-border/80 text-xs shadow-2xs">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1 mb-1">

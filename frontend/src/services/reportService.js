@@ -15,7 +15,6 @@ export const reportService = {
       if (Array.isArray(tanks) && tanks.length > 0) {
         return tanks;
       }
-      // Fallback to /tanks endpoint if /reports/tanks returns empty array
       const tankRes = await api.get('/tanks');
       return tankRes.data?.data || tankRes.data || [];
     } catch (error) {
@@ -37,7 +36,8 @@ export const reportService = {
     if (!tankId) throw new Error('Tank ID is required');
     try {
       const response = await api.get(`/reports/tank/${tankId}/active`);
-      return response.data;
+      const data = response.data?.data || response.data;
+      return await enrichReportData(data, tankId, null);
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch active tank report');
     }
@@ -66,11 +66,113 @@ export const reportService = {
     if (!cropId) throw new Error('Crop ID is required');
     try {
       const response = await api.get(`/reports/crop/${cropId}`);
-      return response.data;
+      const data = response.data?.data || response.data;
+      return await enrichReportData(data, null, cropId);
     } catch (error) {
       throw new Error(error.message || 'Failed to fetch completed crop report');
     }
   },
 };
+
+export const getCropReport = async (tankId, type, cropId) => {
+  if (type === 'COMPLETED' && cropId) {
+    return await reportService.getCompletedCropReport(cropId);
+  }
+  return await reportService.getActiveTankReport(tankId);
+};
+
+export const getCompletedCropsByTank = async (tankId) => {
+  return await reportService.getCompletedCrops(tankId);
+};
+
+/**
+ * Non-blocking Frontend Enrichment Helper to ensure Harvest Date, Expenses, and Pond Lease based on DOC are merged smoothly
+ */
+async function enrichReportData(reportData, tankId, cropId) {
+  if (!reportData) return reportData;
+
+  const targetCropId = cropId || reportData.crop?.id;
+  const targetTankId = tankId || reportData.tank?.id;
+
+  try {
+    const enrichmentTasks = [];
+
+    // 1. Optional Harvest record enrichment
+    if (reportData.crop && (reportData.crop.status === 'COMPLETED' || reportData.crop.status === 'Completed')) {
+      enrichmentTasks.push(
+        api.get('/harvests').then((harvestsRes) => {
+          const rawHarvests = harvestsRes.data?.data || harvestsRes.data || [];
+          let savedEdits = {};
+          try {
+            if (typeof window !== 'undefined') {
+              const stored = localStorage.getItem('aquatrack_harvest_edits');
+              if (stored) savedEdits = JSON.parse(stored);
+            }
+          } catch (e) {}
+
+          const harvests = rawHarvests.map((h) => ({
+            ...h,
+            ...(savedEdits[h.id] || savedEdits[String(h.id)] || {}),
+          }));
+
+          const match = harvests.find((h) =>
+            (targetCropId && (h.cropId === targetCropId || h.crop?.id === targetCropId)) ||
+            (targetTankId && h.crop?.tankId === targetTankId)
+          );
+          if (match && match.harvestDate && reportData.crop) {
+            reportData.crop.harvestDate = match.harvestDate;
+          }
+        }).catch((hErr) => console.warn('Harvest enrichment notice:', hErr.message))
+      );
+    }
+
+    // 2. Optional Expense history enrichment
+    enrichmentTasks.push(
+      api.get('/expenses').then((expensesRes) => {
+        const allExpenses = expensesRes.data?.data || expensesRes.data || [];
+        const matchedExpenses = allExpenses.filter((e) => {
+          if (targetCropId && (e.cropId === targetCropId || e.crop?.id === targetCropId)) return true;
+          if (targetTankId && e.crop?.tankId === targetTankId && reportData.crop?.status === 'ACTIVE') return true;
+          return false;
+        });
+
+        if (matchedExpenses.length > 0) {
+          const existingIds = new Set((reportData.expenseHistory || []).map((e) => e.id));
+          const newItems = matchedExpenses.filter((e) => !existingIds.has(e.id));
+
+          if (!reportData.expenseHistory) reportData.expenseHistory = [];
+          reportData.expenseHistory = [...reportData.expenseHistory, ...newItems];
+
+          const generalExpenseSum = reportData.expenseHistory.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          if (reportData.summary) {
+            reportData.summary.totalExpenseCost = generalExpenseSum;
+          }
+        }
+      }).catch((expErr) => console.warn('Expense enrichment notice:', expErr.message))
+    );
+
+    // 3. Optional Pond Lease record enrichment for tank lease daily cost
+    if (targetTankId) {
+      enrichmentTasks.push(
+        api.get('/pond-leases').then((leasesRes) => {
+          const leases = leasesRes.data?.data || leasesRes.data || [];
+          const match = leases.find((l) =>
+            String(l.tankId) === String(targetTankId) || String(l.tank?.id) === String(targetTankId)
+          );
+          if (match) {
+            reportData.tankLease = match;
+          }
+        }).catch((lErr) => console.warn('Pond lease enrichment notice:', lErr.message))
+      );
+    }
+
+    // Concurrently wait for optional enrichments with Promise.allSettled
+    await Promise.allSettled(enrichmentTasks);
+  } catch (err) {
+    console.warn('Frontend enrichment notice:', err.message);
+  }
+
+  return reportData;
+}
 
 export default reportService;

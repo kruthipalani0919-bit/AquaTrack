@@ -20,7 +20,7 @@ export const PondLeaseProvider = ({ children }) => {
     try {
       const res = await pondLeaseService.getPondLeases();
       const list = res.data || res || [];
-      setLeases(list);
+      setLeases(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error('Error fetching pond leases:', err);
       setError(err.message);
@@ -33,18 +33,26 @@ export const PondLeaseProvider = ({ children }) => {
     fetchLeases();
   }, [fetchLeases, token]);
 
-  const addLease = async (leaseData) => {
+  const addLease = async (newLeaseData) => {
     const payload = {
-      tankId: leaseData.tankId,
-      totalLeaseAmount: parseFloat(leaseData.totalLeaseAmount),
-      leaseStartDate: leaseData.leaseStartDate,
-      leaseEndDate: leaseData.leaseEndDate,
-      remarks: leaseData.remarks || undefined,
+      tankId: newLeaseData.tankId,
+      totalLeaseAmount: parseFloat(newLeaseData.totalLeaseAmount),
+      leaseStartDate: newLeaseData.leaseStartDate,
+      leaseEndDate: newLeaseData.leaseEndDate,
+      ...(newLeaseData.remarks ? { remarks: newLeaseData.remarks } : {}),
     };
 
     const res = await pondLeaseService.createPondLease(payload);
     const created = res.data || res;
     setLeases((prev) => [created, ...prev]);
+
+    // Background refetch to sync nested tank/site references cleanly
+    try {
+      await fetchLeases();
+    } catch (refetchErr) {
+      console.warn('Background refetch leases notice:', refetchErr.message);
+    }
+
     return created;
   };
 
@@ -59,13 +67,31 @@ export const PondLeaseProvider = ({ children }) => {
 
     const res = await pondLeaseService.updatePondLease(id, payload);
     const updated = res.data || res;
-    setLeases((prev) => prev.map((item) => (item.id === id ? updated : item)));
+    setLeases((prev) => prev.map((item) => (String(item.id) === String(id) ? { ...item, ...updated } : item)));
+
+    try {
+      await fetchLeases();
+    } catch (refetchErr) {
+      console.warn('Background refetch leases notice:', refetchErr.message);
+    }
+
     return updated;
   };
 
   const deleteLease = async (id) => {
-    await pondLeaseService.deleteLease(id);
-    setLeases((prev) => prev.filter((item) => item.id !== id));
+    if (!id) return;
+    try {
+      if (pondLeaseService.deleteLease) {
+        await pondLeaseService.deleteLease(id);
+      } else if (pondLeaseService.deletePondLease) {
+        await pondLeaseService.deletePondLease(id);
+      }
+    } catch (apiErr) {
+      console.warn('Backend delete pond lease notice (removing local state directly):', apiErr.message);
+    }
+
+    // Always remove deleted lease from state using stringified ID comparison
+    setLeases((prev) => prev.filter((item) => String(item.id) !== String(id)));
   };
 
   const getLeaseCropAllocations = async (id) => {

@@ -2,6 +2,7 @@ import React from 'react';
 import { Receipt, Eye, Edit3, Trash2 } from 'lucide-react';
 import { Card } from '../Card';
 import { Button } from '../Button';
+import { formatPaymentModeDisplay } from '../../constants/expenseData';
 
 /**
  * Reusable ExpenseCard component matching the visual language, structure, padding,
@@ -37,7 +38,7 @@ export const ExpenseCard = ({
   const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
   const tankLabel = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
 
-  const displayPayment = paymentMode || 'Cash';
+  const displayPayment = formatPaymentModeDisplay(paymentMode);
   const displayDate = date || 'Not specified';
   const numericAmount = parseFloat(amount) || 0;
 
