@@ -20,15 +20,17 @@ export default function Harvest() {
   // Filter State
   const [tankFilter, setTankFilter] = useState('');
 
-  // Modal Controls
+  // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingHarvest, setEditingHarvest] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingHarvest, setViewingHarvest] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingHarvest, setDeletingHarvest] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Harvest List Safely
   const filteredHarvests = useMemo(() => {
@@ -60,7 +62,7 @@ export default function Harvest() {
     };
   }, [harvests]);
 
-  // Handlers
+  // Form Handlers
   const handleOpenAdd = () => {
     setEditingHarvest(null);
     setIsFormOpen(true);
@@ -84,6 +86,7 @@ export default function Harvest() {
   };
 
   const handleSaveHarvest = async (formData) => {
+    setIsSubmitting(true);
     try {
       if (editingHarvest) {
         await updateHarvest(editingHarvest.id, formData);
@@ -94,17 +97,22 @@ export default function Harvest() {
       setEditingHarvest(null);
     } catch (err) {
       console.error('Error saving harvest:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (deletingHarvest) {
+      setIsDeleting(true);
       try {
         await deleteHarvest(deletingHarvest.id);
         setIsDeleteOpen(false);
         setDeletingHarvest(null);
       } catch (err) {
         console.error('Error deleting harvest:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -232,6 +240,7 @@ export default function Harvest() {
             setIsFormOpen(false);
             setEditingHarvest(null);
           }}
+          isSubmitting={isSubmitting}
         />
       </Modal>
 
@@ -261,9 +270,10 @@ export default function Harvest() {
             ? `Are you sure you want to delete the harvest record for "${deletingHarvest.buyerName || 'Harvest'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this harvest record?'
         }
-        confirmText="Delete Harvest Record"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Harvest Record'}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

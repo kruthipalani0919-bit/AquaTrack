@@ -237,9 +237,10 @@ export const FeedForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Feed Log' : 'Record Feed'}
+          {isEditing ? (isSubmitting ? 'Updating...' : 'Update Feed Log') : (isSubmitting ? 'Recording...' : 'Record Feed')}
         </Button>
       </div>
     </form>

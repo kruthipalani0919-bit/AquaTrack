@@ -17,6 +17,11 @@ export const createCropSchema = z.object({
         .string()
         .min(1, "Stocking date is required"),
 
+    seedQuantity: z
+        .coerce
+        .number({ invalid_type_error: "Seed quantity must be a positive number" })
+        .positive("Seed quantity must be greater than 0"),
+
     seedVariety: z
         .string()
         .min(2, "Seed variety is required"),

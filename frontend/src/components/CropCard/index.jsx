@@ -23,6 +23,7 @@ export const CropCard = ({
     tankName,
     cropName,
     batchNumber,
+    seedQuantity,
     seedVariety,
     stockingDate,
     status,
@@ -71,6 +72,17 @@ export const CropCard = ({
       {/* 2. INFORMATION SPECIFICATION BOX */}
       <div className="py-4 border-b border-border/60">
         <div className="flex flex-col items-start p-3 rounded-lg bg-background/60 border border-border/40 space-y-2">
+          {seedQuantity != null && (
+            <div className="w-full flex items-center justify-between pb-1.5 border-b border-border/40">
+              <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
+                Seed Quantity
+              </span>
+              <span className="text-xs font-bold text-text-primary truncate ml-2">
+                {seedQuantity} kg
+              </span>
+            </div>
+          )}
+
           <div className="w-full flex items-center justify-between">
             <span className="text-[10px] uppercase font-semibold text-text-secondary tracking-wider">
               Seed Variety

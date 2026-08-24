@@ -49,7 +49,6 @@ export default function Dashboard() {
   const stats = dashboardData?.statistics || {};
   const finance = dashboardData?.finance || {};
   const farm = dashboardData?.farm || authFarm || {};
-  const activeCropsOverview = dashboardData?.activeCropOverview || [];
 
   const hasFarmConfigured = Boolean(farm?.farmName || authFarm?.farmName || stats.totalTanks > 0);
 
@@ -202,42 +201,6 @@ export default function Dashboard() {
           })}
         </div>
       </div>
-
-      {/* 4. ACTIVE CROPS OVERVIEW */}
-      {activeCropsOverview.length > 0 && (
-        <Card padding="relaxed" className="border-border/80 shadow-2xs">
-          <CardHeader>
-            <CardTitle>Active Crops Overview</CardTitle>
-            <CardDescription>Live active crop tracking and day-of-culture (DOC) status</CardDescription>
-          </CardHeader>
-          <CardBody>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-background text-text-secondary uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="p-3">Crop Name</th>
-                    <th className="p-3">Tank Name</th>
-                    <th className="p-3">Days Running (DOC)</th>
-                    <th className="p-3">Days Remaining</th>
-                    <th className="p-3">Expected Harvest</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {activeCropsOverview.map((item) => (
-                    <tr key={item.cropId} className="hover:bg-background/40">
-                      <td className="p-3 font-bold text-text-primary">{item.cropName}</td>
-                      <td className="p-3 text-text-secondary">{item.tankName}</td>
-                      <td className="p-3 font-semibold text-primary">Day {item.currentDay}</td>
-                      <td className="p-3 font-semibold text-accent">{item.daysRemaining} Days</td>
-                      <td className="p-3 text-text-secondary">{new Date(item.expectedHarvestDate).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardBody>
-        </Card>
-      )}
     </div>
   );
 }

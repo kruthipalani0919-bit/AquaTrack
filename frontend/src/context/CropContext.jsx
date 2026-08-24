@@ -127,6 +127,7 @@ export const CropProvider = ({ children }) => {
     const payload = {
       tankId: newCropData.tankId,
       stockingDate: newCropData.stockingDate,
+      seedQuantity: newCropData.seedQuantity,
       seedVariety: newCropData.seedVariety,
       batchNumber: newCropData.batchNumber || newCropData.cropName,
       ...(newCropData.notes ? { notes: newCropData.notes } : {}),
@@ -141,6 +142,7 @@ export const CropProvider = ({ children }) => {
     const normalized = {
       ...created,
       id: String(created.id),
+      seedQuantity: created.seedQuantity ?? newCropData.seedQuantity,
       cropName: created.cropName || created.batchNumber || newCropData.batchNumber,
       batchNumber: created.batchNumber || newCropData.batchNumber,
       tankName: newCropData.tankName || created.tank?.tankName || created.tank?.name || 'Tank',
@@ -156,6 +158,7 @@ export const CropProvider = ({ children }) => {
     const payload = {
       ...(updatedData.tankId ? { tankId: updatedData.tankId } : {}),
       ...(updatedData.stockingDate ? { stockingDate: updatedData.stockingDate } : {}),
+      ...(updatedData.seedQuantity !== undefined ? { seedQuantity: updatedData.seedQuantity } : {}),
       ...(updatedData.seedVariety ? { seedVariety: updatedData.seedVariety } : {}),
       ...(updatedData.batchNumber || updatedData.cropName ? { batchNumber: updatedData.batchNumber || updatedData.cropName } : {}),
       ...(updatedData.notes !== undefined ? { notes: updatedData.notes } : {}),

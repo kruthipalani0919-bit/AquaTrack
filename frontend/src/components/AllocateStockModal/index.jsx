@@ -246,9 +246,10 @@ export const AllocateStockForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          Allocate Stock
+          {isSubmitting ? 'Allocating...' : 'Allocate Stock'}
         </Button>
       </div>
     </form>

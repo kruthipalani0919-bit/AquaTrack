@@ -283,9 +283,10 @@ export const HarvestForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Harvest Record' : 'Register Harvest'}
+          {isEditing ? (isSubmitting ? 'Updating...' : 'Update Harvest Record') : (isSubmitting ? 'Registering...' : 'Register Harvest')}
         </Button>
       </div>
     </form>

@@ -23,15 +23,17 @@ export default function Expenses() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [tankFilter, setTankFilter] = useState('');
 
-  // Modal Controls
+  // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingExpense, setViewingExpense] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingExpense, setDeletingExpense] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Expenses List Safely
   const filteredExpenses = useMemo(() => {
@@ -49,39 +51,40 @@ export default function Expenses() {
   // Operational Metrics Summary (Total Expenses Amount & Total Records Count)
   const stats = useMemo(() => {
     const list = expenses || [];
-    const totalCount = list.length;
-    const totalAmount = list.reduce((acc, e) => acc + (parseFloat(e?.amount) || 0), 0);
+    const totalAmount = list.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+    const totalRecords = list.length;
 
     return {
-      totalCount,
       totalAmount,
+      totalRecords,
     };
   }, [expenses]);
 
-  // Handlers
+  // Form Handlers
   const handleOpenAdd = () => {
     setEditingExpense(null);
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (expense) => {
-    setEditingExpense(expense);
+  const handleOpenEdit = (exp) => {
+    setEditingExpense(exp);
     setIsFormOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleOpenDetails = (expense) => {
-    setViewingExpense(expense);
+  const handleOpenDetails = (exp) => {
+    setViewingExpense(exp);
     setIsDetailsOpen(true);
   };
 
-  const handleOpenDelete = (expense) => {
-    setDeletingExpense(expense);
+  const handleOpenDelete = (exp) => {
+    setDeletingExpense(exp);
     setIsDeleteOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
   const handleSaveExpense = async (formData) => {
+    setIsSubmitting(true);
     try {
       if (editingExpense) {
         await updateExpense(editingExpense.id, formData);
@@ -92,17 +95,22 @@ export default function Expenses() {
       setEditingExpense(null);
     } catch (err) {
       console.error('Error saving expense:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (deletingExpense) {
+      setIsDeleting(true);
       try {
         await deleteExpense(deletingExpense.id);
         setIsDeleteOpen(false);
         setDeletingExpense(null);
       } catch (err) {
         console.error('Error deleting expense:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -232,6 +240,7 @@ export default function Expenses() {
             setIsFormOpen(false);
             setEditingExpense(null);
           }}
+          isSubmitting={isSubmitting}
         />
       </Modal>
 
@@ -261,9 +270,10 @@ export default function Expenses() {
             ? `Are you sure you want to delete the expense record for "${deletingExpense.category || 'Expense'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this expense record?'
         }
-        confirmText="Delete Expense Record"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Expense Record'}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

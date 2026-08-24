@@ -24,6 +24,7 @@ export const CropDetailsModal = ({
     tankName,
     cropName,
     batchNumber,
+    seedQuantity,
     seedVariety,
     stockingDate,
     status,
@@ -59,11 +60,18 @@ export const CropDetailsModal = ({
             <Sprout className="w-4 h-4 text-primary" /> Crop Information
           </h4>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="bg-surface p-3 rounded-lg border border-border/50">
               <span className="text-[10px] text-text-secondary uppercase font-semibold block">Batch Number</span>
               <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
                 {cleanBatchNum}
+              </span>
+            </div>
+
+            <div className="bg-surface p-3 rounded-lg border border-border/50">
+              <span className="text-[10px] text-text-secondary uppercase font-semibold block">Seed Quantity</span>
+              <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                {seedQuantity != null ? `${seedQuantity} kg` : 'Not specified'}
               </span>
             </div>
 

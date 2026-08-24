@@ -30,12 +30,14 @@ export default function CropManagement() {
   // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCrop, setEditingCrop] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingCrop, setViewingCrop] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingCrop, setDeletingCrop] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Crops List Safely
   const filteredCrops = useMemo(() => {
@@ -89,6 +91,7 @@ export default function CropManagement() {
   };
 
   const handleSaveCrop = async (formData) => {
+    setIsSubmitting(true);
     try {
       if (editingCrop) {
         await updateCrop(editingCrop.id, formData);
@@ -99,17 +102,22 @@ export default function CropManagement() {
       setEditingCrop(null);
     } catch (err) {
       console.error('Error saving crop:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (deletingCrop) {
+      setIsDeleting(true);
       try {
         await deleteCrop(deletingCrop.id);
         setIsDeleteOpen(false);
         setDeletingCrop(null);
       } catch (err) {
         console.error('Error deleting crop:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -201,6 +209,7 @@ export default function CropManagement() {
             setIsFormOpen(false);
             setEditingCrop(null);
           }}
+          isSubmitting={isSubmitting}
         />
       </Modal>
 
@@ -230,9 +239,10 @@ export default function CropManagement() {
             ? `Are you sure you want to delete crop record for "Batch ${deletingCrop.batchNumber || deletingCrop.cropName || 'Crop'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this crop record?'
         }
-        confirmText="Delete Crop Record"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Crop Record'}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

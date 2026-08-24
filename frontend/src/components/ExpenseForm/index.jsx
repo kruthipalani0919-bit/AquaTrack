@@ -209,9 +209,10 @@ export const ExpenseForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Expense' : 'Save Expense Record'}
+          {isEditing ? (isSubmitting ? 'Updating...' : 'Update Expense') : (isSubmitting ? 'Recording...' : 'Save Expense Record')}
         </Button>
       </div>
     </form>

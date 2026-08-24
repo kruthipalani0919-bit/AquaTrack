@@ -200,9 +200,10 @@ export const TankForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
+          disabled={isSubmitting}
           className="font-semibold"
         >
-          {isEditing ? 'Update Tank' : 'Save Tank'}
+          {isEditing ? (isSubmitting ? 'Updating...' : 'Update Tank') : (isSubmitting ? 'Registering...' : 'Save Tank')}
         </Button>
       </div>
     </form>

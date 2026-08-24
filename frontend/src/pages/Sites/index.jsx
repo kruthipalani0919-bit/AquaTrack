@@ -314,7 +314,7 @@ export default function Sites() {
         onConfirm={handleConfirmDelete}
         title="Delete Site"
         message={deleteWarningMessage}
-        confirmText="Delete Site"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Site'}
         cancelText="Cancel"
         type="danger"
         isLoading={isDeleting}

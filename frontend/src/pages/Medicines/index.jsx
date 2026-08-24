@@ -36,55 +36,62 @@ export default function Medicines() {
   // Modal Control States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingRecord, setViewingRecord] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const safeAnalytics = {
     totalTreatments: analytics?.totalTreatments || (medicineRecords || []).length,
     totalMedicineCostRupees: analytics?.totalMedicineCostRupees || (medicineRecords || []).reduce((acc, r) => acc + (parseFloat(r.cost) || 0), 0),
   };
 
-  // Filter Logic (Tank & Date matching)
+  // Filter Medicine Records
   const filteredRecords = useMemo(() => {
     const list = medicineRecords || [];
+    return list.filter((record) => {
+      if (!record) return false;
+      const matchesTank = tankFilter === '' || record.tankId === tankFilter;
 
-    return list.filter((rec) => {
-      if (!rec) return false;
-      const matchesTank = tankFilter === '' || rec.tankId === tankFilter;
-      const matchesDate = dateFilter === '' || rec.applicationDate === dateFilter || rec.date === dateFilter;
+      let matchesDate = true;
+      if (dateFilter) {
+        const recordDateStr = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+        matchesDate = recordDateStr === dateFilter;
+      }
 
       return matchesTank && matchesDate;
     });
   }, [medicineRecords, tankFilter, dateFilter]);
 
-  // Handlers
+  // Form Handlers
   const handleOpenAdd = () => {
     setEditingRecord(null);
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (rec) => {
-    setEditingRecord(rec);
+  const handleOpenEdit = (record) => {
+    setEditingRecord(record);
     setIsFormOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
-  const handleOpenDetails = (rec) => {
-    setViewingRecord(rec);
+  const handleOpenDetails = (record) => {
+    setViewingRecord(record);
     setIsDetailsOpen(true);
   };
 
-  const handleOpenDelete = (rec) => {
-    setDeletingRecord(rec);
+  const handleOpenDelete = (record) => {
+    setDeletingRecord(record);
     setIsDeleteOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
 
   const handleSaveRecord = async (formData) => {
+    setIsSubmitting(true);
     try {
       if (editingRecord) {
         await updateMedicineRecord(editingRecord.id, formData);
@@ -95,17 +102,22 @@ export default function Medicines() {
       setEditingRecord(null);
     } catch (err) {
       console.error('Error saving medicine record:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (deletingRecord) {
+      setIsDeleting(true);
       try {
         await deleteMedicineRecord(deletingRecord.id);
         setIsDeleteOpen(false);
         setDeletingRecord(null);
       } catch (err) {
         console.error('Error deleting medicine record:', err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -224,6 +236,7 @@ export default function Medicines() {
             setIsFormOpen(false);
             setEditingRecord(null);
           }}
+          isSubmitting={isSubmitting}
         />
       </Modal>
 
@@ -253,9 +266,10 @@ export default function Medicines() {
             ? `Are you sure you want to delete treatment record for "${deletingRecord.medicineName || 'Treatment'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this treatment record?'
         }
-        confirmText="Delete Treatment Record"
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Treatment Record'}
         cancelText="Cancel"
         type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );
