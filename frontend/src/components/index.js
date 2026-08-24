@@ -36,4 +36,6 @@ export { MedicineForm } from './MedicineForm';
 export { MedicineFilters } from './MedicineFilters';
 export { MedicineDetailsModal } from './MedicineDetailsModal';
 export { AddStockForm } from './AddStockModal';
+export { EditStockForm } from './EditStockModal';
 export { AllocateStockForm } from './AllocateStockModal';
+

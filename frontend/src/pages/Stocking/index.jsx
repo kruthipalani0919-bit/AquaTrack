@@ -7,7 +7,9 @@ import {
   MapPin,
   Boxes,
   AlertCircle,
-  PackageCheck
+  PackageCheck,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -15,23 +17,31 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
+import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
 import { AddStockForm } from '../../components/AddStockModal';
+import { EditStockForm } from '../../components/EditStockModal';
 import { AllocateStockForm } from '../../components/AllocateStockModal';
 
 import { useStocking } from '../../context/StockingContext';
 import { useSites } from '../../context/SiteContext';
 
 export default function Stocking() {
-  const { stockings = [], loading, error, addStock, allocateStock } = useStocking();
+  const { stockings = [], loading, error, addStock, updateStock, deleteStock, allocateStock } = useStocking();
   const { sites = [], loading: sitesLoading } = useSites();
 
   // Modal states
   const [isAddStockOpen, setIsAddStockOpen] = useState(false);
   const [isAllocateOpen, setIsAllocateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedStockRecord, setSelectedStockRecord] = useState(null);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [deletingRecord, setDeletingRecord] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionError, setActionError] = useState(null);
+
 
   // Aggregated Stock Overview across all real database batch items
   const farmStockOverview = useMemo(() => {
@@ -121,11 +131,59 @@ export default function Stocking() {
     setIsAllocateOpen(true);
   };
 
+  const handleOpenEdit = (record) => {
+    setEditingRecord(record);
+    setActionError(null);
+    setIsEditOpen(true);
+  };
+
+  const handleOpenDelete = (record) => {
+    setDeletingRecord(record);
+    setActionError(null);
+    setIsDeleteOpen(true);
+  };
+
   const handleAddStockSubmit = async (formData) => {
     setIsSubmitting(true);
+    setActionError(null);
     try {
       await addStock(formData);
       setIsAddStockOpen(false);
+    } catch (err) {
+      setActionError(err.message || 'Failed to add stock entry');
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSubmit = async (formData) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      await updateStock(editingRecord.id, formData);
+      setIsEditOpen(false);
+      setEditingRecord(null);
+    } catch (err) {
+      setActionError(err.message || 'Failed to update stock entry');
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingRecord) return;
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      await deleteStock(deletingRecord.id);
+      setIsDeleteOpen(false);
+      setDeletingRecord(null);
+    } catch (err) {
+      console.error('[StockingPage] Delete stock error:', err);
+      setActionError(err.message || 'Failed to delete stock entry');
     } finally {
       setIsSubmitting(false);
     }
@@ -133,6 +191,7 @@ export default function Stocking() {
 
   const handleAllocateSubmit = async (formData) => {
     setIsSubmitting(true);
+    setActionError(null);
     try {
       await allocateStock({
         ...formData,
@@ -140,10 +199,14 @@ export default function Stocking() {
       });
       setIsAllocateOpen(false);
       setSelectedStockRecord(null);
+    } catch (err) {
+      setActionError(err.message || 'Failed to allocate stock');
+      throw err;
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   const hasAnyStock = stockings.length > 0;
 
@@ -161,10 +224,12 @@ export default function Stocking() {
               onClick={handleOpenAllocateMain}
               icon={<ArrowUpRight className="w-4 h-4 text-primary" />}
               className="font-semibold shadow-xs"
-              disabled={!hasAnyStock || sites.length === 0}
+              disabled={!hasAnyStock}
+              title={!hasAnyStock ? "No stock available to allocate" : "Allocate Stock"}
             >
               Allocate Stock
             </Button>
+
 
             <Button
               variant="primary"
@@ -180,12 +245,20 @@ export default function Stocking() {
       />
 
       {/* ERROR DISPLAY BANNER */}
-      {error && (
-        <Card padding="compact" className="border-danger/30 bg-danger-light/20 text-danger text-xs flex items-center gap-2 shadow-2xs">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+      {(error || actionError) && (
+        <Card padding="compact" className="border-danger/30 bg-danger-light/20 text-danger text-xs flex items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error || actionError}</span>
+          </div>
+          {actionError && (
+            <button onClick={() => setActionError(null)} className="text-danger hover:underline text-[11px] font-bold">
+              Dismiss
+            </button>
+          )}
         </Card>
       )}
+
 
       {/* LOADING SPINNER */}
       {loading && !hasAnyStock ? (
@@ -255,16 +328,38 @@ export default function Stocking() {
                               {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'N/A'}
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <Button
-                                variant="outline"
-                                size="xs"
-                                onClick={() => handleOpenAllocateForRecord(item)}
-                                icon={<ArrowUpRight className="w-3.5 h-3.5 text-primary" />}
-                                disabled={sites.length === 0 || unallocated <= 0}
-                              >
-                                Allocate
-                              </Button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  onClick={() => handleOpenAllocateForRecord(item)}
+                                  icon={<ArrowUpRight className="w-3.5 h-3.5 text-primary" />}
+                                  disabled={sites.length === 0 || unallocated <= 0}
+                                  title="Allocate Stock"
+                                >
+                                  Allocate
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  onClick={() => handleOpenEdit(item)}
+                                  className="text-text-secondary hover:text-primary p-1.5 cursor-pointer"
+                                  title="Edit Stock Entry"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  onClick={() => handleOpenDelete(item)}
+                                  className="text-danger/80 hover:text-danger p-1.5 cursor-pointer"
+                                  title="Delete Stock Entry"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
                             </td>
+
                           </tr>
                         );
                       })}
@@ -577,6 +672,50 @@ export default function Stocking() {
           initialRecord={selectedStockRecord}
         />
       </Modal>
+
+      {/* 7. EDIT STOCK MODAL */}
+
+      <Modal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditingRecord(null);
+        }}
+        title="Edit Stock Entry"
+        description="Update existing farm stock quantity or details."
+        size="md"
+      >
+        <EditStockForm
+          initialRecord={editingRecord}
+          onSubmit={handleEditSubmit}
+          onCancel={() => {
+            setIsEditOpen(false);
+            setEditingRecord(null);
+          }}
+          isSubmitting={isSubmitting}
+        />
+      </Modal>
+
+      {/* 8. DELETE STOCK CONFIRMATION DIALOG */}
+      <ConfirmationDialog
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setDeletingRecord(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Stock Entry"
+        message={
+          deletingRecord
+            ? `Are you sure you want to delete this ${deletingRecord.category} stock entry (${deletingRecord.totalQuantity} ${deletingRecord.unit || 'kg'})? This action will permanently remove the record from the database.`
+            : "Are you sure you want to delete this stock entry?"
+        }
+        confirmText="Delete Stock"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={isSubmitting}
+      />
     </div>
   );
 }
+

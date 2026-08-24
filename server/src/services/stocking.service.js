@@ -1003,3 +1003,208 @@ export const getSiteStockAllocations = async (
     return result;
 
 };
+
+
+/*
+ * Update Stocking record
+ */
+export const updateStocking = async (
+    userId,
+    stockingId,
+    updateData
+) => {
+
+    const farm =
+        await getUserFarm(userId);
+
+
+    const stocking =
+        await prisma.stocking.findFirst({
+
+            where: {
+
+                id:
+                    stockingId,
+
+                farmId:
+                    farm.id
+
+            },
+
+            include: {
+
+                allocations: true
+
+            }
+
+        });
+
+
+    if (!stocking) {
+
+        throw new Error(
+            "Stocking record not found."
+        );
+
+    }
+
+
+    const totalAllocated =
+        stocking.allocations.reduce(
+
+            (sum, allocation) =>
+                sum + allocation.allocatedQuantity,
+
+            0
+
+        );
+
+
+    if (
+        updateData.totalQuantity !== undefined &&
+        updateData.totalQuantity < totalAllocated
+    ) {
+
+        throw new Error(
+            `Total quantity (${updateData.totalQuantity} ${updateData.unit || stocking.unit}) cannot be less than already allocated quantity (${totalAllocated} ${stocking.unit}).`
+        );
+
+    }
+
+
+    if (
+        updateData.category &&
+        updateData.category !== stocking.category &&
+        stocking.allocations.length > 0
+    ) {
+
+        throw new Error(
+            "Stock category cannot be changed after stock has been allocated to sites."
+        );
+
+    }
+
+
+    const updatedStocking =
+        await prisma.stocking.update({
+
+            where: {
+
+                id:
+                    stockingId
+
+            },
+
+            data: {
+
+                ...(updateData.category
+                    ? { category: updateData.category }
+                    : {}),
+
+                ...(updateData.totalQuantity !== undefined
+                    ? { totalQuantity: updateData.totalQuantity }
+                    : {}),
+
+                ...(updateData.unit
+                    ? { unit: updateData.unit }
+                    : {}),
+
+                ...(updateData.costPerKg !== undefined
+                    ? { costPerKg: updateData.costPerKg }
+                    : {})
+
+            }
+
+        });
+
+
+    return getStockingById(userId, updatedStocking.id);
+
+};
+
+
+/*
+ * Delete Stocking record
+ */
+export const deleteStocking = async (
+    userId,
+    stockingId
+) => {
+
+    const farm =
+        await getUserFarm(userId);
+
+
+    const stocking =
+        await prisma.stocking.findFirst({
+
+            where: {
+
+                id:
+                    stockingId,
+
+                farmId:
+                    farm.id
+
+            },
+
+            include: {
+
+                allocations: true
+
+            }
+
+        });
+
+
+    if (!stocking) {
+
+        throw new Error(
+            "Stocking record not found."
+        );
+
+    }
+
+
+    const totalAllocated =
+        stocking.allocations.reduce(
+
+            (sum, allocation) =>
+                sum + allocation.allocatedQuantity,
+
+            0
+
+        );
+
+
+    if (totalAllocated > 0 || stocking.allocations.length > 0) {
+
+        throw new Error(
+            "Cannot delete stock record because it has active site allocations. Clear site allocations first before deleting."
+        );
+
+    }
+
+
+    await prisma.stocking.delete({
+
+        where: {
+
+            id:
+                stockingId
+
+        }
+
+    });
+
+
+    return {
+
+        success: true,
+
+        message:
+            "Stocking record deleted successfully."
+
+    };
+
+};

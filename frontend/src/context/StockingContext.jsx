@@ -60,6 +60,48 @@ export const StockingProvider = ({ children }) => {
     }
   };
 
+  // Update real stock record in database
+  const updateStock = async (id, stockData) => {
+    setError(null);
+    const payload = {
+      category: stockData.category ? stockData.category.toUpperCase() : undefined,
+      totalQuantity: stockData.totalQuantity !== undefined ? parseFloat(stockData.totalQuantity) : undefined,
+      unit: stockData.unit ? stockData.unit.trim() : undefined,
+    };
+
+    if (stockData.costPerKg !== undefined && stockData.costPerKg !== '') {
+      payload.costPerKg = parseFloat(stockData.costPerKg);
+    }
+
+    console.log(`[StockingContext] Updating stock #${id} payload:`, payload);
+    try {
+      const res = await stockingService.updateStocking(id, payload);
+      await fetchStockings();
+      return res?.data || res;
+    } catch (err) {
+      console.error('[StockingContext] Update stock error:', err);
+      const msg = err.message || 'Failed to update stock record';
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  // Delete real stock record from database
+  const deleteStock = async (id) => {
+    setError(null);
+    console.log(`[StockingContext] Deleting stock #${id}`);
+    try {
+      const res = await stockingService.deleteStocking(id);
+      await fetchStockings();
+      return res?.data || res;
+    } catch (err) {
+      console.error('[StockingContext] Delete stock error:', err);
+      const msg = err.message || 'Failed to delete stock record';
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
   // Allocate real stock to site in database
   const allocateStock = async (allocationData) => {
     setError(null);
@@ -122,6 +164,8 @@ export const StockingProvider = ({ children }) => {
         error,
         fetchStockings,
         addStock,
+        updateStock,
+        deleteStock,
         allocateStock,
         getSiteAllocations,
       }}
@@ -130,6 +174,7 @@ export const StockingProvider = ({ children }) => {
     </StockingContext.Provider>
   );
 };
+
 
 export const useStocking = () => {
   const context = useContext(StockingContext);

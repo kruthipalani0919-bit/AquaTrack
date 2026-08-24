@@ -2,9 +2,12 @@ import {
     createStocking,
     getStockings,
     getStockingById,
+    updateStocking,
+    deleteStocking,
     allocateStockToSite,
     getSiteStockAllocations
 } from "../services/stocking.service.js";
+
 
 
 /*
@@ -221,3 +224,89 @@ export const getSiteStockAllocationsController = async (
     }
 
 };
+
+
+/*
+ * Update Stocking record
+ */
+export const updateStockingController = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const stocking = await updateStocking(
+
+            req.user.id,
+
+            req.params.id,
+
+            req.body
+
+        );
+
+        return res.status(200).json({
+
+            success: true,
+
+            message: "Stocking record updated successfully",
+
+            data: stocking
+
+        });
+
+    } catch (error) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+
+/*
+ * Delete Stocking record
+ */
+export const deleteStockingController = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const result = await deleteStocking(
+
+            req.user.id,
+
+            req.params.id
+
+        );
+
+        return res.status(200).json({
+
+            success: true,
+
+            message: result.message || "Stocking record deleted successfully"
+
+        });
+
+    } catch (error) {
+
+        return res.status(400).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
