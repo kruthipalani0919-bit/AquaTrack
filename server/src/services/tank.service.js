@@ -81,7 +81,13 @@ export const getTanks = async (userId) => {
 
         include: {
 
-            site: true
+            site: true,
+
+            pondLeases: {
+                orderBy: {
+                    createdAt: "desc"
+                }
+            }
 
         },
 

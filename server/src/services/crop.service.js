@@ -132,21 +132,28 @@ export const getCrops = async (userId) => {
     }
 
     const crops = await prisma.crop.findMany({
-
         where: {
-
             tank: {
-
                 site: {
-
                     farmId: farm.id
-
                 }
-
             }
-
+        },
+        include: {
+            tank: {
+                include: {
+                    site: true,
+                    pondLeases: true,
+                    medicines: true
+                }
+            },
+            feedEntries: true,
+            expenses: true,
+            harvests: true
+        },
+        orderBy: {
+            createdAt: "desc"
         }
-
     });
 
     return crops;
