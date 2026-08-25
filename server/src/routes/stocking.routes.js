@@ -7,7 +7,11 @@ import {
     getStockingsController,
     getStockingByIdController,
     allocateStockToSiteController,
-    getSiteStockAllocationsController
+    getSiteStockAllocationsController,
+    updateStockingController,
+    deleteStockingController,
+    updateSiteStockAllocationController,
+    deleteSiteStockAllocationController
 } from "../controllers/stocking.controller.js";
 
 import validate from "../middleware/validate.middleware.js";
@@ -42,12 +46,22 @@ router.get(
 
 
 /*
- * Get Stock by ID
+ * Update Farm Stock
  */
-router.get(
+router.put(
     "/:id",
     auth,
-    getStockingByIdController
+    updateStockingController
+);
+
+
+/*
+ * Delete Farm Stock
+ */
+router.delete(
+    "/:id",
+    auth,
+    deleteStockingController
 );
 
 
@@ -59,6 +73,26 @@ router.post(
     auth,
     validate(allocateStockSchema),
     allocateStockToSiteController
+);
+
+
+/*
+ * Update Site Stock Allocation
+ */
+router.put(
+    "/allocation/:id",
+    auth,
+    updateSiteStockAllocationController
+);
+
+
+/*
+ * Delete Site Stock Allocation
+ */
+router.delete(
+    "/allocation/:id",
+    auth,
+    deleteSiteStockAllocationController
 );
 
 

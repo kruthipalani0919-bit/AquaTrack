@@ -12,7 +12,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 35000,
 });
 
 /**
@@ -34,11 +34,27 @@ api.interceptors.request.use(
 );
 
 /**
- * Response Interceptor: Clean Error Handling
+ * Response Interceptor: Automatic Retry on Cold Starts & Clean Error Handling
  */
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config;
+
+    // Auto-retry once for GET requests that encounter cold-start timeouts, network glitches, or 502/503/504
+    const isTimeoutOrNetworkError =
+      error.code === 'ECONNABORTED' ||
+      (error.message && error.message.toLowerCase().includes('timeout')) ||
+      !error.response ||
+      [502, 503, 504].includes(error.response?.status);
+
+    if (config && config.method?.toUpperCase() === 'GET' && isTimeoutOrNetworkError && !config._retry) {
+      config._retry = true;
+      // Wait 1.5 seconds before automatic retry while server warms up
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return api(config);
+    }
+
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||

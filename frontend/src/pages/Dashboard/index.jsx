@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Boxes,
@@ -8,19 +8,45 @@ import {
   ArrowRight,
   Waves,
   Sprout,
-  IndianRupee
+  CheckCircle2,
+  MapPin,
+  Maximize2,
+  Calendar,
+  Layers,
+  FileText,
+  Building2,
+  Tag,
+  IndianRupee,
+  ShieldAlert,
+  Info
 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardBody } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { Badge } from '../../components/Badge';
+import { Modal } from '../../components/Modal';
+import { EmptyState } from '../../components/EmptyState';
 import dashboardService from '../../services/dashboardService';
 import { useAuth } from '../../context/AuthContext';
+import { useTanks } from '../../context/TankContext';
+import { useCrops } from '../../context/CropContext';
+import { usePondLeases } from '../../context/PondLeaseContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { isAuthenticated, user, farm: authFarm } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Contexts for real-time consistent data fetching & reactive updates
+  const { tanks = [], loading: tanksLoading } = useTanks();
+  const { crops = [], loading: cropsLoading } = useCrops();
+  const { leases = [], loading: leasesLoading } = usePondLeases();
+
+  // Review Modals State
+  const [isTankReviewOpen, setIsTankReviewOpen] = useState(false);
+  const [isActiveCropsReviewOpen, setIsActiveCropsReviewOpen] = useState(false);
+  const [isCompletedCropsReviewOpen, setIsCompletedCropsReviewOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,53 +73,77 @@ export default function Dashboard() {
   }, [isAuthenticated, user]);
 
   const stats = dashboardData?.statistics || {};
-  const finance = dashboardData?.finance || {};
   const farm = dashboardData?.farm || authFarm || {};
 
-  const hasFarmConfigured = Boolean(farm?.farmName || authFarm?.farmName || stats.totalTanks > 0);
+  const hasFarmConfigured = Boolean(farm?.farmName || authFarm?.farmName || tanks.length > 0 || stats.totalTanks > 0);
 
-  const operationalMetrics = [
+  // Filter Active Crops vs Completed Crops dynamically
+  const activeCropsList = useMemo(() => {
+    return (crops || []).filter((c) => c.rawStatus === 'ACTIVE' || c.status === 'Active' || c.status === 'ACTIVE');
+  }, [crops]);
+
+  const completedCropsList = useMemo(() => {
+    return (crops || []).filter((c) => c.rawStatus === 'COMPLETED' || c.status === 'Completed' || c.status === 'COMPLETED');
+  }, [crops]);
+
+  // Dynamic counts using real database context and backend stats fallback
+  const totalTanksCount = tanks.length > 0 ? tanks.length : (stats.totalTanks ?? 0);
+  const activeCropsCount = activeCropsList.length > 0 ? activeCropsList.length : (stats.activeCrops ?? 0);
+  const completedCropsCount = completedCropsList.length > 0 ? completedCropsList.length : (stats.completedCrops ?? 0);
+
+  // SIMPLIFIED 3 CARDS ONLY (Total Tanks / Ponds, Active Crops, Completed Batches)
+  const farmSummaryCards = [
     {
       id: 'tanks',
-      title: 'Total Tanks / Ponds',
-      value: stats.totalTanks ?? 0,
+      title: 'TOTAL TANKS / PONDS',
+      value: totalTanksCount,
       description: farm.farmName ? `${farm.farmName} (${farm.totalAcres || 0} Acres)` : 'Configured farm ponds',
       icon: Waves,
-      bgColor: 'bg-teal-50 text-teal-700',
+      bgColor: 'bg-teal-50 text-teal-700 border-teal-200',
+      action: () => setIsTankReviewOpen(true),
     },
     {
-      id: 'crops',
-      title: 'Active Crop Batches',
-      value: stats.activeCrops ?? 0,
-      description: `${stats.completedCrops || 0} batches completed`,
+      id: 'activeCrops',
+      title: 'ACTIVE CROPS',
+      value: activeCropsCount,
+      description: `${activeCropsCount} active culture batches`,
       icon: Sprout,
-      bgColor: 'bg-emerald-50 text-emerald-700',
+      bgColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      action: () => setIsActiveCropsReviewOpen(true),
     },
     {
-      id: 'expenses',
-      title: 'Total Farm Expenses',
-      value: `₹${((finance.totalExpenseCost || 0) + (finance.totalFeedCost || 0) + (finance.totalMedicineCost || 0)).toLocaleString()}`,
-      description: `Feed: ₹${(finance.totalFeedCost || 0).toLocaleString()}`,
-      icon: Receipt,
-      bgColor: 'bg-amber-50 text-amber-700',
-    },
-    {
-      id: 'revenue',
-      title: 'Harvest Revenue',
-      value: `₹${(finance.totalRevenue || 0).toLocaleString()}`,
-      description: `Net Profit: ₹${(finance.totalProfit || 0).toLocaleString()}`,
-      icon: IndianRupee,
-      bgColor: 'bg-cyan-50 text-cyan-700',
+      id: 'completedBatches',
+      title: 'COMPLETED BATCHES',
+      value: completedCropsCount,
+      description: `${completedCropsCount} batches completed`,
+      icon: CheckCircle2,
+      bgColor: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+      action: () => setIsCompletedCropsReviewOpen(true),
     },
   ];
 
-  // Exact 4 Quick Actions Modules. ALL 4 modules are highlighted with the active blue style.
+  // Quick Actions Modules (Stocking, Feed, Expenses, Reports)
   const quickActions = [
     { label: 'Stocking Management', path: '/stocking', icon: Boxes, isHighlighted: true },
     { label: 'Feed Management', path: '/feed', icon: UtensilsCrossed, isHighlighted: true },
     { label: 'Expenses', path: '/expenses', icon: Receipt, isHighlighted: true },
     { label: 'Reports', path: '/reports', icon: FileSpreadsheet, isHighlighted: true },
   ];
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return 'N/A';
+      return d.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch (e) {
+      return 'N/A';
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -106,7 +156,7 @@ export default function Dashboard() {
             </h1>
             <p className="text-xs sm:text-sm text-teal-100/90 max-w-xl">
               {hasFarmConfigured
-                ? `Centralized operational overview for ${farm.farmName}.`
+                ? `Centralized operational overview for ${farm.farmName || 'your farm'}.`
                 : 'Complete your farm setup to begin managing your operations.'}
             </p>
           </div>
@@ -157,7 +207,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 3. FARM SUMMARY (Below Quick Actions) */}
+      {/* 3. FARM SUMMARY - SIMPLIFIED TO 3 SUMMARY CARDS ONLY */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">
@@ -168,19 +218,20 @@ export default function Dashboard() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {operationalMetrics.map((stat) => {
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+          {farmSummaryCards.map((stat) => {
             const Icon = stat.icon;
             return (
               <Card
                 key={stat.id}
                 hoverEffect={true}
                 padding="compact"
-                className="flex flex-col justify-between border-border/70 shadow-2xs hover:shadow-xs transition-all"
+                onClick={stat.action}
+                className="flex flex-col justify-between border-border/70 shadow-2xs hover:shadow-md cursor-pointer transition-all hover:border-primary/40 group"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col">
-                    <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider group-hover:text-primary transition-colors">
                       {stat.title}
                     </span>
                     <span className="text-3xl font-extrabold text-text-primary mt-1.5 tracking-tight">
@@ -188,19 +239,491 @@ export default function Dashboard() {
                     </span>
                   </div>
 
-                  <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center shrink-0 border border-border/40`}>
+                  <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center shrink-0 border shadow-2xs transition-transform group-hover:scale-110`}>
                     <Icon className="w-5 h-5" />
                   </div>
                 </div>
 
-                <div className="mt-3.5 pt-2.5 border-t border-border/50 text-xs text-text-secondary">
-                  <span className="truncate block font-medium">{stat.description}</span>
+                <div className="mt-3.5 pt-2.5 border-t border-border/50 flex items-center justify-between text-xs text-text-secondary">
+                  <span className="truncate font-medium">{stat.description}</span>
+                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                    View Details &rarr;
+                  </span>
                 </div>
               </Card>
             );
           })}
         </div>
       </div>
+
+      {/* ============================================================ */}
+      {/* 4. TOTAL TANKS / PONDS REVIEW MODAL                          */}
+      {/* ============================================================ */}
+      <Modal
+        isOpen={isTankReviewOpen}
+        onClose={() => setIsTankReviewOpen(false)}
+        title="Farm Tanks & Ponds Review"
+        description="Complete detailed list of all configured farm tanks, pond acres, and tank-wise pond lease records."
+        size="xl"
+      >
+        <div className="space-y-4">
+          {tanks.length > 0 ? (
+            <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+              {tanks.map((tank) => {
+                // Find pond lease associated with this tank
+                const tankLease = (tank.pondLeases && tank.pondLeases.length > 0)
+                  ? tank.pondLeases[0]
+                  : (leases || []).find((l) => String(l.tankId) === String(tank.id));
+
+                // Find active crop associated with this tank
+                const activeCropForTank = activeCropsList.find((c) => String(c.tankId) === String(tank.id));
+
+                const siteName = tank.site?.siteName || tank.siteName || 'Site';
+                const siteLocation = tank.site?.location || '';
+                const displayLocation = siteLocation ? `${siteName} (${siteLocation})` : siteName;
+
+                return (
+                  <div
+                    key={tank.id}
+                    className="p-4 rounded-xl bg-surface border border-border/80 shadow-2xs hover:border-primary/40 transition-all space-y-3"
+                  >
+                    {/* Header Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+                          <Waves className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-text-primary">
+                            {tank.tankName || tank.name}
+                          </h4>
+                          <span className="text-[11px] text-text-secondary flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-primary" /> {displayLocation}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Badge variant={activeCropForTank ? 'success' : 'neutral'} size="sm">
+                        {activeCropForTank ? `Active Crop (Batch #${activeCropForTank.batchNumber || activeCropForTank.cropName})` : 'Available / Idle'}
+                      </Badge>
+                    </div>
+
+                    {/* Tank Specifications Grid (Acres & Hatchery/Unit) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {/* ACRES DISPLAY */}
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block flex items-center gap-1">
+                          <Maximize2 className="w-3 h-3 text-primary" /> Acres
+                        </span>
+                        <span className="text-sm font-bold text-text-primary mt-0.5 block">
+                          {tank.area ? `${tank.area} Acres` : 'N/A'}
+                        </span>
+                      </div>
+
+                      {/* HATCHERY / UNIT */}
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Hatchery / Unit
+                        </span>
+                        <span className="text-sm font-semibold text-text-primary mt-0.5 block truncate" title={tank.hatcheryName || 'Not specified'}>
+                          {tank.hatcheryName ? `${tank.hatcheryName}${tank.hatcheryUnit ? ` (${tank.hatcheryUnit})` : ''}` : 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* POND LEASE INFORMATION SECTION (TANK-WISE) */}
+                    <div className="p-3 rounded-xl bg-primary-light/20 border border-primary/20 text-xs">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-primary" /> Pond Lease Details
+                        </span>
+                      </div>
+
+                      {tankLease ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-surface p-2.5 rounded-lg border border-border/50">
+                          <div>
+                            <span className="text-[10px] font-semibold text-text-secondary block uppercase">
+                              Pond Lease Amount
+                            </span>
+                            <span className="text-xs font-bold text-emerald-700">
+                              ₹{(parseFloat(tankLease.totalLeaseAmount) || 0).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-semibold text-text-secondary block uppercase">
+                              Start Date
+                            </span>
+                            <span className="text-xs font-medium text-text-primary">
+                              {formatDate(tankLease.leaseStartDate)}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-semibold text-text-secondary block uppercase">
+                              End Date
+                            </span>
+                            <span className="text-xs font-medium text-text-primary">
+                              {formatDate(tankLease.leaseEndDate)}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] font-medium text-text-secondary italic py-0.5">
+                          No pond lease recorded for this tank.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              title="No Tanks Found"
+              description="No tanks or ponds have been configured for this farm profile yet."
+              actionLabel="Add New Tank"
+              onAction={() => {
+                setIsTankReviewOpen(false);
+                navigate('/tanks');
+              }}
+            />
+          )}
+
+          <div className="flex items-center justify-end pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsTankReviewOpen(false)}
+            >
+              Close Review
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* 5. ACTIVE CROPS REVIEW MODAL                                 */}
+      {/* ============================================================ */}
+      <Modal
+        isOpen={isActiveCropsReviewOpen}
+        onClose={() => setIsActiveCropsReviewOpen(false)}
+        title="Active Crop Batches Review"
+        description="Currently active aquaculture crop culture batches running in farm tanks."
+        size="xl"
+      >
+        <div className="space-y-4">
+          {activeCropsList.length > 0 ? (
+            <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+              {activeCropsList.map((crop) => {
+                const stockingDateObj = crop.stockingDate ? new Date(crop.stockingDate) : null;
+                const daysRunning = stockingDateObj && !isNaN(stockingDateObj.getTime())
+                  ? Math.max(0, Math.floor((new Date() - stockingDateObj) / (1000 * 60 * 60 * 24)))
+                  : 0;
+
+                return (
+                  <div
+                    key={crop.id}
+                    className="p-4 rounded-xl bg-surface border border-border/80 shadow-2xs hover:border-emerald-500/40 transition-all space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                          <Sprout className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-text-primary">
+                            Batch #{crop.batchNumber || crop.cropName}
+                          </h4>
+                          <span className="text-[11px] text-text-secondary flex items-center gap-1">
+                            <Waves className="w-3 h-3 text-primary" /> {crop.tankName || crop.tank?.tankName || 'Tank'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Badge variant="primary" size="sm">
+                          Day {daysRunning} (DOC)
+                        </Badge>
+                        <Badge variant="success" size="sm">
+                          Active
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Active Crop Attributes Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Seed Variety
+                        </span>
+                        <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                          {crop.seedVariety || 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Seed Quantity
+                        </span>
+                        <span className="text-sm font-bold text-emerald-700 mt-0.5 block">
+                          {crop.seedQuantity !== null && crop.seedQuantity !== undefined
+                            ? `${crop.seedQuantity} kg`
+                            : 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Stocking Date
+                        </span>
+                        <span className="text-sm font-semibold text-text-primary mt-0.5 block">
+                          {formatDate(crop.stockingDate)}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Batch Number
+                        </span>
+                        <span className="text-sm font-semibold text-text-primary mt-0.5 block truncate">
+                          {crop.batchNumber || 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {crop.notes && (
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60 text-xs">
+                        <span className="text-[10px] font-bold uppercase text-text-secondary block mb-0.5">
+                          Notes / Remarks
+                        </span>
+                        <p className="text-text-secondary">{crop.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              title="No Active Crops"
+              description="No active aquaculture crops are currently running in your farm tanks."
+              actionLabel="Register New Crop"
+              onAction={() => {
+                setIsActiveCropsReviewOpen(false);
+                navigate('/crops');
+              }}
+            />
+          )}
+
+          <div className="flex items-center justify-end pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsActiveCropsReviewOpen(false)}
+            >
+              Close Review
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ============================================================ */}
+      {/* 6. COMPLETED BATCHES REVIEW MODAL                            */}
+      {/* ============================================================ */}
+      <Modal
+        isOpen={isCompletedCropsReviewOpen}
+        onClose={() => setIsCompletedCropsReviewOpen(false)}
+        title="Completed Crop Batches Review"
+        description="Historical log of all successfully completed and harvested crop batches."
+        size="xl"
+      >
+        <div className="space-y-4">
+          {completedCropsList.length > 0 ? (
+            <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+              {completedCropsList.map((crop) => {
+                const harvestInfo = crop.harvests && crop.harvests.length > 0 ? crop.harvests[0] : null;
+                const completionDate = harvestInfo?.harvestDate || crop.expectedHarvestDate || crop.updatedAt;
+
+                // 1. Shrimp Count from harvest registration
+                const shrimpCountDisplay = harvestInfo && harvestInfo.shrimpCount !== null && harvestInfo.shrimpCount !== undefined
+                  ? `${harvestInfo.shrimpCount} Count`
+                  : 'N/A';
+
+                // 2. Feed & Direct Expenses
+                const feedCost = (crop.feedEntries || []).reduce((acc, f) => acc + (parseFloat(f.totalCost) || 0), 0);
+                const directExpenseCost = (crop.expenses || []).reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+
+                // 3. Allocated Pond Lease for crop culture duration
+                const cropTankPondLeases = crop.tank?.pondLeases || (leases || []).filter((l) => String(l.tankId) === String(crop.tankId));
+                const cropStartDate = crop.stockingDate ? new Date(crop.stockingDate) : null;
+                const cropEndDate = completionDate ? new Date(completionDate) : new Date();
+
+                let allocatedPondLeaseCost = 0;
+                if (
+                  Array.isArray(cropTankPondLeases) &&
+                  cropTankPondLeases.length > 0 &&
+                  cropStartDate &&
+                  !isNaN(cropStartDate.getTime()) &&
+                  cropEndDate &&
+                  !isNaN(cropEndDate.getTime())
+                ) {
+                  const startNorm = new Date(cropStartDate);
+                  const endNorm = new Date(cropEndDate);
+                  startNorm.setUTCHours(0, 0, 0, 0);
+                  endNorm.setUTCHours(0, 0, 0, 0);
+
+                  cropTankPondLeases.forEach((lease) => {
+                    const leaseStart = new Date(lease.leaseStartDate);
+                    const leaseEnd = new Date(lease.leaseEndDate);
+                    leaseStart.setUTCHours(0, 0, 0, 0);
+                    leaseEnd.setUTCHours(0, 0, 0, 0);
+
+                    if (leaseEnd >= leaseStart) {
+                      const totalLeaseDays = Math.round((leaseEnd.getTime() - leaseStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                      const dailyLeaseCost = totalLeaseDays > 0 ? ((parseFloat(lease.totalLeaseAmount) || 0) / totalLeaseDays) : 0;
+
+                      const overlapStart = startNorm > leaseStart ? startNorm : leaseStart;
+                      const overlapEnd = endNorm < leaseEnd ? endNorm : leaseEnd;
+
+                      if (overlapStart <= overlapEnd) {
+                        const overlappingDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                        allocatedPondLeaseCost += Math.max(0, overlappingDays) * dailyLeaseCost;
+                      }
+                    }
+                  });
+                }
+
+                allocatedPondLeaseCost = Math.round(allocatedPondLeaseCost);
+                const totalCropExpenses = Math.round(feedCost + directExpenseCost + allocatedPondLeaseCost);
+
+                return (
+                  <div
+                    key={crop.id}
+                    className="p-4 rounded-xl bg-surface border border-border/80 shadow-2xs hover:border-cyan-500/40 transition-all space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-text-primary">
+                            Batch #{crop.batchNumber || crop.cropName}
+                          </h4>
+                          <span className="text-[11px] text-text-secondary flex items-center gap-1">
+                            <Waves className="w-3 h-3 text-primary" /> {crop.tankName || crop.tank?.tankName || 'Tank'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Badge variant="neutral" size="sm" className="bg-slate-100 text-slate-700 border-slate-200">
+                        Completed
+                      </Badge>
+                    </div>
+
+                    {/* Completed Batch Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Seed Variety
+                        </span>
+                        <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
+                          {crop.seedVariety || 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Seed Quantity
+                        </span>
+                        <span className="text-sm font-bold text-cyan-800 mt-0.5 block">
+                          {crop.seedQuantity !== null && crop.seedQuantity !== undefined
+                            ? `${crop.seedQuantity} kg`
+                            : 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Stocking Date
+                        </span>
+                        <span className="text-sm font-semibold text-text-primary mt-0.5 block">
+                          {formatDate(crop.stockingDate)}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-text-secondary block">
+                          Completion Date
+                        </span>
+                        <span className="text-sm font-semibold text-text-primary mt-0.5 block">
+                          {formatDate(completionDate)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Financial & Harvest Performance Summary Cards */}
+                    <div className="p-3 rounded-xl bg-cyan-50/50 border border-cyan-200/60 text-xs space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase text-cyan-900 block tracking-wider">
+                        Financial & Harvest Details
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                        {/* 1. SHRIMP COUNT */}
+                        <div className="bg-surface p-2.5 rounded-lg border border-cyan-100 flex flex-col justify-center">
+                          <span className="text-[10px] font-semibold text-text-secondary uppercase block">
+                            Shrimp Count
+                          </span>
+                          <span className="font-extrabold text-sm text-cyan-800 mt-0.5">
+                            {shrimpCountDisplay}
+                          </span>
+                        </div>
+
+                        {/* 2. TOTAL CROP EXPENSES */}
+                        <div className="bg-surface p-2.5 rounded-lg border border-cyan-100 flex flex-col justify-center">
+                          <span className="text-[10px] font-semibold text-text-secondary uppercase block">
+                            Total Crop Expenses
+                          </span>
+                          <span className="font-extrabold text-sm text-amber-700 mt-0.5">
+                            ₹{totalCropExpenses.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+
+                        {/* 3. ALLOCATED POND LEASE */}
+                        <div className="bg-surface p-2.5 rounded-lg border border-cyan-100 flex flex-col justify-center">
+                          <span className="text-[10px] font-semibold text-text-secondary uppercase block">
+                            Allocated Pond Lease
+                          </span>
+                          <span className="font-extrabold text-xs text-emerald-800 mt-0.5">
+                            {allocatedPondLeaseCost > 0
+                              ? `₹${allocatedPondLeaseCost.toLocaleString('en-IN')}`
+                              : 'No pond lease allocated'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              title="No Completed Batches"
+              description="No crop culture batches have been marked completed or harvested yet."
+            />
+          )}
+
+          <div className="flex items-center justify-end pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCompletedCropsReviewOpen(false)}
+            >
+              Close Review
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

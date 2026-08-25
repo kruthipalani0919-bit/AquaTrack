@@ -365,6 +365,9 @@ export const getStockings = async (
 
                     {
 
+                        allocationId:
+                            allocation.id,
+
                         site:
                             allocation.site,
 
@@ -419,6 +422,9 @@ export const getStockings = async (
 
 
             siteStock.push({
+
+                allocationId:
+                    siteData.allocationId,
 
                 site:
                     siteData.site,
@@ -1002,4 +1008,141 @@ export const getSiteStockAllocations = async (
 
     return result;
 
+};
+
+/*
+ * Update Farm Stock (Total Quantity)
+ */
+export const updateStocking = async (userId, stockingId, stockingData) => {
+    const farm = await getUserFarm(userId);
+
+    const stocking = await prisma.stocking.findFirst({
+        where: {
+            id: stockingId,
+            farmId: farm.id
+        },
+        include: {
+            allocations: true
+        }
+    });
+
+    if (!stocking) {
+        throw new Error("Stocking record not found.");
+    }
+
+    const totalAllocated = stocking.allocations.reduce(
+        (sum, item) => sum + item.allocatedQuantity,
+        0
+    );
+
+    const newTotalQuantity = parseFloat(stockingData.totalQuantity);
+    if (isNaN(newTotalQuantity) || newTotalQuantity <= 0) {
+        throw new Error("Valid positive total quantity is required.");
+    }
+
+    if (newTotalQuantity < totalAllocated) {
+        throw new Error(`Total stock quantity cannot be less than already allocated quantity (${totalAllocated} ${stocking.unit}).`);
+    }
+
+    const updated = await prisma.stocking.update({
+        where: { id: stocking.id },
+        data: {
+            totalQuantity: newTotalQuantity,
+            unit: stockingData.unit ? stockingData.unit.trim() : stocking.unit
+        }
+    });
+
+    return updated;
+};
+
+/*
+ * Delete Farm Stock
+ */
+export const deleteStocking = async (userId, stockingId) => {
+    const farm = await getUserFarm(userId);
+
+    const stocking = await prisma.stocking.findFirst({
+        where: {
+            id: stockingId,
+            farmId: farm.id
+        }
+    });
+
+    if (!stocking) {
+        throw new Error("Stocking record not found.");
+    }
+
+    await prisma.stocking.delete({
+        where: { id: stocking.id }
+    });
+
+    return { message: "Stock record deleted successfully." };
+};
+
+/*
+ * Update Site Stock Allocation
+ */
+export const updateSiteStockAllocation = async (userId, allocationId, allocationData) => {
+    const farm = await getUserFarm(userId);
+
+    const allocation = await prisma.siteStockAllocation.findFirst({
+        where: { id: allocationId },
+        include: {
+            stocking: {
+                include: { allocations: true }
+            }
+        }
+    });
+
+    if (!allocation || allocation.stocking.farmId !== farm.id) {
+        throw new Error("Site stock allocation record not found.");
+    }
+
+    const newAllocatedQuantity = parseFloat(allocationData.allocatedQuantity);
+    if (isNaN(newAllocatedQuantity) || newAllocatedQuantity <= 0) {
+        throw new Error("Valid positive allocation quantity is required.");
+    }
+
+    const otherAllocationsSum = allocation.stocking.allocations
+        .filter(item => item.id !== allocation.id)
+        .reduce((sum, item) => sum + item.allocatedQuantity, 0);
+
+    if (otherAllocationsSum + newAllocatedQuantity > allocation.stocking.totalQuantity) {
+        throw new Error("Allocation quantity cannot exceed available farm stock.");
+    }
+
+    const updated = await prisma.siteStockAllocation.update({
+        where: { id: allocation.id },
+        data: {
+            allocatedQuantity: newAllocatedQuantity
+        },
+        include: {
+            site: true,
+            stocking: true
+        }
+    });
+
+    return updated;
+};
+
+/*
+ * Delete Site Stock Allocation
+ */
+export const deleteSiteStockAllocation = async (userId, allocationId) => {
+    const farm = await getUserFarm(userId);
+
+    const allocation = await prisma.siteStockAllocation.findFirst({
+        where: { id: allocationId },
+        include: { stocking: true }
+    });
+
+    if (!allocation || allocation.stocking.farmId !== farm.id) {
+        throw new Error("Site stock allocation record not found.");
+    }
+
+    await prisma.siteStockAllocation.delete({
+        where: { id: allocation.id }
+    });
+
+    return { message: "Site stock allocation deleted successfully." };
 };

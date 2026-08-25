@@ -116,6 +116,81 @@ export const StockingProvider = ({ children }) => {
     }
   };
 
+  // Update real stock record in database
+  const updateStock = async (id, stockData) => {
+    setError(null);
+    const payload = {
+      totalQuantity: parseFloat(stockData.totalQuantity),
+      unit: stockData.unit ? stockData.unit.trim() : 'kg',
+    };
+
+    try {
+      const res = await stockingService.updateStocking(id, payload);
+      const result = res?.data || res;
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'UPDATE', result);
+      return result;
+    } catch (err) {
+      console.error('[StockingContext] Update stock error:', err);
+      const msg = err.message || 'Failed to update stock record';
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  // Delete real stock record in database
+  const deleteStock = async (id) => {
+    setError(null);
+    try {
+      const res = await stockingService.deleteStocking(id);
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'DELETE', { id });
+      return res;
+    } catch (err) {
+      console.error('[StockingContext] Delete stock error:', err);
+      const msg = err.message || 'Failed to delete stock record';
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  // Update real site stock allocation in database
+  const updateAllocation = async (allocationId, allocationData) => {
+    setError(null);
+    const payload = {
+      allocatedQuantity: parseFloat(allocationData.allocatedQuantity),
+    };
+
+    try {
+      const res = await stockingService.updateAllocation(allocationId, payload);
+      const result = res?.data || res;
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'UPDATE', result);
+      return result;
+    } catch (err) {
+      console.error('[StockingContext] Update allocation error:', err);
+      const msg = err.message || 'Failed to update site stock allocation';
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  // Delete real site stock allocation in database
+  const deleteAllocation = async (allocationId) => {
+    setError(null);
+    try {
+      const res = await stockingService.deleteAllocation(allocationId);
+      await fetchStockings(true);
+      emitDataMutation('STOCKING', 'UPDATE', { allocationId });
+      return res;
+    } catch (err) {
+      console.error('[StockingContext] Delete allocation error:', err);
+      const msg = err.message || 'Failed to delete site stock allocation';
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
   const getSiteAllocations = async (siteId) => {
     try {
       const res = await stockingService.getSiteStockAllocations(siteId);
@@ -134,7 +209,11 @@ export const StockingProvider = ({ children }) => {
         error,
         fetchStockings,
         addStock,
+        updateStock,
+        deleteStock,
         allocateStock,
+        updateAllocation,
+        deleteAllocation,
         getSiteAllocations,
       }}
     >
