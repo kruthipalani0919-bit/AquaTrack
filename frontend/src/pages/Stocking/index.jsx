@@ -6,7 +6,9 @@ import {
   Stethoscope,
   MapPin,
   Boxes,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -16,6 +18,8 @@ import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
+import { Input } from '../../components/Input';
+import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { AddStockForm } from '../../components/AddStockModal';
 import { AllocateStockForm } from '../../components/AllocateStockModal';
 
@@ -23,13 +27,34 @@ import { useStocking } from '../../context/StockingContext';
 import { useSites } from '../../context/SiteContext';
 
 export default function Stocking() {
-  const { stockings = [], loading, error, addStock, allocateStock } = useStocking();
+  const {
+    stockings = [],
+    loading,
+    error,
+    addStock,
+    updateStock,
+    deleteStock,
+    allocateStock,
+    updateAllocation,
+    deleteAllocation
+  } = useStocking();
   const { sites = [], loading: sitesLoading } = useSites();
 
-  // Modal states
+  // Modal & Action states
   const [isAddStockOpen, setIsAddStockOpen] = useState(false);
   const [isAllocateOpen, setIsAllocateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Edit/Delete Stock States
+  const [editingStock, setEditingStock] = useState(null);
+  const [editingStockQuantity, setEditingStockQuantity] = useState('');
+  const [deletingStockId, setDeletingStockId] = useState(null);
+
+  // Edit/Delete Site Allocation States
+  const [editingAllocation, setEditingAllocation] = useState(null);
+  const [editingAllocatedQuantity, setEditingAllocatedQuantity] = useState('');
+  const [deletingAllocationId, setDeletingAllocationId] = useState(null);
 
   // Group Farm Stock Overview by Category (FEED & MEDICINE)
   const farmStockOverview = useMemo(() => {
@@ -40,6 +65,7 @@ export default function Stocking() {
       feed: feedItem
         ? {
             id: feedItem.id,
+            category: 'FEED',
             totalQuantity: feedItem.totalQuantity ?? 0,
             totalAllocated: feedItem.totalAllocated ?? 0,
             totalUsed: feedItem.totalUsed ?? 0,
@@ -51,6 +77,7 @@ export default function Stocking() {
       medicine: medicineItem
         ? {
             id: medicineItem.id,
+            category: 'MEDICINE',
             totalQuantity: medicineItem.totalQuantity ?? 0,
             totalAllocated: medicineItem.totalAllocated ?? 0,
             totalUsed: medicineItem.totalUsed ?? 0,
@@ -84,6 +111,8 @@ export default function Stocking() {
           if (sId && map[sId]) {
             if (category === 'FEED') {
               map[sId].feed = {
+                allocationId: ss.allocationId || ss.id,
+                stockingId: stocking.id,
                 allocated: ss.allocatedQuantity ?? 0,
                 used: ss.usedQuantity ?? 0,
                 remaining: ss.remainingQuantity ?? 0,
@@ -91,6 +120,8 @@ export default function Stocking() {
               };
             } else if (category === 'MEDICINE') {
               map[sId].medicine = {
+                allocationId: ss.allocationId || ss.id,
+                stockingId: stocking.id,
                 allocated: ss.allocatedQuantity ?? 0,
                 used: ss.usedQuantity ?? 0,
                 remaining: ss.remainingQuantity ?? 0,
@@ -105,6 +136,7 @@ export default function Stocking() {
     return Object.values(map);
   }, [sites, stockings]);
 
+  // Submit Handlers
   const handleAddStockSubmit = async (formData) => {
     setIsSubmitting(true);
     try {
@@ -122,6 +154,69 @@ export default function Stocking() {
       setIsAllocateOpen(false);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Edit & Delete Stock Handlers
+  const handleOpenEditStock = (stockItem) => {
+    setEditingStock(stockItem);
+    setEditingStockQuantity(String(stockItem.totalQuantity));
+  };
+
+  const handleUpdateStockSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingStock) return;
+    setIsSubmitting(true);
+    try {
+      await updateStock(editingStock.id, {
+        totalQuantity: editingStockQuantity,
+        unit: editingStock.unit,
+      });
+      setEditingStock(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteStock = async () => {
+    if (!deletingStockId) return;
+    setIsDeleting(true);
+    try {
+      await deleteStock(deletingStockId);
+      setDeletingStockId(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Edit & Delete Site Allocation Handlers
+  const handleOpenEditAllocation = (allocData) => {
+    setEditingAllocation(allocData);
+    setEditingAllocatedQuantity(String(allocData.allocatedQuantity));
+  };
+
+  const handleUpdateAllocationSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingAllocation) return;
+    setIsSubmitting(true);
+    try {
+      await updateAllocation(editingAllocation.allocationId, {
+        allocatedQuantity: editingAllocatedQuantity,
+      });
+      setEditingAllocation(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteAllocation = async () => {
+    if (!deletingAllocationId) return;
+    setIsDeleting(true);
+    try {
+      await deleteAllocation(deletingAllocationId);
+      setDeletingAllocationId(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -201,14 +296,37 @@ export default function Stocking() {
                           <span className="text-xs text-text-secondary">Pellets & Feed Additives</span>
                         </div>
                       </div>
-                      <Badge variant={farmStockOverview.feed ? 'success' : 'neutral'} size="sm">
-                        {farmStockOverview.feed ? 'In Stock' : 'No Stock'}
-                      </Badge>
+
+                      <div className="flex items-center gap-2">
+                        <Badge variant={farmStockOverview.feed ? 'success' : 'neutral'} size="sm">
+                          {farmStockOverview.feed ? 'In Stock' : 'No Stock'}
+                        </Badge>
+                        {farmStockOverview.feed && (
+                          <div className="flex items-center gap-1 border-l border-border/60 pl-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditStock(farmStockOverview.feed)}
+                              title="Edit Feed Stock"
+                              className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-colors cursor-pointer"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeletingStockId(farmStockOverview.feed.id)}
+                              title="Delete Feed Stock"
+                              className="p-1.5 text-text-secondary hover:text-danger rounded-lg hover:bg-danger-light transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {farmStockOverview.feed ? (
                       <div className="space-y-3">
-                        {/* Primary Metric: Total Stock (Prominent & Clear) */}
+                        {/* Primary Metric: Total Stock */}
                         <div className="p-3.5 rounded-xl bg-primary-light/30 border border-primary/20 flex items-center justify-between shadow-2xs">
                           <span className="text-xs uppercase font-bold text-primary tracking-wider">
                             Total Stock
@@ -271,14 +389,37 @@ export default function Stocking() {
                           <span className="text-xs text-text-secondary">Probiotics & Sanitizers</span>
                         </div>
                       </div>
-                      <Badge variant={farmStockOverview.medicine ? 'primary' : 'neutral'} size="sm">
-                        {farmStockOverview.medicine ? 'In Stock' : 'No Stock'}
-                      </Badge>
+
+                      <div className="flex items-center gap-2">
+                        <Badge variant={farmStockOverview.medicine ? 'primary' : 'neutral'} size="sm">
+                          {farmStockOverview.medicine ? 'In Stock' : 'No Stock'}
+                        </Badge>
+                        {farmStockOverview.medicine && (
+                          <div className="flex items-center gap-1 border-l border-border/60 pl-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditStock(farmStockOverview.medicine)}
+                              title="Edit Medicine Stock"
+                              className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-colors cursor-pointer"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeletingStockId(farmStockOverview.medicine.id)}
+                              title="Delete Medicine Stock"
+                              className="p-1.5 text-text-secondary hover:text-danger rounded-lg hover:bg-danger-light transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {farmStockOverview.medicine ? (
                       <div className="space-y-3">
-                        {/* Primary Metric: Total Stock (Prominent & Clear) */}
+                        {/* Primary Metric: Total Stock */}
                         <div className="p-3.5 rounded-xl bg-cyan-50/60 border border-cyan-200/60 flex items-center justify-between shadow-2xs">
                           <span className="text-xs uppercase font-bold text-cyan-700 tracking-wider">
                             Total Stock
@@ -378,7 +519,7 @@ export default function Stocking() {
                           <div className="space-y-3">
                             {/* FEED ALLOCATION FOR SITE */}
                             {feed ? (
-                              <div className="p-3 rounded-xl bg-background border border-border/60 space-y-2">
+                              <div className="p-3 rounded-xl bg-background border border-border/60 space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
                                     <UtensilsCrossed className="w-3.5 h-3.5 text-teal-600" /> Feed
@@ -387,6 +528,7 @@ export default function Stocking() {
                                     Allocated: <strong className="text-text-primary">{feed.allocated} {feed.unit}</strong>
                                   </span>
                                 </div>
+
                                 <div className="grid grid-cols-2 gap-2 text-center text-xs">
                                   <div className="p-1.5 rounded-lg bg-surface border border-border/40">
                                     <span className="text-[10px] text-text-secondary block font-medium">Used</span>
@@ -397,12 +539,38 @@ export default function Stocking() {
                                     <span className="font-bold text-emerald-700">{feed.remaining} {feed.unit}</span>
                                   </div>
                                 </div>
+
+                                {/* EDIT & DELETE OPTIONS FOR FEED ALLOCATION AT BOTTOM */}
+                                {feed.allocationId && (
+                                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditAllocation({
+                                        allocationId: feed.allocationId,
+                                        siteName: site.siteName,
+                                        category: 'Feed',
+                                        allocatedQuantity: feed.allocated,
+                                        unit: feed.unit,
+                                      })}
+                                      className="text-xs text-primary hover:text-primary-dark font-semibold flex items-center gap-1 cursor-pointer px-2 py-1 rounded-md hover:bg-primary-light/50 transition-colors"
+                                    >
+                                      <Pencil className="w-3 h-3" /> Edit Allocation
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingAllocationId(feed.allocationId)}
+                                      className="text-xs text-danger hover:text-danger-dark font-semibold flex items-center gap-1 cursor-pointer px-2 py-1 rounded-md hover:bg-danger-light/50 transition-colors"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Delete Allocation
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             ) : null}
 
                             {/* MEDICINE ALLOCATION FOR SITE */}
                             {medicine ? (
-                              <div className="p-3 rounded-xl bg-background border border-border/60 space-y-2">
+                              <div className="p-3 rounded-xl bg-background border border-border/60 space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
                                     <Stethoscope className="w-3.5 h-3.5 text-cyan-600" /> Medicine
@@ -411,6 +579,7 @@ export default function Stocking() {
                                     Allocated: <strong className="text-text-primary">{medicine.allocated} {medicine.unit}</strong>
                                   </span>
                                 </div>
+
                                 <div className="grid grid-cols-2 gap-2 text-center text-xs">
                                   <div className="p-1.5 rounded-lg bg-surface border border-border/40">
                                     <span className="text-[10px] text-text-secondary block font-medium">Used</span>
@@ -421,6 +590,32 @@ export default function Stocking() {
                                     <span className="font-bold text-emerald-700">{medicine.remaining} {medicine.unit}</span>
                                   </div>
                                 </div>
+
+                                {/* EDIT & DELETE OPTIONS FOR MEDICINE ALLOCATION AT BOTTOM */}
+                                {medicine.allocationId && (
+                                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditAllocation({
+                                        allocationId: medicine.allocationId,
+                                        siteName: site.siteName,
+                                        category: 'Medicine',
+                                        allocatedQuantity: medicine.allocated,
+                                        unit: medicine.unit,
+                                      })}
+                                      className="text-xs text-primary hover:text-primary-dark font-semibold flex items-center gap-1 cursor-pointer px-2 py-1 rounded-md hover:bg-primary-light/50 transition-colors"
+                                    >
+                                      <Pencil className="w-3 h-3" /> Edit Allocation
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingAllocationId(medicine.allocationId)}
+                                      className="text-xs text-danger hover:text-danger-dark font-semibold flex items-center gap-1 cursor-pointer px-2 py-1 rounded-md hover:bg-danger-light/50 transition-colors"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Delete Allocation
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             ) : null}
                           </div>
@@ -461,7 +656,64 @@ export default function Stocking() {
         />
       </Modal>
 
-      {/* 5. ALLOCATE STOCK MODAL */}
+      {/* 5. EDIT FARM STOCK MODAL */}
+      <Modal
+        isOpen={Boolean(editingStock)}
+        onClose={() => setEditingStock(null)}
+        title={`Edit ${editingStock?.category === 'FEED' ? 'Feed' : 'Medicine'} Stock`}
+        description="Update total farm stock inventory quantity."
+        size="md"
+      >
+        {editingStock && (
+          <form onSubmit={handleUpdateStockSubmit} className="space-y-4">
+            <Input
+              label={`Total Quantity (${editingStock.unit}) *`}
+              type="number"
+              min="0.1"
+              step="0.01"
+              required
+              value={editingStockQuantity}
+              onChange={(e) => setEditingStockQuantity(e.target.value)}
+              placeholder="e.g. 100"
+            />
+            <div className="text-xs text-text-secondary">
+              Already Allocated: <strong>{editingStock.totalAllocated} {editingStock.unit}</strong>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingStock(null)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Updating...' : 'Update Stock'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* 6. DELETE FARM STOCK CONFIRMATION DIALOG */}
+      <ConfirmationDialog
+        isOpen={Boolean(deletingStockId)}
+        onClose={() => setDeletingStockId(null)}
+        onConfirm={handleConfirmDeleteStock}
+        title="Delete Farm Stock Record"
+        message="Are you sure you want to delete this farm stock record? All site allocations associated with this stock will also be removed."
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Stock'}
+        confirmVariant="danger"
+        isLoading={isDeleting}
+      />
+
+      {/* 7. ALLOCATE STOCK MODAL */}
       <Modal
         isOpen={isAllocateOpen}
         onClose={() => setIsAllocateOpen(false)}
@@ -476,6 +728,60 @@ export default function Stocking() {
           availableStockings={stockings}
         />
       </Modal>
+
+      {/* 8. EDIT SITE STOCK ALLOCATION MODAL */}
+      <Modal
+        isOpen={Boolean(editingAllocation)}
+        onClose={() => setEditingAllocation(null)}
+        title="Edit Site Stock Allocation"
+        description={`Update allocated quantity for ${editingAllocation?.siteName || 'Site'} (${editingAllocation?.category || 'Stock'}).`}
+        size="md"
+      >
+        {editingAllocation && (
+          <form onSubmit={handleUpdateAllocationSubmit} className="space-y-4">
+            <Input
+              label={`Allocated Quantity (${editingAllocation.unit}) *`}
+              type="number"
+              min="0.1"
+              step="0.01"
+              required
+              value={editingAllocatedQuantity}
+              onChange={(e) => setEditingAllocatedQuantity(e.target.value)}
+              placeholder="e.g. 50"
+            />
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingAllocation(null)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Updating...' : 'Update Allocation'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* 9. DELETE SITE STOCK ALLOCATION CONFIRMATION DIALOG */}
+      <ConfirmationDialog
+        isOpen={Boolean(deletingAllocationId)}
+        onClose={() => setDeletingAllocationId(null)}
+        onConfirm={handleConfirmDeleteAllocation}
+        title="Remove Stock Allocation"
+        message="Are you sure you want to remove this stock allocation from the site?"
+        confirmText={isDeleting ? 'Deleting...' : 'Remove Allocation'}
+        confirmVariant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

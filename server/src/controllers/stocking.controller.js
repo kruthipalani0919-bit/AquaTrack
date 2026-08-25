@@ -3,7 +3,11 @@ import {
     getStockings,
     getStockingById,
     allocateStockToSite,
-    getSiteStockAllocations
+    getSiteStockAllocations,
+    updateStocking,
+    deleteStocking,
+    updateSiteStockAllocation,
+    deleteSiteStockAllocation
 } from "../services/stocking.service.js";
 
 
@@ -220,4 +224,96 @@ export const getSiteStockAllocationsController = async (
 
     }
 
+};
+
+
+/*
+ * Update Stocking
+ */
+export const updateStockingController = async (req, res) => {
+    try {
+        const stocking = await updateStocking(
+            req.user.id,
+            req.params.id,
+            req.body
+        );
+        return res.status(200).json({
+            success: true,
+            message: "Stocking updated successfully",
+            data: stocking
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+
+/*
+ * Delete Stocking
+ */
+export const deleteStockingController = async (req, res) => {
+    try {
+        const result = await deleteStocking(
+            req.user.id,
+            req.params.id
+        );
+        return res.status(200).json({
+            success: true,
+            message: result.message
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+
+/*
+ * Update Site Stock Allocation
+ */
+export const updateSiteStockAllocationController = async (req, res) => {
+    try {
+        const allocation = await updateSiteStockAllocation(
+            req.user.id,
+            req.params.id,
+            req.body
+        );
+        return res.status(200).json({
+            success: true,
+            message: "Site stock allocation updated successfully",
+            data: allocation
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+
+/*
+ * Delete Site Stock Allocation
+ */
+export const deleteSiteStockAllocationController = async (req, res) => {
+    try {
+        const result = await deleteSiteStockAllocation(
+            req.user.id,
+            req.params.id
+        );
+        return res.status(200).json({
+            success: true,
+            message: result.message
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
 };
