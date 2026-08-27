@@ -71,7 +71,7 @@ export const CropDetailsModal = ({
             <div className="bg-surface p-3 rounded-lg border border-border/50">
               <span className="text-[10px] text-text-secondary uppercase font-semibold block">Seed Quantity</span>
               <span className="text-sm font-bold text-text-primary mt-0.5 block truncate">
-                {seedQuantity != null ? `${seedQuantity} kg` : 'Not specified'}
+                {seedQuantity != null ? String(seedQuantity) : 'Not specified'}
               </span>
             </div>
 

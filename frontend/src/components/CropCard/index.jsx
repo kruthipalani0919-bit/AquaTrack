@@ -78,7 +78,7 @@ export const CropCard = ({
                 Seed Quantity
               </span>
               <span className="text-xs font-bold text-text-primary truncate ml-2">
-                {seedQuantity} kg
+                {seedQuantity}
               </span>
             </div>
           )}

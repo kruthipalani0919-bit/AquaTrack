@@ -468,7 +468,7 @@ export default function Dashboard() {
                         </span>
                         <span className="text-sm font-bold text-emerald-700 mt-0.5 block">
                           {crop.seedQuantity !== null && crop.seedQuantity !== undefined
-                            ? `${crop.seedQuantity} kg`
+                            ? String(crop.seedQuantity)
                             : 'N/A'}
                         </span>
                       </div>
@@ -639,7 +639,7 @@ export default function Dashboard() {
                         </span>
                         <span className="text-sm font-bold text-cyan-800 mt-0.5 block">
                           {crop.seedQuantity !== null && crop.seedQuantity !== undefined
-                            ? `${crop.seedQuantity} kg`
+                            ? String(crop.seedQuantity)
                             : 'N/A'}
                         </span>
                       </div>

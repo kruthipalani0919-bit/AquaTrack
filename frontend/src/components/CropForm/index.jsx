@@ -39,7 +39,7 @@ const cropSchema = z.object({
  * Reusable CropForm component for Registering and Editing crops.
  * Contains exact user-requested layout:
  * - Row 1 (side-by-side): Tank & Stocking Date
- * - Highlighted "Crop Specifications" section: Seed Quantity (kg), Seed Variety (full width) stacked above Batch Number (full width)
+ * - Highlighted "Crop Specifications" section: Seed Quantity, Seed Variety (full width) stacked above Batch Number (full width)
  * - Row 3: Notes (Optional)
  * Sends exact required payload (tankId, stockingDate, seedQuantity, seedVariety, batchNumber, notes) matching backend createCropSchema.
  */
@@ -141,13 +141,13 @@ export const CropForm = ({
           <Sprout className="w-3.5 h-3.5" /> Crop Specifications
         </h4>
         <div className="flex flex-col gap-3">
-          {/* SEED QUANTITY (kg) (Full Width Row - ABOVE Seed Variety) */}
+          {/* SEED QUANTITY (Full Width Row - ABOVE Seed Variety) */}
           <Input
-            label="Seed Quantity (kg)"
+            label="Seed Quantity"
             type="number"
             step="any"
             min="0.01"
-            placeholder="Enter seed quantity in kg..."
+            placeholder="Enter seed quantity..."
             required={true}
             icon={<Scale className="w-4 h-4 text-primary" />}
             error={errors.seedQuantity?.message}
