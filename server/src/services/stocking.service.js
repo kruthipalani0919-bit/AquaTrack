@@ -7,15 +7,8 @@ import {
 
 
 /*
- * Calculate the quantity already used
- * for a particular stocking category
- * at a particular Site.
- *
- * FEED:
- *    Sum FeedEntry.quantity
- *
- * MEDICINE:
- *    Sum Medicine.quantity
+ * Calculate quantity already used
+ * for a stocking category at a Site.
  */
 const getSiteStockUsage = async (
     farmId,
@@ -101,91 +94,7 @@ const getSiteStockUsage = async (
 
 
 /*
- * Calculate total Farm-level usage
- * for a Stocking category.
- */
-const getFarmStockUsage = async (
-    farmId,
-    category
-) => {
-
-    if (category === "FEED") {
-
-        const result =
-            await prisma.feedEntry.aggregate({
-
-                where: {
-
-                    crop: {
-
-                        tank: {
-
-                            site: {
-
-                                farmId
-
-                            }
-
-                        }
-
-                    }
-
-                },
-
-                _sum: {
-
-                    quantity: true
-
-                }
-
-            });
-
-        return result._sum.quantity ?? 0;
-
-    }
-
-
-    if (category === "MEDICINE") {
-
-        const result =
-            await prisma.medicine.aggregate({
-
-                where: {
-
-                    tank: {
-
-                        site: {
-
-                            farmId
-
-                        }
-
-                    }
-
-                },
-
-                _sum: {
-
-                    quantity: true
-
-                }
-
-            });
-
-        return result._sum.quantity ?? 0;
-
-    }
-
-
-    return 0;
-
-};
-
-
-/*
- * Create Stock
- *
- * Stock is created at Farm level.
+ * Create Direct Site Stock
  */
 export const createStocking = async (
     userId,
@@ -193,6 +102,11 @@ export const createStocking = async (
 ) => {
 
     const farm = await getUserFarm(userId);
+
+    const site = await getUserSite(
+        farm.id,
+        stockingData.siteId
+    );
 
     const stocking =
         await prisma.stocking.create({
@@ -206,10 +120,22 @@ export const createStocking = async (
                     stockingData.totalQuantity,
 
                 unit:
-                    stockingData.unit ?? "kg",
+                    stockingData.unit ?? (stockingData.category === "MEDICINE" ? "L" : "kg"),
+
+                costPerKg:
+                    stockingData.costPerKg ?? null,
+
+                siteId:
+                    site.id,
 
                 farmId:
                     farm.id
+
+            },
+
+            include: {
+
+                site: true
 
             }
 
@@ -222,21 +148,7 @@ export const createStocking = async (
 
 
 /*
- * Get all Stock
- *
- * Returns Farm-level stock overview
- * including:
- *
- * Total
- * Allocated
- * Used
- * Remaining
- *
- * and Site-level:
- *
- * Allocated
- * Used
- * Remaining
+ * Get all Stock & Site-Wise Inventory
  */
 export const getStockings = async (
     userId
@@ -246,17 +158,42 @@ export const getStockings = async (
         await getUserFarm(userId);
 
 
+    /*
+     * Fetch user's Sites
+     */
+    const sites =
+        await prisma.site.findMany({
+
+            where: {
+
+                farmId: farm.id
+
+            },
+
+            orderBy: {
+
+                siteName: "asc"
+
+            }
+
+        });
+
+
+    /*
+     * Fetch all Stocking records for the Farm
+     */
     const stockings =
         await prisma.stocking.findMany({
 
             where: {
 
-                farmId:
-                    farm.id
+                farmId: farm.id
 
             },
 
             include: {
+
+                site: true,
 
                 allocations: {
 
@@ -284,208 +221,100 @@ export const getStockings = async (
 
     for (const stocking of stockings) {
 
-        /*
-         * Farm-level used quantity.
-         */
-        const totalUsed =
-            await getFarmStockUsage(
+        const targetSiteId = stocking.siteId || (stocking.allocations.length > 0 ? stocking.allocations[0].siteId : null);
 
-                farm.id,
+        const totalUsed = targetSiteId
+            ? await getSiteStockUsage(farm.id, targetSiteId, stocking.category)
+            : 0;
 
-                stocking.category
+        const totalAllocated = stocking.allocations.reduce(
+            (sum, allocation) => sum + allocation.allocatedQuantity,
+            0
+        );
 
-            );
+        const totalRemaining = Math.max(
+            stocking.totalQuantity - totalUsed,
+            0
+        );
 
+        const siteStock = [];
 
-        /*
-         * Total quantity allocated
-         * across all Sites.
-         */
-        const totalAllocated =
-            stocking.allocations.reduce(
+        if (stocking.site) {
 
-                (sum, allocation) =>
+            const usedQuantity = await getSiteStockUsage(farm.id, stocking.site.id, stocking.category);
 
-                    sum +
-                    allocation.allocatedQuantity,
+            siteStock.push({
 
-                0
+                allocationId: stocking.id,
 
-            );
+                site: stocking.site,
 
+                allocatedQuantity: stocking.totalQuantity,
 
-        /*
-         * Remaining Farm stock.
-         *
-         * This is calculated from the
-         * original stock minus actual usage.
-         */
-        const totalRemaining =
-            Math.max(
+                usedQuantity,
 
-                stocking.totalQuantity -
-                totalUsed,
+                remainingQuantity: Math.max(stocking.totalQuantity - usedQuantity, 0),
 
-                0
+                unit: stocking.unit
 
-            );
+            });
 
+        } else if (stocking.allocations.length > 0) {
 
-        /*
-         * Group allocations by Site.
-         *
-         * This prevents duplicate Site
-         * information if the same Site
-         * received stock multiple times.
-         */
-        const siteMap = new Map();
+            for (const allocation of stocking.allocations) {
 
+                const usedQuantity = await getSiteStockUsage(farm.id, allocation.siteId, stocking.category);
 
-        for (
-            const allocation
-            of stocking.allocations
-        ) {
+                siteStock.push({
 
-            const existing =
-                siteMap.get(
-                    allocation.siteId
-                );
+                    allocationId: allocation.id,
 
+                    site: allocation.site,
 
-            if (existing) {
+                    allocatedQuantity: allocation.allocatedQuantity,
 
-                existing.allocatedQuantity +=
-                    allocation.allocatedQuantity;
+                    usedQuantity,
 
-            } else {
+                    remainingQuantity: Math.max(allocation.allocatedQuantity - usedQuantity, 0),
 
-                siteMap.set(
+                    unit: stocking.unit
 
-                    allocation.siteId,
-
-                    {
-
-                        allocationId:
-                            allocation.id,
-
-                        site:
-                            allocation.site,
-
-                        allocatedQuantity:
-                            allocation.allocatedQuantity
-
-                    }
-
-                );
+                });
 
             }
 
         }
 
 
-        /*
-         * Build Site-level stock overview.
-         */
-        const siteStock =
-            [];
-
-
-        for (
-            const [
-                siteId,
-                siteData
-            ]
-            of siteMap
-        ) {
-
-            const usedQuantity =
-                await getSiteStockUsage(
-
-                    farm.id,
-
-                    siteId,
-
-                    stocking.category
-
-                );
-
-
-            const remainingQuantity =
-                Math.max(
-
-                    siteData.allocatedQuantity -
-                    usedQuantity,
-
-                    0
-
-                );
-
-
-            siteStock.push({
-
-                allocationId:
-                    siteData.allocationId,
-
-                site:
-                    siteData.site,
-
-                allocatedQuantity:
-                    siteData.allocatedQuantity,
-
-                usedQuantity,
-
-                remainingQuantity,
-
-                unit:
-                    stocking.unit
-
-            });
-
-        }
-
-
         result.push({
 
-            id:
-                stocking.id,
+            id: stocking.id,
 
-            category:
-                stocking.category,
+            category: stocking.category,
 
-            totalQuantity:
-                stocking.totalQuantity,
+            totalQuantity: stocking.totalQuantity,
 
-            unit:
-                stocking.unit,
+            unit: stocking.unit,
 
-            farmId:
-                stocking.farmId,
+            costPerKg: stocking.costPerKg,
 
-            createdAt:
-                stocking.createdAt,
+            siteId: stocking.siteId,
 
-            updatedAt:
-                stocking.updatedAt,
+            site: stocking.site,
 
-            totalAllocated,
+            farmId: stocking.farmId,
+
+            createdAt: stocking.createdAt,
+
+            updatedAt: stocking.updatedAt,
+
+            totalAllocated: stocking.siteId ? stocking.totalQuantity : totalAllocated,
 
             totalUsed,
 
             totalRemaining,
 
-            /*
-             * Quantity which has not yet
-             * been allocated to any Site.
-             */
-            unallocatedQuantity:
-                Math.max(
-
-                    stocking.totalQuantity -
-                    totalAllocated,
-
-                    0
-
-                ),
+            unallocatedQuantity: stocking.siteId ? 0 : Math.max(stocking.totalQuantity - totalAllocated, 0),
 
             siteStock
 
@@ -516,15 +345,15 @@ export const getStockingById = async (
 
             where: {
 
-                id:
-                    stockingId,
+                id: stockingId,
 
-                farmId:
-                    farm.id
+                farmId: farm.id
 
             },
 
             include: {
+
+                site: true,
 
                 allocations: {
 
@@ -543,197 +372,35 @@ export const getStockingById = async (
 
     if (!stocking) {
 
-        throw new Error(
-            "Stocking record not found."
-        );
+        throw new Error("Stocking record not found.");
 
     }
 
 
-    /*
-     * Farm-level usage.
-     */
-    const totalUsed =
-        await getFarmStockUsage(
+    const targetSiteId = stocking.siteId || (stocking.allocations.length > 0 ? stocking.allocations[0].siteId : null);
 
-            farm.id,
+    const totalUsed = targetSiteId
+        ? await getSiteStockUsage(farm.id, targetSiteId, stocking.category)
+        : 0;
 
-            stocking.category
+    const totalAllocated = stocking.allocations.reduce(
+        (sum, allocation) => sum + allocation.allocatedQuantity,
+        0
+    );
 
-        );
-
-
-    /*
-     * Total allocated.
-     */
-    const totalAllocated =
-        stocking.allocations.reduce(
-
-            (sum, allocation) =>
-
-                sum +
-                allocation.allocatedQuantity,
-
-            0
-
-        );
-
-
-    /*
-     * Farm-level remaining.
-     */
-    const totalRemaining =
-        Math.max(
-
-            stocking.totalQuantity -
-            totalUsed,
-
-            0
-
-        );
-
-
-    /*
-     * Group allocations by Site.
-     */
-    const siteMap =
-        new Map();
-
-
-    for (
-        const allocation
-        of stocking.allocations
-    ) {
-
-        const existing =
-            siteMap.get(
-                allocation.siteId
-            );
-
-
-        if (existing) {
-
-            existing.allocatedQuantity +=
-                allocation.allocatedQuantity;
-
-        } else {
-
-            siteMap.set(
-
-                allocation.siteId,
-
-                {
-
-                    site:
-                        allocation.site,
-
-                    allocatedQuantity:
-                        allocation.allocatedQuantity
-
-                }
-
-            );
-
-        }
-
-    }
-
-
-    const siteStock =
-        [];
-
-
-    for (
-        const [
-            siteId,
-            siteData
-        ]
-        of siteMap
-    ) {
-
-        const usedQuantity =
-            await getSiteStockUsage(
-
-                farm.id,
-
-                siteId,
-
-                stocking.category
-
-            );
-
-
-        const remainingQuantity =
-            Math.max(
-
-                siteData.allocatedQuantity -
-                usedQuantity,
-
-                0
-
-            );
-
-
-        siteStock.push({
-
-            site:
-                siteData.site,
-
-            allocatedQuantity:
-                siteData.allocatedQuantity,
-
-            usedQuantity,
-
-            remainingQuantity,
-
-            unit:
-                stocking.unit
-
-        });
-
-    }
-
+    const totalRemaining = Math.max(stocking.totalQuantity - totalUsed, 0);
 
     return {
 
-        id:
-            stocking.id,
+        ...stocking,
 
-        category:
-            stocking.category,
-
-        totalQuantity:
-            stocking.totalQuantity,
-
-        unit:
-            stocking.unit,
-
-        farmId:
-            stocking.farmId,
-
-        createdAt:
-            stocking.createdAt,
-
-        updatedAt:
-            stocking.updatedAt,
-
-        totalAllocated,
+        totalAllocated: stocking.siteId ? stocking.totalQuantity : totalAllocated,
 
         totalUsed,
 
         totalRemaining,
 
-        unallocatedQuantity:
-            Math.max(
-
-                stocking.totalQuantity -
-                totalAllocated,
-
-                0
-
-            ),
-
-        siteStock
+        unallocatedQuantity: stocking.siteId ? 0 : Math.max(stocking.totalQuantity - totalAllocated, 0)
 
     };
 
@@ -741,132 +408,160 @@ export const getStockingById = async (
 
 
 /*
- * Allocate Stock to Site
+ * Update Stock Quantity
  */
-export const allocateStockToSite = async (
-    userId,
-    stockingId,
-    allocationData
-) => {
+export const updateStocking = async (userId, stockingId, stockingData) => {
 
-    const farm =
-        await getUserFarm(userId);
+    const farm = await getUserFarm(userId);
 
 
-    const stocking =
-        await prisma.stocking.findFirst({
+    const stocking = await prisma.stocking.findFirst({
 
-            where: {
+        where: {
 
-                id:
-                    stockingId,
+            id: stockingId,
 
-                farmId:
-                    farm.id
+            farmId: farm.id
 
-            }
+        }
 
-        });
+    });
 
 
     if (!stocking) {
 
-        throw new Error(
-            "Stocking record not found."
-        );
+        throw new Error("Stocking record not found.");
 
     }
 
 
-    const site =
-        await getUserSite(
+    const newTotalQuantity = parseFloat(stockingData.totalQuantity);
 
-            farm.id,
+    if (isNaN(newTotalQuantity) || newTotalQuantity <= 0) {
 
-            allocationData.siteId
-
-        );
-
-
-    /*
-     * Calculate existing allocation.
-     */
-    const existingAllocations =
-        await prisma.siteStockAllocation.aggregate({
-
-            where: {
-
-                stockingId:
-                    stocking.id
-
-            },
-
-            _sum: {
-
-                allocatedQuantity:
-                    true
-
-            }
-
-        });
-
-
-    const alreadyAllocated =
-        existingAllocations
-            ._sum
-            .allocatedQuantity ?? 0;
-
-
-    const newTotalAllocation =
-        alreadyAllocated +
-        allocationData.allocatedQuantity;
-
-
-    /*
-     * Do not allow allocation
-     * greater than farm stock.
-     */
-    if (
-        newTotalAllocation >
-        stocking.totalQuantity
-    ) {
-
-        throw new Error(
-            "Allocation quantity cannot exceed available stock."
-        );
+        throw new Error("Valid positive total quantity is required.");
 
     }
 
 
-    const allocation =
-        await prisma.siteStockAllocation.create({
+    const updated = await prisma.stocking.update({
 
-            data: {
+        where: { id: stocking.id },
 
-                allocatedQuantity:
-                    allocationData.allocatedQuantity,
+        data: {
 
-                unit:
-                    allocationData.unit ??
-                    stocking.unit,
+            ...(stockingData.siteId ? { siteId: stockingData.siteId } : {}),
 
-                stockingId:
-                    stocking.id,
+            totalQuantity: newTotalQuantity,
 
-                siteId:
-                    site.id
+            unit: stockingData.unit ? stockingData.unit.trim() : stocking.unit,
 
-            },
+            ...(stockingData.costPerKg !== undefined ? { costPerKg: stockingData.costPerKg } : {})
 
-            include: {
+        },
 
-                site: true,
+        include: {
 
-                stocking: true
+            site: true
 
-            }
+        }
 
-        });
+    });
+
+
+    return updated;
+
+};
+
+
+/*
+ * Delete Stock
+ */
+export const deleteStocking = async (userId, stockingId) => {
+
+    const farm = await getUserFarm(userId);
+
+
+    const stocking = await prisma.stocking.findFirst({
+
+        where: {
+
+            id: stockingId,
+
+            farmId: farm.id
+
+        }
+
+    });
+
+
+    if (!stocking) {
+
+        throw new Error("Stocking record not found.");
+
+    }
+
+
+    await prisma.stocking.delete({
+
+        where: { id: stocking.id }
+
+    });
+
+
+    return { message: "Stock record deleted successfully." };
+
+};
+
+
+/*
+ * Legacy Allocation endpoints kept for 100% backward safety
+ */
+export const allocateStockToSite = async (userId, stockingId, allocationData) => {
+
+    const farm = await getUserFarm(userId);
+
+
+    const stocking = await prisma.stocking.findFirst({
+
+        where: { id: stockingId, farmId: farm.id }
+
+    });
+
+
+    if (!stocking) {
+
+        throw new Error("Stocking record not found.");
+
+    }
+
+
+    const site = await getUserSite(farm.id, allocationData.siteId);
+
+
+    const allocation = await prisma.siteStockAllocation.create({
+
+        data: {
+
+            allocatedQuantity: allocationData.allocatedQuantity,
+
+            unit: allocationData.unit ?? stocking.unit,
+
+            stockingId: stocking.id,
+
+            siteId: site.id
+
+        },
+
+        include: {
+
+            site: true,
+
+            stocking: true
+
+        }
+
+    });
 
 
     return allocation;
@@ -874,275 +569,115 @@ export const allocateStockToSite = async (
 };
 
 
-/*
- * Get Site Stock Allocations
- */
-export const getSiteStockAllocations = async (
-    userId,
-    siteId
-) => {
+export const getSiteStockAllocations = async (userId, siteId) => {
 
-    const farm =
-        await getUserFarm(userId);
-
-
-    const site =
-        await getUserSite(
-
-            farm.id,
-
-            siteId
-
-        );
-
-
-    const allocations =
-        await prisma.siteStockAllocation.findMany({
-
-            where: {
-
-                siteId:
-                    site.id,
-
-                stocking: {
-
-                    farmId:
-                        farm.id
-
-                }
-
-            },
-
-            include: {
-
-                stocking:
-                    true,
-
-                site:
-                    true
-
-            },
-
-            orderBy: {
-
-                createdAt:
-                    "desc"
-
-            }
-
-        });
-
-
-    /*
-     * Add Used and Remaining
-     * information to each category.
-     */
-    const result = [];
-
-
-    for (
-        const allocation
-        of allocations
-    ) {
-
-        const usedQuantity =
-            await getSiteStockUsage(
-
-                farm.id,
-
-                site.id,
-
-                allocation.stocking.category
-
-            );
-
-
-        /*
-         * Total allocation of the same
-         * category to this Site.
-         */
-        const categoryAllocation =
-            allocations
-                .filter(
-
-                    item =>
-                        item.stocking.category ===
-                        allocation.stocking.category
-
-                )
-                .reduce(
-
-                    (sum, item) =>
-
-                        sum +
-                        item.allocatedQuantity,
-
-                    0
-
-                );
-
-
-        const remainingQuantity =
-            Math.max(
-
-                categoryAllocation -
-                usedQuantity,
-
-                0
-
-            );
-
-
-        result.push({
-
-            ...allocation,
-
-            usedQuantity,
-
-            remainingQuantity
-
-        });
-
-    }
-
-
-    return result;
-
-};
-
-/*
- * Update Farm Stock (Total Quantity)
- */
-export const updateStocking = async (userId, stockingId, stockingData) => {
     const farm = await getUserFarm(userId);
 
-    const stocking = await prisma.stocking.findFirst({
+
+    const site = await getUserSite(farm.id, siteId);
+
+
+    const allocations = await prisma.siteStockAllocation.findMany({
+
         where: {
-            id: stockingId,
-            farmId: farm.id
+
+            siteId: site.id,
+
+            stocking: { farmId: farm.id }
+
         },
+
         include: {
-            allocations: true
+
+            stocking: true,
+
+            site: true
+
         }
+
     });
 
-    if (!stocking) {
-        throw new Error("Stocking record not found.");
-    }
 
-    const totalAllocated = stocking.allocations.reduce(
-        (sum, item) => sum + item.allocatedQuantity,
-        0
-    );
+    return allocations;
 
-    const newTotalQuantity = parseFloat(stockingData.totalQuantity);
-    if (isNaN(newTotalQuantity) || newTotalQuantity <= 0) {
-        throw new Error("Valid positive total quantity is required.");
-    }
-
-    if (newTotalQuantity < totalAllocated) {
-        throw new Error(`Total stock quantity cannot be less than already allocated quantity (${totalAllocated} ${stocking.unit}).`);
-    }
-
-    const updated = await prisma.stocking.update({
-        where: { id: stocking.id },
-        data: {
-            totalQuantity: newTotalQuantity,
-            unit: stockingData.unit ? stockingData.unit.trim() : stocking.unit
-        }
-    });
-
-    return updated;
 };
 
-/*
- * Delete Farm Stock
- */
-export const deleteStocking = async (userId, stockingId) => {
-    const farm = await getUserFarm(userId);
 
-    const stocking = await prisma.stocking.findFirst({
-        where: {
-            id: stockingId,
-            farmId: farm.id
-        }
-    });
-
-    if (!stocking) {
-        throw new Error("Stocking record not found.");
-    }
-
-    await prisma.stocking.delete({
-        where: { id: stocking.id }
-    });
-
-    return { message: "Stock record deleted successfully." };
-};
-
-/*
- * Update Site Stock Allocation
- */
 export const updateSiteStockAllocation = async (userId, allocationId, allocationData) => {
+
     const farm = await getUserFarm(userId);
+
 
     const allocation = await prisma.siteStockAllocation.findFirst({
+
         where: { id: allocationId },
-        include: {
-            stocking: {
-                include: { allocations: true }
-            }
-        }
+
+        include: { stocking: true }
+
     });
 
+
     if (!allocation || allocation.stocking.farmId !== farm.id) {
+
         throw new Error("Site stock allocation record not found.");
+
     }
 
-    const newAllocatedQuantity = parseFloat(allocationData.allocatedQuantity);
-    if (isNaN(newAllocatedQuantity) || newAllocatedQuantity <= 0) {
-        throw new Error("Valid positive allocation quantity is required.");
-    }
-
-    const otherAllocationsSum = allocation.stocking.allocations
-        .filter(item => item.id !== allocation.id)
-        .reduce((sum, item) => sum + item.allocatedQuantity, 0);
-
-    if (otherAllocationsSum + newAllocatedQuantity > allocation.stocking.totalQuantity) {
-        throw new Error("Allocation quantity cannot exceed available farm stock.");
-    }
 
     const updated = await prisma.siteStockAllocation.update({
+
         where: { id: allocation.id },
+
         data: {
-            allocatedQuantity: newAllocatedQuantity
+
+            allocatedQuantity: parseFloat(allocationData.allocatedQuantity)
+
         },
+
         include: {
+
             site: true,
+
             stocking: true
+
         }
+
     });
+
 
     return updated;
+
 };
 
-/*
- * Delete Site Stock Allocation
- */
+
 export const deleteSiteStockAllocation = async (userId, allocationId) => {
+
     const farm = await getUserFarm(userId);
 
+
     const allocation = await prisma.siteStockAllocation.findFirst({
+
         where: { id: allocationId },
+
         include: { stocking: true }
+
     });
+
 
     if (!allocation || allocation.stocking.farmId !== farm.id) {
+
         throw new Error("Site stock allocation record not found.");
+
     }
 
+
     await prisma.siteStockAllocation.delete({
+
         where: { id: allocation.id }
+
     });
 
+
     return { message: "Site stock allocation deleted successfully." };
+
 };

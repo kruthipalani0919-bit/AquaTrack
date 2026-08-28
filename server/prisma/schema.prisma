@@ -75,6 +75,7 @@ model Site {
   farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
 
   tanks            Tank[]
+  stockings        Stocking[]
   stockAllocations SiteStockAllocation[]
 
   createdAt DateTime @default(now())
@@ -91,6 +92,9 @@ model Stocking {
   unit String @default("kg")
 
   costPerKg Float?
+
+  siteId String?
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   farmId String
   farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)

@@ -19,7 +19,7 @@ export const createStocking = async (data) => {
 // Get all Farm Stock (GET /api/stocking)
 export const getStockings = async () => {
   try {
-    const response = await api.get('/stocking');
+    const response = await api.get(`/stocking?_t=${Date.now()}`);
     return response.data;
   } catch (error) {
     throw new Error(error.message || 'Failed to fetch farm stock overview');
