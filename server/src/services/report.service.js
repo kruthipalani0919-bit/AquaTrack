@@ -134,17 +134,12 @@ export const getCompletedCrops = async (
         },
 
         select: {
-
             id: true,
-
             cropName: true,
-
+            batchNumber: true,
             stockingDate: true,
-
             expectedHarvestDate: true,
-
             cropDuration: true
-
         },
 
         orderBy: {
@@ -420,6 +415,26 @@ const buildReport = async (
 
     );
 
+    const harvests = await prisma.harvest.findMany({
+        where: {
+            cropId: crop.id
+        },
+        orderBy: [
+            { harvestNumber: "asc" },
+            { harvestDate: "asc" }
+        ]
+    });
+
+    const totalHarvestWeight = harvests.reduce(
+        (sum, h) => sum + (h.harvestWeight || h.production || 0),
+        0
+    );
+
+    const totalHarvestRevenue = harvests.reduce(
+        (sum, h) => sum + (h.revenue || 0),
+        0
+    );
+
     return {
 
         tank: {
@@ -470,7 +485,13 @@ const buildReport = async (
 
             totalPondLeaseCost,
 
-            totalExpenses
+            totalExpenses,
+
+            totalHarvestWeight,
+
+            totalHarvestRevenue,
+
+            totalHarvestsCount: harvests.length
 
         },
 
@@ -480,7 +501,9 @@ const buildReport = async (
 
         medicineHistory: medicines,
 
-        expenseHistory: expenses
+        expenseHistory: expenses,
+
+        harvestHistory: harvests
 
     };
 

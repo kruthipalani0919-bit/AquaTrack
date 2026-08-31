@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Wheat, Weight, IndianRupee } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
@@ -38,29 +38,15 @@ export default function Harvest() {
 
     return list.filter((harv) => {
       if (!harv) return false;
-      return tankFilter === '' || harv.tankId === tankFilter;
+      if (!tankFilter) return true;
+
+      const harvTankId = String(harv.tankId || harv.crop?.tankId || harv.crop?.tank?.id || '');
+      const harvTankName = String(harv.tankName || harv.crop?.tank?.tankName || harv.crop?.tank?.name || '').toLowerCase();
+      const filterVal = String(tankFilter).toLowerCase();
+
+      return harvTankId === String(tankFilter) || harvTankName === filterVal || harvTankName.includes(filterVal);
     });
   }, [harvests, tankFilter]);
-
-  // Operational Metrics Summary Safely
-  const stats = useMemo(() => {
-    const list = harvests || [];
-    const totalCount = list.length;
-    const totalProductionKg = list.reduce((acc, h) => acc + (parseFloat(h?.production || h?.shrimpCount) || 0), 0);
-    const avgAbwGrams = totalCount > 0
-      ? (list.reduce((acc, h) => acc + (parseFloat(h?.averageWeight) || 0), 0) / totalCount).toFixed(1)
-      : 0;
-    const avgPricePerKg = totalCount > 0
-      ? (list.reduce((acc, h) => acc + (parseFloat(h?.sellingPrice) || 0), 0) / totalCount).toFixed(0)
-      : 0;
-
-    return {
-      totalCount,
-      totalProductionKg,
-      avgAbwGrams,
-      avgPricePerKg,
-    };
-  }, [harvests]);
 
   // Form Handlers
   const handleOpenAdd = () => {
@@ -123,10 +109,10 @@ export default function Harvest() {
 
   return (
     <div className="space-y-6">
-      {/* 1. PAGE HEADER (Harvest Logs badge removed) */}
+      {/* 1. PAGE HEADER */}
       <PageHeader
         title="Harvest Management"
-        subtitle="Log pond harvest yields, body weights (ABW), selling prices, and buyer details."
+        subtitle="Log pond harvest yields, harvest weights (kg), selling prices, and buyer details."
         actions={
           <Button
             variant="primary"
@@ -140,46 +126,7 @@ export default function Harvest() {
         }
       />
 
-      {/* 2. OPERATIONAL METRICS SUMMARY */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Wheat className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Total Production</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.totalProductionKg.toLocaleString()}</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
-              <Weight className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Average ABW</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">{stats.avgAbwGrams} g</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="compact" className="border-border/80">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-              <IndianRupee className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold uppercase text-text-secondary tracking-wider block">Avg Price / kg</span>
-              <span className="text-lg font-bold text-text-primary tracking-tight">₹{stats.avgPricePerKg}</span>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* 3. FILTERS AREA (Select Tank Dropdown) */}
+      {/* 2. FILTERS AREA (Select Tank Dropdown) */}
       <HarvestFilters
         tankFilter={tankFilter}
         onTankChange={setTankFilter}

@@ -24,6 +24,7 @@ export const HarvestProvider = ({ children }) => {
       const normalized = (Array.isArray(list) ? list : []).map((h) => ({
         ...h,
         id: String(h.id),
+        tankId: String(h.crop?.tankId || h.crop?.tank?.id || h.tankId || ''),
         harvestDate: h.harvestDate ? new Date(h.harvestDate).toISOString().split('T')[0] : h.harvestDate,
         tankName: h.crop?.tank?.tankName || h.crop?.tank?.name || h.tankName || 'Tank',
         cropName: h.crop?.cropName || h.cropName || 'Crop',
@@ -62,9 +63,10 @@ export const HarvestProvider = ({ children }) => {
     const payload = {
       tankId: newHarvestData.tankId,
       harvestDate: newHarvestData.harvestDate || new Date().toISOString().split('T')[0],
+      harvestWeight: parseFloat(newHarvestData.harvestWeight),
+      harvestType: newHarvestData.harvestType === 'FINAL' ? 'FINAL' : 'INTERMEDIATE',
       shrimpCount: newHarvestData.shrimpCount ? parseFloat(newHarvestData.shrimpCount) : undefined,
-      production: newHarvestData.production !== undefined && newHarvestData.production !== null ? parseFloat(newHarvestData.production) : (newHarvestData.shrimpCount ? parseFloat(newHarvestData.shrimpCount) : undefined),
-      averageWeight: newHarvestData.averageWeight ? parseFloat(newHarvestData.averageWeight) : (newHarvestData.shrimpCount ? parseFloat((1000 / parseFloat(newHarvestData.shrimpCount)).toFixed(2)) : undefined),
+      production: parseFloat(newHarvestData.harvestWeight),
       survivalRate: newHarvestData.survivalRate !== undefined ? parseFloat(newHarvestData.survivalRate) : 85,
       sellingPrice: parseFloat(newHarvestData.sellingPrice),
       buyerName: String(newHarvestData.buyerName).trim(),
@@ -78,6 +80,7 @@ export const HarvestProvider = ({ children }) => {
     const normalized = {
       ...created,
       id: String(created.id),
+      tankId: String(created.crop?.tankId || created.crop?.tank?.id || newHarvestData.tankId || ''),
       harvestDate: created.harvestDate ? new Date(created.harvestDate).toISOString().split('T')[0] : payload.harvestDate,
       tankName: newHarvestData.tankName || 'Tank',
     };
@@ -93,9 +96,9 @@ export const HarvestProvider = ({ children }) => {
     const payload = {
       ...(updatedData.tankId ? { tankId: String(updatedData.tankId) } : {}),
       ...(updatedData.harvestDate ? { harvestDate: String(updatedData.harvestDate) } : {}),
+      ...(updatedData.harvestWeight !== undefined ? { harvestWeight: parseFloat(updatedData.harvestWeight), production: parseFloat(updatedData.harvestWeight) } : {}),
+      ...(updatedData.harvestType ? { harvestType: updatedData.harvestType === 'FINAL' ? 'FINAL' : 'INTERMEDIATE' } : {}),
       ...(updatedData.shrimpCount ? { shrimpCount: parseFloat(updatedData.shrimpCount) } : {}),
-      ...(updatedData.production ? { production: parseFloat(updatedData.production) } : {}),
-      ...(updatedData.averageWeight ? { averageWeight: parseFloat(updatedData.averageWeight) } : {}),
       ...(updatedData.survivalRate !== undefined ? { survivalRate: parseFloat(updatedData.survivalRate) } : {}),
       ...(updatedData.sellingPrice ? { sellingPrice: parseFloat(updatedData.sellingPrice) } : {}),
       ...(updatedData.buyerName ? { buyerName: String(updatedData.buyerName).trim() } : {}),
@@ -109,6 +112,7 @@ export const HarvestProvider = ({ children }) => {
     const normalized = {
       ...updated,
       id: targetId,
+      tankId: String(updated.crop?.tankId || updated.crop?.tank?.id || updatedData.tankId || ''),
       harvestDate: updated.harvestDate ? new Date(updated.harvestDate).toISOString().split('T')[0] : updatedData.harvestDate,
       tankName: updated.crop?.tank?.tankName || updated.crop?.tank?.name || updatedData.tankName || 'Tank',
     };

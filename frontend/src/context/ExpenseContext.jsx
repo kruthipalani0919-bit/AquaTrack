@@ -49,6 +49,7 @@ export const ExpenseProvider = ({ children }) => {
       const normalized = (Array.isArray(list) ? list : []).map((item) => ({
         ...item,
         id: String(item.id),
+        tankId: String(item.crop?.tankId || item.crop?.tank?.id || item.tankId || ''),
         date: item.date ? new Date(item.date).toISOString().split('T')[0] : item.date,
         paymentModeDisplay: normalizePaymentModeForUi(item.paymentMode),
         tankName: item.crop?.tank?.tankName || item.crop?.tank?.name || item.tankName || 'Tank',
@@ -99,6 +100,7 @@ export const ExpenseProvider = ({ children }) => {
     const normalized = {
       ...created,
       id: String(created.id),
+      tankId: String(created.crop?.tankId || created.crop?.tank?.id || newExpenseData.tankId || ''),
       date: created.date ? new Date(created.date).toISOString().split('T')[0] : payload.date,
       paymentModeDisplay: normalizePaymentModeForUi(created.paymentMode || payload.paymentMode),
       tankName: newExpenseData.tankName || 'Tank',
@@ -124,6 +126,7 @@ export const ExpenseProvider = ({ children }) => {
     const normalized = {
       ...updated,
       id: targetId,
+      tankId: String(updated.crop?.tankId || updated.crop?.tank?.id || updatedData.tankId || ''),
       date: updated.date ? new Date(updated.date).toISOString().split('T')[0] : updatedData.date,
       paymentModeDisplay: normalizePaymentModeForUi(updated.paymentMode || updatedData.paymentMode),
       tankName: updated.crop?.tank?.tankName || updated.crop?.tank?.name || 'Tank',

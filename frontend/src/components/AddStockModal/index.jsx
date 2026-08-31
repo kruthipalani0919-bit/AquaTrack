@@ -2,13 +2,18 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Package, ShieldAlert, Scale } from 'lucide-react';
+import { Package, ShieldAlert, Scale, MapPin } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Button } from '../Button';
+import { useSites } from '../../context/SiteContext';
 
 const addStockSchema = z.object({
+  siteId: z
+    .string()
+    .min(1, 'Please select a Site')
+    .trim(),
   category: z.enum(['FEED', 'MEDICINE'], {
     errorMap: () => ({ message: 'Please select a valid Stock Category' }),
   }),
@@ -37,12 +42,18 @@ const UNIT_OPTIONS = [
 
 /**
  * Reusable AddStockForm component styled consistently with AquaTrack registration modals:
- * - Visually highlighted Stock Information section card
+ * - Direct Site selection for site-level stock addition
  * - Category *, Total Quantity *, Unit * fields with icons & clear placeholders
  * - Bottom right action buttons: Cancel, Add Stock
  */
 export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
+  const { sites = [] } = useSites();
   const [formError, setFormError] = useState('');
+
+  const siteOptions = sites.map((site) => ({
+    value: site.id,
+    label: `${site.siteName} (${site.location || 'Location'})`,
+  }));
 
   const {
     register,
@@ -53,6 +64,7 @@ export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
   } = useForm({
     resolver: zodResolver(addStockSchema),
     defaultValues: {
+      siteId: sites.length > 0 ? sites[0].id : '',
       category: 'FEED',
       totalQuantity: '',
       unit: 'kg',
@@ -80,7 +92,7 @@ export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
         await onSubmit(data);
       }
     } catch (err) {
-      setFormError(err.message || 'Failed to add farm stock');
+      setFormError(err.message || 'Failed to add stock');
     }
   };
 
@@ -96,8 +108,20 @@ export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
       {/* STOCK INFORMATION SECTION */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-4 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-primary/20 pb-1.5">
-          <Package className="w-3.5 h-3.5 text-primary" /> Stock Information
+          <Package className="w-3.5 h-3.5 text-primary" /> Site Stock Information
         </h4>
+
+        {/* Site Selector */}
+        <Select
+          label="Site"
+          required={true}
+          placeholder="Select site..."
+          options={siteOptions}
+          error={errors.siteId?.message}
+          disabled={isSubmitting}
+          icon={<MapPin className="w-4 h-4 text-primary" />}
+          {...register('siteId')}
+        />
 
         {/* Category */}
         <Select

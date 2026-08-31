@@ -1,14 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UtensilsCrossed, Container, Calendar, IndianRupee, Package } from 'lucide-react';
+import { UtensilsCrossed, Container, Calendar, IndianRupee, Package, AlertCircle } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
 import { Button } from '../Button';
 import { useTanks } from '../../context/TankContext';
+import { useStocking } from '../../context/StockingContext';
 
 // Zod Validation Schema matching required text inputs
 const feedSchema = z.object({
@@ -40,16 +41,18 @@ const feedSchema = z.object({
 });
 
 /**
- * Reusable FeedForm component with dynamic Tank dropdown from TankContext.
- * Tank display NEVER includes water source (e.g. Borewell).
+ * Reusable FeedForm component with dynamic Tank dropdown from TankContext
+ * and real-time Site Stock Availability indicator and validation.
  */
 export const FeedForm = ({
   initialData = null,
   onSubmit,
   onCancel,
   isSubmitting = false,
+  formError = '',
 }) => {
-  const { tanks } = useTanks();
+  const { tanks = [] } = useTanks();
+  const { stockings = [] } = useStocking();
   const isEditing = Boolean(initialData?.id);
 
   // Format Tank label cleanly WITHOUT water source (e.g., A1 or A1 (5 Acres))
@@ -67,6 +70,7 @@ export const FeedForm = ({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(feedSchema),
@@ -81,6 +85,71 @@ export const FeedForm = ({
     },
     mode: 'onTouched',
   });
+
+  const selectedTankId = watch('tankId');
+  const quantityValue = watch('quantity');
+  const enteredQuantity = parseFloat(quantityValue) || 0;
+
+  // Identify selected tank and site
+  const selectedTank = useMemo(() => {
+    return tanks.find((t) => String(t.id) === String(selectedTankId));
+  }, [tanks, selectedTankId]);
+
+  const siteId = selectedTank?.siteId || selectedTank?.site?.id;
+
+  // Compute available feed stock for selected tank's site
+  const siteFeedStockInfo = useMemo(() => {
+    if (!selectedTankId || !siteId) return null;
+
+    let totalAdded = 0;
+    let used = 0;
+    let unit = 'kg';
+
+    stockings.forEach((s) => {
+      const isFeed = s.category?.toUpperCase() === 'FEED';
+      const isDirectSite = s.siteId && String(s.siteId) === String(siteId);
+
+      if (isFeed && isDirectSite) {
+        totalAdded += parseFloat(s.totalQuantity) || 0;
+        used = parseFloat(s.totalUsed) || 0;
+        if (s.unit) unit = s.unit;
+      } else if (isFeed && Array.isArray(s.siteStock)) {
+        const alloc = s.siteStock.find((ss) => String(ss.site?.id || ss.siteId) === String(siteId));
+        if (alloc) {
+          totalAdded += parseFloat(alloc.allocatedQuantity) || 0;
+          used = parseFloat(alloc.usedQuantity) || 0;
+          if (alloc.unit || s.unit) unit = alloc.unit || s.unit;
+        }
+      }
+    });
+
+    const currentLogQty = isEditing ? (parseFloat(initialData?.quantity || initialData?.quantityKg) || 0) : 0;
+    const effectiveUsed = Math.max(used - currentLogQty, 0);
+    const remaining = Math.max(totalAdded - effectiveUsed, 0);
+    const siteName = selectedTank?.site?.siteName || selectedTank?.siteName || 'this site';
+
+    return {
+      totalAdded,
+      used: effectiveUsed,
+      remaining,
+      unit,
+      siteName,
+      hasStock: totalAdded > 0,
+    };
+  }, [selectedTankId, siteId, stockings, selectedTank, isEditing, initialData]);
+
+  const isExcess = Boolean(siteFeedStockInfo && siteFeedStockInfo.hasStock && enteredQuantity > siteFeedStockInfo.remaining);
+  const isNoStock = Boolean(siteFeedStockInfo && !siteFeedStockInfo.hasStock);
+
+  const quantityErrorMessage = errors.quantity?.message || (
+    isExcess
+      ? `Only ${siteFeedStockInfo.remaining} ${siteFeedStockInfo.unit} of feed is available for this site.`
+      : isNoStock && enteredQuantity > 0
+        ? `No feed stock added for ${siteFeedStockInfo.siteName} yet.`
+        : undefined
+  );
+
+  const isSubmitDisabled = isSubmitting || isExcess || (isNoStock && enteredQuantity > 0);
 
   useEffect(() => {
     if (initialData) {
@@ -97,11 +166,14 @@ export const FeedForm = ({
   }, [initialData, reset]);
 
   const handleFormSubmit = (data) => {
+    if (isExcess || (isNoStock && enteredQuantity > 0)) {
+      return;
+    }
+
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
     const rawTankName = selectedTankObj ? selectedTankObj.name : 'Selected Tank';
     const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
-    // Backend Request Model: { tankId, date, feedType, feedBrand, feedSize, quantity, costPerKg, notes }
     const feedPayload = {
       tankId: data.tankId,
       date: data.date,
@@ -127,6 +199,14 @@ export const FeedForm = ({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
+      {/* FORM LEVEL ERROR BANNER */}
+      {formError && (
+        <div className="p-3.5 rounded-xl bg-danger-light/40 border border-danger/30 text-danger text-xs font-semibold flex items-center gap-2.5 shadow-2xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{formError}</span>
+        </div>
+      )}
+
       {/* SECTION 1: BASIC INFORMATION */}
       <div className="space-y-3">
         <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
@@ -183,9 +263,43 @@ export const FeedForm = ({
 
       {/* SECTION 3: QUANTITY & COST */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-          <UtensilsCrossed className="w-3.5 h-3.5" /> Quantity & Cost
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+            <UtensilsCrossed className="w-3.5 h-3.5" /> Quantity & Cost
+          </h4>
+
+          {selectedTankId && siteFeedStockInfo && (
+            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${
+              isExcess
+                ? 'bg-danger-light/60 border-danger/40 text-danger'
+                : isNoStock
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-teal-50 border-teal-200 text-teal-800'
+            }`}>
+              Available: {siteFeedStockInfo.remaining} {siteFeedStockInfo.unit}
+            </span>
+          )}
+        </div>
+
+        {/* STOCK AVAILABILITY INDICATOR BADGE */}
+        {selectedTankId && siteFeedStockInfo && (
+          <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between font-medium transition-colors ${
+            isExcess
+              ? 'bg-danger-light/30 border-danger/40 text-danger'
+              : isNoStock
+                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-teal-50/80 border-teal-200 text-teal-800'
+          }`}>
+            <div className="flex items-center gap-2">
+              <UtensilsCrossed className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                Available Feed Stock: <strong>{siteFeedStockInfo.remaining} {siteFeedStockInfo.unit}</strong>
+              </span>
+            </div>
+            <span className="text-[10px] opacity-80">({siteFeedStockInfo.siteName})</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Quantity (Kg)"
@@ -194,7 +308,7 @@ export const FeedForm = ({
             placeholder="e.g. 45"
             required={true}
             icon={<UtensilsCrossed className="w-4 h-4 text-primary" />}
-            error={errors.quantity?.message}
+            error={quantityErrorMessage}
             {...register('quantity')}
           />
 
@@ -237,7 +351,7 @@ export const FeedForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
-          disabled={isSubmitting}
+          disabled={isSubmitDisabled}
           className="font-semibold"
         >
           {isEditing ? (isSubmitting ? 'Updating...' : 'Update Feed Log') : (isSubmitting ? 'Recording...' : 'Record Feed')}

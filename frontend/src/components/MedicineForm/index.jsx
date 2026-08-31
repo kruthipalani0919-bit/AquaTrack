@@ -1,14 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Stethoscope, Calendar, IndianRupee, Package, Container } from 'lucide-react';
+import { Stethoscope, Calendar, IndianRupee, Package, Container, AlertCircle } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
 import { Textarea } from '../Textarea';
 import { Button } from '../Button';
 import { useTanks } from '../../context/TankContext';
+import { useStocking } from '../../context/StockingContext';
 
 // Zod Validation Schema matching required frontend fields
 const medicineSchema = z.object({
@@ -36,16 +37,18 @@ const medicineSchema = z.object({
 });
 
 /**
- * Reusable MedicineForm component with dynamic Tank dropdown from TankContext.
- * Tank display NEVER includes water source (e.g. Borewell).
+ * Reusable MedicineForm component with dynamic Tank dropdown from TankContext
+ * and real-time Site Stock Availability indicator and validation.
  */
 export const MedicineForm = ({
   initialData = null,
   onSubmit,
   onCancel,
   isSubmitting = false,
+  formError = '',
 }) => {
-  const { tanks } = useTanks();
+  const { tanks = [] } = useTanks();
+  const { stockings = [] } = useStocking();
   const isEditing = Boolean(initialData?.id);
 
   // Format Tank label cleanly WITHOUT water source (e.g. A1 or A1 (5 Acres))
@@ -63,6 +66,7 @@ export const MedicineForm = ({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(medicineSchema),
@@ -76,6 +80,71 @@ export const MedicineForm = ({
     },
     mode: 'onTouched',
   });
+
+  const selectedTankId = watch('tankId');
+  const quantityValue = watch('quantity');
+  const enteredQuantity = parseFloat(quantityValue) || 0;
+
+  // Identify selected tank and site
+  const selectedTank = useMemo(() => {
+    return tanks.find((t) => String(t.id) === String(selectedTankId));
+  }, [tanks, selectedTankId]);
+
+  const siteId = selectedTank?.siteId || selectedTank?.site?.id;
+
+  // Compute available medicine stock for selected tank's site
+  const siteMedicineStockInfo = useMemo(() => {
+    if (!selectedTankId || !siteId) return null;
+
+    let totalAdded = 0;
+    let used = 0;
+    let unit = 'L';
+
+    stockings.forEach((s) => {
+      const isMedicine = s.category?.toUpperCase() === 'MEDICINE';
+      const isDirectSite = s.siteId && String(s.siteId) === String(siteId);
+
+      if (isMedicine && isDirectSite) {
+        totalAdded += parseFloat(s.totalQuantity) || 0;
+        used = parseFloat(s.totalUsed) || 0;
+        if (s.unit) unit = s.unit;
+      } else if (isMedicine && Array.isArray(s.siteStock)) {
+        const alloc = s.siteStock.find((ss) => String(ss.site?.id || ss.siteId) === String(siteId));
+        if (alloc) {
+          totalAdded += parseFloat(alloc.allocatedQuantity) || 0;
+          used = parseFloat(alloc.usedQuantity) || 0;
+          if (alloc.unit || s.unit) unit = alloc.unit || s.unit;
+        }
+      }
+    });
+
+    const currentRecordQty = isEditing ? (parseFloat(initialData?.quantity) || 0) : 0;
+    const effectiveUsed = Math.max(used - currentRecordQty, 0);
+    const remaining = Math.max(totalAdded - effectiveUsed, 0);
+    const siteName = selectedTank?.site?.siteName || selectedTank?.siteName || 'this site';
+
+    return {
+      totalAdded,
+      used: effectiveUsed,
+      remaining,
+      unit,
+      siteName,
+      hasStock: totalAdded > 0,
+    };
+  }, [selectedTankId, siteId, stockings, selectedTank, isEditing, initialData]);
+
+  const isExcess = Boolean(siteMedicineStockInfo && siteMedicineStockInfo.hasStock && enteredQuantity > siteMedicineStockInfo.remaining);
+  const isNoStock = Boolean(siteMedicineStockInfo && !siteMedicineStockInfo.hasStock);
+
+  const quantityErrorMessage = errors.quantity?.message || (
+    isExcess
+      ? `Only ${siteMedicineStockInfo.remaining} ${siteMedicineStockInfo.unit} of medicine is available for this site.`
+      : isNoStock && enteredQuantity > 0
+        ? `No medicine stock added for ${siteMedicineStockInfo.siteName} yet.`
+        : undefined
+  );
+
+  const isSubmitDisabled = isSubmitting || isExcess || (isNoStock && enteredQuantity > 0);
 
   useEffect(() => {
     if (initialData) {
@@ -91,11 +160,14 @@ export const MedicineForm = ({
   }, [initialData, reset]);
 
   const handleFormSubmit = (data) => {
+    if (isExcess || (isNoStock && enteredQuantity > 0)) {
+      return;
+    }
+
     const selectedTankObj = tanks.find((t) => t.id === data.tankId);
     const rawTankName = selectedTankObj ? selectedTankObj.name : 'Selected Tank';
     const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
-    // Backend Request Model: { tankId, medicineName, purpose, dosage, quantity, cost, date, notes }
     const medicinePayload = {
       tankId: data.tankId,
       medicineName: data.medicineName.trim(),
@@ -119,6 +191,14 @@ export const MedicineForm = ({
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5" noValidate>
+      {/* FORM LEVEL ERROR BANNER */}
+      {formError && (
+        <div className="p-3.5 rounded-xl bg-danger-light/40 border border-danger/30 text-danger text-xs font-semibold flex items-center gap-2.5 shadow-2xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{formError}</span>
+        </div>
+      )}
+
       {/* SECTION 1: BASIC INFORMATION */}
       <div className="space-y-3">
         <h4 className="text-[11px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/50 pb-1 flex items-center gap-1.5">
@@ -165,9 +245,43 @@ export const MedicineForm = ({
 
       {/* SECTION 3: QUANTITY & COST */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-          <Package className="w-3.5 h-3.5" /> Quantity & Cost
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+            <Package className="w-3.5 h-3.5" /> Quantity & Cost
+          </h4>
+
+          {selectedTankId && siteMedicineStockInfo && (
+            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${
+              isExcess
+                ? 'bg-danger-light/60 border-danger/40 text-danger'
+                : isNoStock
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-cyan-50 border-cyan-200 text-cyan-800'
+            }`}>
+              Available: {siteMedicineStockInfo.remaining} {siteMedicineStockInfo.unit}
+            </span>
+          )}
+        </div>
+
+        {/* STOCK AVAILABILITY INDICATOR BADGE */}
+        {selectedTankId && siteMedicineStockInfo && (
+          <div className={`p-2.5 rounded-lg border text-xs flex items-center justify-between font-medium transition-colors ${
+            isExcess
+              ? 'bg-danger-light/30 border-danger/40 text-danger'
+              : isNoStock
+                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-cyan-50/80 border-cyan-200 text-cyan-800'
+          }`}>
+            <div className="flex items-center gap-2">
+              <Stethoscope className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                Available Medicine Stock: <strong>{siteMedicineStockInfo.remaining} {siteMedicineStockInfo.unit}</strong>
+              </span>
+            </div>
+            <span className="text-[10px] opacity-80">({siteMedicineStockInfo.siteName})</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Quantity"
@@ -176,7 +290,7 @@ export const MedicineForm = ({
             placeholder="e.g. 5"
             required={true}
             icon={<Package className="w-4 h-4 text-primary" />}
-            error={errors.quantity?.message}
+            error={quantityErrorMessage}
             {...register('quantity')}
           />
 
@@ -218,7 +332,7 @@ export const MedicineForm = ({
           type="submit"
           variant="primary"
           isLoading={isSubmitting}
-          disabled={isSubmitting}
+          disabled={isSubmitDisabled}
           className="font-semibold"
         >
           {isEditing ? (isSubmitting ? 'Updating...' : 'Update Treatment Record') : (isSubmitting ? 'Recording...' : 'Save Treatment')}

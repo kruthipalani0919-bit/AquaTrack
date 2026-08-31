@@ -63,8 +63,7 @@ export const CropProvider = ({ children }) => {
           || c.tankName
           || (cropTankId ? 'Tank' : 'No Tank Assigned');
 
-        const hasHarvest = (c.id && harvestedCropIds.has(c.id)) || (cropTankId && harvestedTankIds.has(cropTankId));
-        const derivedStatus = hasHarvest ? 'COMPLETED' : (c.status || 'ACTIVE');
+        const derivedStatus = c.status || 'ACTIVE';
 
         return {
           ...c,

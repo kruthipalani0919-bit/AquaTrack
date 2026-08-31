@@ -84,9 +84,21 @@ const getSiteFeedAvailability = async (
 ) => {
 
     /*
-     * Get total FEED allocated
-     * to this Site.
+     * Get total FEED added directly to this Site
+     * plus legacy allocations.
      */
+    const directStockResult =
+        await prisma.stocking.aggregate({
+            where: {
+                siteId,
+                farmId,
+                category: "FEED"
+            },
+            _sum: {
+                totalQuantity: true
+            }
+        });
+
     const allocationResult =
         await prisma.siteStockAllocation.aggregate({
 
@@ -113,8 +125,8 @@ const getSiteFeedAvailability = async (
         });
 
     const allocatedFeed =
-        allocationResult._sum
-            .allocatedQuantity ?? 0;
+        (directStockResult._sum.totalQuantity ?? 0) +
+        (allocationResult._sum.allocatedQuantity ?? 0);
 
 
     /*

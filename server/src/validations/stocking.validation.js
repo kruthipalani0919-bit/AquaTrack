@@ -1,19 +1,13 @@
 import { z } from "zod";
 
-
 /*
- * Create Farm Stock
- *
- * FEED:
- *   Quantity only
- *
- * MEDICINE:
- *   Quantity only
- *
- * SEED:
- *   Quantity + Cost per Kg
+ * Create Site-Level Stock
  */
 export const createStockingSchema = z.object({
+
+    siteId: z
+        .string()
+        .min(1, "Site is required"),
 
     category: z.enum(
         ["FEED", "MEDICINE", "SEED"],
@@ -94,7 +88,7 @@ export const createStockingSchema = z.object({
 
 
 /*
- * Allocate Stock to Site
+ * Allocate Stock to Site (Legacy)
  */
 export const allocateStockSchema = z.object({
 

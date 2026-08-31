@@ -39,6 +39,7 @@ export default function FeedManagement() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingFeedLog, setEditingFeedLog] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingFeedLog, setViewingFeedLog] = useState(null);
@@ -58,7 +59,13 @@ export default function FeedManagement() {
     const list = feedLogs || [];
     return list.filter((log) => {
       if (!log) return false;
-      const matchesTank = tankFilter === '' || log.tankId === tankFilter;
+      let matchesTank = true;
+      if (tankFilter && tankFilter !== '') {
+        const logTankId = String(log.tankId || log.crop?.tankId || log.crop?.tank?.id || '');
+        const logTankName = String(log.tankName || log.crop?.tank?.tankName || log.crop?.tank?.name || '').toLowerCase();
+        const filterVal = String(tankFilter).toLowerCase();
+        matchesTank = logTankId === String(tankFilter) || logTankName === filterVal || logTankName.includes(filterVal);
+      }
 
       let matchesDate = true;
       if (dateFilter) {
@@ -73,11 +80,13 @@ export default function FeedManagement() {
   // Form Handlers
   const handleOpenAdd = () => {
     setEditingFeedLog(null);
+    setFormError('');
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (feedLog) => {
     setEditingFeedLog(feedLog);
+    setFormError('');
     setIsFormOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
@@ -95,6 +104,7 @@ export default function FeedManagement() {
 
   const handleSaveFeed = async (formData) => {
     setIsSubmitting(true);
+    setFormError('');
     try {
       if (editingFeedLog) {
         await updateFeedLog(editingFeedLog.id, formData);
@@ -105,6 +115,12 @@ export default function FeedManagement() {
       setEditingFeedLog(null);
     } catch (err) {
       console.error('Error saving feed:', err);
+      const rawMsg = err.message || '';
+      if (rawMsg.toLowerCase().includes('insufficient feed stock')) {
+        setFormError('Feed could not be recorded because the requested quantity exceeds the available site stock.');
+      } else {
+        setFormError(rawMsg || 'Failed to save feed entry.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -250,8 +266,10 @@ export default function FeedManagement() {
           onCancel={() => {
             setIsFormOpen(false);
             setEditingFeedLog(null);
+            setFormError('');
           }}
           isSubmitting={isSubmitting}
+          formError={formError}
         />
       </Modal>
 

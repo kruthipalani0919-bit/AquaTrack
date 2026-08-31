@@ -55,11 +55,11 @@ export const CropCard = ({
             <Sprout className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-base text-text-primary truncate tracking-tight" title={displayName}>
-              {displayName}
-            </h3>
-            <span className="text-xs text-text-secondary block truncate mt-0.5 font-medium" title={tankLabel}>
+            <h3 className="font-bold text-base text-text-primary truncate tracking-tight" title={tankLabel}>
               {tankLabel}
+            </h3>
+            <span className="text-xs text-text-secondary block truncate mt-0.5 font-medium" title={displayName}>
+              {displayName}
             </span>
           </div>
         </div>
@@ -78,7 +78,7 @@ export const CropCard = ({
                 Seed Quantity
               </span>
               <span className="text-xs font-bold text-text-primary truncate ml-2">
-                {seedQuantity} kg
+                {seedQuantity}
               </span>
             </div>
           )}

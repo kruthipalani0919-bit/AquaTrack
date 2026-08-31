@@ -48,10 +48,11 @@ export const StockingProvider = ({ children }) => {
     return unsubscribe;
   }, [fetchStockings]);
 
-  // Create real stock record in database
+  // Create real site stock record in database
   const addStock = async (stockData) => {
     setError(null);
     const payload = {
+      siteId: stockData.siteId,
       category: stockData.category.toUpperCase(),
       totalQuantity: parseFloat(stockData.totalQuantity),
       unit: stockData.unit ? stockData.unit.trim() : 'kg',

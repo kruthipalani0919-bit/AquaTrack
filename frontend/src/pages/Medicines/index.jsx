@@ -37,6 +37,7 @@ export default function Medicines() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingRecord, setViewingRecord] = useState(null);
@@ -70,11 +71,13 @@ export default function Medicines() {
   // Form Handlers
   const handleOpenAdd = () => {
     setEditingRecord(null);
+    setFormError('');
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (record) => {
     setEditingRecord(record);
+    setFormError('');
     setIsFormOpen(true);
     if (isDetailsOpen) setIsDetailsOpen(false);
   };
@@ -92,6 +95,7 @@ export default function Medicines() {
 
   const handleSaveRecord = async (formData) => {
     setIsSubmitting(true);
+    setFormError('');
     try {
       if (editingRecord) {
         await updateMedicineRecord(editingRecord.id, formData);
@@ -102,6 +106,12 @@ export default function Medicines() {
       setEditingRecord(null);
     } catch (err) {
       console.error('Error saving medicine record:', err);
+      const rawMsg = err.message || '';
+      if (rawMsg.toLowerCase().includes('insufficient medicine stock')) {
+        setFormError('Treatment could not be recorded because the requested quantity exceeds the available site stock.');
+      } else {
+        setFormError(rawMsg || 'Failed to save treatment record.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -235,8 +245,10 @@ export default function Medicines() {
           onCancel={() => {
             setIsFormOpen(false);
             setEditingRecord(null);
+            setFormError('');
           }}
           isSubmitting={isSubmitting}
+          formError={formError}
         />
       </Modal>
 

@@ -147,39 +147,46 @@ export const ExpenseForm = ({
       </div>
 
       {/* SECTION 2: TRANSACTION DETAILS */}
-      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
+      <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3.5 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
           <IndianRupee className="w-3.5 h-3.5" /> Transaction Details
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input
-            label="Amount (₹)"
-            type="number"
-            step="1"
-            placeholder="e.g. 2500"
-            required={true}
-            icon={<IndianRupee className="w-4 h-4 text-primary" />}
-            error={errors.amount?.message}
-            {...register('amount')}
-          />
+        <div className="space-y-3.5">
+          {/* Prominent, full-width Amount input for easy readability of large amounts */}
+          <div>
+            <Input
+              label="Amount (₹)"
+              type="number"
+              step="1"
+              placeholder="e.g. 2500"
+              required={true}
+              icon={<IndianRupee className="w-4 h-4 text-primary" />}
+              error={errors.amount?.message}
+              className="text-base font-semibold tracking-wide"
+              {...register('amount')}
+            />
+          </div>
 
-          <Select
-            label="Payment Mode"
-            required={true}
-            placeholder="Select mode..."
-            options={PAYMENT_MODE_OPTIONS}
-            error={errors.paymentMode?.message}
-            {...register('paymentMode')}
-          />
+          {/* Payment Mode and Date in a 2-column balanced grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Payment Mode"
+              required={true}
+              placeholder="Select mode..."
+              options={PAYMENT_MODE_OPTIONS}
+              error={errors.paymentMode?.message}
+              {...register('paymentMode')}
+            />
 
-          <Input
-            label="Date"
-            type="date"
-            required={true}
-            icon={<Calendar className="w-4 h-4 text-primary" />}
-            error={errors.date?.message}
-            {...register('date')}
-          />
+            <Input
+              label="Date"
+              type="date"
+              required={true}
+              icon={<Calendar className="w-4 h-4 text-primary" />}
+              error={errors.date?.message}
+              {...register('date')}
+            />
+          </div>
         </div>
       </div>
 

@@ -22,9 +22,21 @@ const getSiteMedicineAvailability = async (
 ) => {
 
     /*
-     * Get total MEDICINE stock allocated
-     * to this Site.
+     * Get total MEDICINE added directly to this Site
+     * plus legacy allocations.
      */
+    const directStockResult =
+        await prisma.stocking.aggregate({
+            where: {
+                siteId,
+                farmId,
+                category: "MEDICINE"
+            },
+            _sum: {
+                totalQuantity: true
+            }
+        });
+
     const allocationResult =
         await prisma.siteStockAllocation.aggregate({
 
@@ -52,8 +64,8 @@ const getSiteMedicineAvailability = async (
 
 
     const allocatedMedicine =
-        allocationResult._sum
-            .allocatedQuantity ?? 0;
+        (directStockResult._sum.totalQuantity ?? 0) +
+        (allocationResult._sum.allocatedQuantity ?? 0);
 
 
     /*
