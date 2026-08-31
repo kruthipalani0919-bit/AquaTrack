@@ -70,3 +70,57 @@
     background: #94A3B8;
   }
 }
+
+/* Print Stylesheet for Reports & Full Document Export */
+@media print {
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Unclip max-height and inner scroll containers */
+  .max-h-64,
+  .max-h-80,
+  .max-h-96,
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .aqua-scrollbar {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Avoid breaking small cards/sections awkwardly in the middle */
+  .break-inside-avoid,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+}

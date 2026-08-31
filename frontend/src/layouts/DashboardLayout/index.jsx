@@ -64,31 +64,35 @@ export const DashboardLayout = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-background text-text-primary flex overflow-hidden">
+    <div className="h-screen w-full bg-background text-text-primary flex overflow-hidden print:h-auto print:w-full print:overflow-visible print:bg-white">
       {/* Page Navigation Loader */}
       {isNavigating && <Loader fullPage={true} text="Loading page..." />}
 
       {/* 1. SIDEBAR */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isCollapsed={isCollapsed}
-        onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
-        onLogout={() => navigate('/login')}
-        farmName={farmName || farm?.farmName || user?.farmName}
-      />
+      <div className="print:hidden">
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
+          onLogout={() => navigate('/login')}
+          farmName={farmName || farm?.farmName || user?.farmName}
+        />
+      </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:h-auto print:w-full print:overflow-visible">
         {/* 2. TOP NAVBAR */}
-        <Navbar
-          onMenuClick={() => setSidebarOpen(true)}
-        />
+        <div className="print:hidden">
+          <Navbar
+            onMenuClick={() => setSidebarOpen(true)}
+          />
+        </div>
 
         {/* 3. SCROLLABLE CONTENT WITH AUTOMATIC BREADCRUMB HEADER */}
-        <main className="flex-1 overflow-y-auto aqua-scrollbar p-4 sm:p-6 lg:p-8 space-y-6">
+        <main className="flex-1 overflow-y-auto aqua-scrollbar p-4 sm:p-6 lg:p-8 space-y-6 print:h-auto print:max-h-none print:overflow-visible print:p-0 print:space-y-4">
           {/* Automatic Breadcrumb */}
-          <div className="pb-2 border-b border-border/40">
+          <div className="pb-2 border-b border-border/40 print:hidden">
             <Breadcrumb items={getBreadcrumbItems(location.pathname)} />
           </div>
 

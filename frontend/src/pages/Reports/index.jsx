@@ -139,10 +139,41 @@ export default function Reports() {
     };
   });
 
-  const completedCropOptions = completedCrops.map((crop) => ({
-    value: crop.id,
-    label: `${crop.cropName} (${new Date(crop.stockingDate).toLocaleDateString()})`,
-  }));
+  const completedCropOptions = completedCrops.map((crop) => {
+    const rawIdentifier = crop.cropName || crop.batchNumber || crop.name;
+    const identifier =
+      rawIdentifier &&
+      typeof rawIdentifier === 'string' &&
+      rawIdentifier.trim() !== '' &&
+      rawIdentifier.trim().toLowerCase() !== 'null' &&
+      rawIdentifier.trim().toLowerCase() !== 'undefined'
+        ? rawIdentifier.trim()
+        : null;
+
+    let formattedDate = '';
+    if (crop.stockingDate) {
+      const dateObj = new Date(crop.stockingDate);
+      if (!isNaN(dateObj.getTime())) {
+        formattedDate = dateObj.toLocaleDateString();
+      }
+    }
+
+    let label = '';
+    if (identifier && formattedDate) {
+      label = `${identifier} (${formattedDate})`;
+    } else if (identifier) {
+      label = identifier;
+    } else if (formattedDate) {
+      label = formattedDate;
+    } else {
+      label = `Batch ${crop.id}`;
+    }
+
+    return {
+      value: crop.id,
+      label,
+    };
+  });
 
   const summary = reportData?.summary || {};
   const crop = reportData?.crop || {};
@@ -160,7 +191,7 @@ export default function Reports() {
         title="Farm Analytics & Reports"
         subtitle="Comprehensive operational reports, cost breakdowns, feed usage logs, and financial metrics."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 print:hidden">
             <Button
               variant="outline"
               size="sm"
@@ -183,7 +214,7 @@ export default function Reports() {
       />
 
       {/* 2. REPORT CONTROLS (Tank & Batch Selection) */}
-      <Card padding="relaxed" className="border-border/80 shadow-2xs">
+      <Card padding="relaxed" className="border-border/80 shadow-2xs print:hidden">
         <div className="flex flex-col md:flex-row items-stretch md:items-end gap-4">
           {/* Tank Selector */}
           <div className="flex-1">
@@ -431,7 +462,7 @@ export default function Reports() {
               <CardHeader>
                 <CardTitle className="text-sm">Feed History Logs ({feedHistory.length})</CardTitle>
               </CardHeader>
-              <CardBody className="max-h-64 overflow-y-auto aqua-scrollbar">
+              <CardBody className="max-h-64 overflow-y-auto aqua-scrollbar print:max-h-none print:overflow-visible">
                 {feedHistory.length > 0 ? (
                   <div className="space-y-2">
                     {feedHistory.map((item) => (
@@ -455,7 +486,7 @@ export default function Reports() {
               <CardHeader>
                 <CardTitle className="text-sm">Medicine Records ({medicineHistory.length})</CardTitle>
               </CardHeader>
-              <CardBody className="max-h-64 overflow-y-auto aqua-scrollbar">
+              <CardBody className="max-h-64 overflow-y-auto aqua-scrollbar print:max-h-none print:overflow-visible">
                 {medicineHistory.length > 0 ? (
                   <div className="space-y-2">
                     {medicineHistory.map((item) => (
@@ -479,7 +510,7 @@ export default function Reports() {
               <CardHeader>
                 <CardTitle className="text-sm">Expense Log ({expenseHistory.length})</CardTitle>
               </CardHeader>
-              <CardBody className="max-h-64 overflow-y-auto aqua-scrollbar">
+              <CardBody className="max-h-64 overflow-y-auto aqua-scrollbar print:max-h-none print:overflow-visible">
                 {expenseHistory.length > 0 ? (
                   <div className="space-y-2">
                     {expenseHistory.map((item) => (

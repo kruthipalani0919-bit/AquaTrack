@@ -134,17 +134,12 @@ export const getCompletedCrops = async (
         },
 
         select: {
-
             id: true,
-
             cropName: true,
-
+            batchNumber: true,
             stockingDate: true,
-
             expectedHarvestDate: true,
-
             cropDuration: true
-
         },
 
         orderBy: {
