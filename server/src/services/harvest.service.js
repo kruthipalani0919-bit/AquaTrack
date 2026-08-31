@@ -6,7 +6,6 @@ import {
     getActiveCrop
 } from "../utils/farm.helpers.js";
 
-
 /*
  * Create Harvest
  */
@@ -14,50 +13,35 @@ export const createHarvest = async (
     userId,
     harvestData
 ) => {
+    const farm = await getUserFarm(userId);
 
-    const farm =
-        await getUserFarm(userId);
+    const tank = await getUserTank(
+        farm.id,
+        harvestData.tankId
+    );
 
+    // Get active crop for this tank
+    const crop = await getActiveCrop(tank.id);
 
-    const tank =
-        await getUserTank(
-            farm.id,
-            harvestData.tankId
-        );
+    if (crop.status === "COMPLETED") {
+        throw new Error("This crop has already been completed with a Final Harvest.");
+    }
 
+    // Determine sequence number per crop
+    const existingCount = await prisma.harvest.count({
+        where: { cropId: crop.id }
+    });
 
-    const crop =
-        await getActiveCrop(
-            tank.id
-        );
+    const harvestNumber = existingCount + 1;
+    const harvestType = harvestData.harvestType === "FINAL" ? "FINAL" : "INTERMEDIATE";
+    const harvestWeight = Number(harvestData.harvestWeight);
 
+    if (isNaN(harvestWeight) || harvestWeight <= 0) {
+        throw new Error("Harvest Weight must be a positive number in kg.");
+    }
 
-    /*
-     * Calculate Average Body Weight (ABW)
-     *
-     * Formula:
-     * ABW = 1000 / Shrimp Count
-     *
-     * Example:
-     * 60 count = 16.67 grams
-     */
-    const averageWeight =
-        harvestData.averageWeight
-            ? Number(harvestData.averageWeight)
-            : (harvestData.shrimpCount ? 1000 / harvestData.shrimpCount : 0);
-
-    const productionVal =
-        harvestData.production !== undefined && harvestData.production !== null
-            ? harvestData.production
-            : (harvestData.shrimpCount ?? 0);
-
-    /*
-     * Revenue
-     */
-    const revenue =
-        productionVal *
-        harvestData.sellingPrice;
-
+    const sellingPrice = Number(harvestData.sellingPrice);
+    const revenue = harvestWeight * sellingPrice;
 
     /*
      * Feed Cost
@@ -71,13 +55,7 @@ export const createHarvest = async (
         feeds = [];
     }
 
-    const feedCost =
-        feeds.reduce(
-            (sum, item) =>
-                sum + item.totalCost,
-            0
-        );
-
+    const feedCost = feeds.reduce((sum, item) => sum + item.totalCost, 0);
 
     /*
      * General Expenses
@@ -91,13 +69,7 @@ export const createHarvest = async (
         expenses = [];
     }
 
-    const expenseCost =
-        expenses.reduce(
-            (sum, item) =>
-                sum + item.amount,
-            0
-        );
-
+    const expenseCost = expenses.reduce((sum, item) => sum + item.amount, 0);
 
     /*
      * Medicine Cost
@@ -111,13 +83,7 @@ export const createHarvest = async (
         medicines = [];
     }
 
-    const medicineCost =
-        medicines.reduce(
-            (sum, item) =>
-                sum + item.cost,
-            0
-        );
-
+    const medicineCost = medicines.reduce((sum, item) => sum + item.cost, 0);
 
     /*
      * Pond Lease Cost
@@ -165,110 +131,57 @@ export const createHarvest = async (
         }
     }
 
-
-    /*
-     * Total Expense
-     */
     const totalExpense =
         feedCost +
         expenseCost +
         medicineCost +
-        (harvestData.harvestExpense || 0) +
+        (Number(harvestData.harvestExpense) || 0) +
         pondLeaseCost;
 
+    const profit = revenue - totalExpense;
 
     /*
-     * Profit
+     * Create Harvest and update Crop Status atomically via Transaction
      */
-    const profit =
-        revenue -
-        totalExpense;
-
-
-    /*
-     * Create Harvest
-     */
-    const harvest =
-        await prisma.harvest.create({
-
+    const [harvest] = await prisma.$transaction([
+        prisma.harvest.create({
             data: {
-
-                cropId:
-                    crop.id,
-
-                harvestDate:
-                    new Date(
-                        harvestData.harvestDate
-                    ),
-
-                shrimpCount:
-                    harvestData.shrimpCount,
-
-                production:
-                    productionVal,
-
-                averageWeight,
-
-                survivalRate:
-                    harvestData.survivalRate ?? 85,
-
-                sellingPrice:
-                    harvestData.sellingPrice,
-
+                cropId: crop.id,
+                harvestDate: new Date(harvestData.harvestDate),
+                harvestWeight,
+                harvestType,
+                harvestNumber,
+                production: harvestWeight,
+                shrimpCount: harvestData.shrimpCount ? Number(harvestData.shrimpCount) : null,
+                averageWeight: harvestData.shrimpCount ? (1000 / Number(harvestData.shrimpCount)) : null,
+                survivalRate: harvestData.survivalRate ?? 85,
+                sellingPrice,
                 revenue,
-
-                harvestExpense:
-                    harvestData.harvestExpense || 0,
-
+                harvestExpense: Number(harvestData.harvestExpense) || 0,
                 profit,
-
-                buyerName:
-                    harvestData.buyerName,
-
-                transportationCost:
-                    harvestData.transportationCost ?? null
-
+                buyerName: harvestData.buyerName,
+                transportationCost: harvestData.transportationCost ? Number(harvestData.transportationCost) : null,
+                notes: harvestData.notes ? String(harvestData.notes).trim() : null,
             },
-
             include: {
-
                 crop: {
-
                     include: {
-
                         tank: true
-
                     }
-
                 }
-
             }
+        }),
 
-        });
-
-
-    /*
-     * Complete the Crop
-     */
-    await prisma.crop.update({
-
-        where: {
-            id:
-                crop.id
-        },
-
-        data: {
-            status:
-                "COMPLETED"
-        }
-
-    });
-
+        prisma.crop.update({
+            where: { id: crop.id },
+            data: {
+                status: harvestType === "FINAL" ? "COMPLETED" : "ACTIVE"
+            }
+        })
+    ]);
 
     return harvest;
-
 };
-
 
 /*
  * Update Harvest
@@ -278,114 +191,105 @@ export const updateHarvest = async (
     harvestId,
     updateData
 ) => {
+    const existing = await getHarvestById(userId, harvestId);
 
-    const existing =
-        await getHarvestById(userId, harvestId);
+    const harvestWeightVal = updateData.harvestWeight !== undefined && updateData.harvestWeight !== null
+        ? Number(updateData.harvestWeight)
+        : (existing.harvestWeight || existing.production || 0);
 
-    const productionVal = updateData.production !== undefined && updateData.production !== null
-        ? updateData.production
-        : (updateData.shrimpCount ?? existing.production ?? existing.shrimpCount);
+    const sellingPriceVal = updateData.sellingPrice !== undefined
+        ? Number(updateData.sellingPrice)
+        : existing.sellingPrice;
 
-    const sellingPriceVal = updateData.sellingPrice ?? existing.sellingPrice;
+    const harvestTypeVal = updateData.harvestType !== undefined
+        ? (updateData.harvestType === "FINAL" ? "FINAL" : "INTERMEDIATE")
+        : existing.harvestType;
 
-    const averageWeightVal = updateData.averageWeight
-        ? Number(updateData.averageWeight)
-        : (updateData.shrimpCount ? 1000 / updateData.shrimpCount : existing.averageWeight);
-
-    const revenueVal = productionVal * sellingPriceVal;
+    const revenueVal = harvestWeightVal * sellingPriceVal;
 
     const harvestExpenseVal = updateData.harvestExpense !== undefined
-        ? updateData.harvestExpense
+        ? Number(updateData.harvestExpense)
         : existing.harvestExpense;
 
     const updatedTotalExpense = ((existing.revenue - existing.profit) - (existing.harvestExpense || 0)) + harvestExpenseVal;
     const profitVal = revenueVal - updatedTotalExpense;
 
-    const updated = await prisma.harvest.update({
-        where: { id: harvestId },
-        data: {
-            ...(updateData.harvestDate ? { harvestDate: new Date(updateData.harvestDate) } : {}),
-            ...(updateData.shrimpCount ? { shrimpCount: updateData.shrimpCount } : {}),
-            production: productionVal,
-            averageWeight: averageWeightVal,
-            ...(updateData.survivalRate !== undefined ? { survivalRate: updateData.survivalRate } : {}),
-            sellingPrice: sellingPriceVal,
-            revenue: revenueVal,
-            harvestExpense: harvestExpenseVal,
-            profit: profitVal,
-            ...(updateData.buyerName ? { buyerName: updateData.buyerName } : {}),
-            ...(updateData.transportationCost !== undefined ? { transportationCost: updateData.transportationCost } : {}),
-        },
-        include: {
-            crop: {
-                include: {
-                    tank: true,
+    const [updated] = await prisma.$transaction([
+        prisma.harvest.update({
+            where: { id: harvestId },
+            data: {
+                ...(updateData.harvestDate ? { harvestDate: new Date(updateData.harvestDate) } : {}),
+                harvestWeight: harvestWeightVal,
+                production: harvestWeightVal,
+                harvestType: harvestTypeVal,
+                ...(updateData.shrimpCount !== undefined ? { shrimpCount: updateData.shrimpCount ? Number(updateData.shrimpCount) : null } : {}),
+                ...(updateData.survivalRate !== undefined ? { survivalRate: Number(updateData.survivalRate) } : {}),
+                sellingPrice: sellingPriceVal,
+                revenue: revenueVal,
+                harvestExpense: harvestExpenseVal,
+                profit: profitVal,
+                ...(updateData.buyerName ? { buyerName: updateData.buyerName } : {}),
+                ...(updateData.transportationCost !== undefined ? { transportationCost: updateData.transportationCost ? Number(updateData.transportationCost) : null } : {}),
+                ...(updateData.notes !== undefined ? { notes: updateData.notes ? String(updateData.notes).trim() : null } : {}),
+            },
+            include: {
+                crop: {
+                    include: {
+                        tank: true,
+                    },
                 },
             },
-        },
-    });
+        }),
+
+        // Recalculate Crop status based on presence of any FINAL harvest
+        async (tx) => {
+            const hasFinal = await tx.harvest.findFirst({
+                where: {
+                    cropId: existing.cropId,
+                    harvestType: "FINAL"
+                }
+            });
+            return tx.crop.update({
+                where: { id: existing.cropId },
+                data: {
+                    status: hasFinal ? "COMPLETED" : "ACTIVE"
+                }
+            });
+        }
+    ]);
 
     return updated;
 };
 
-
 /*
  * Get all Harvests for User's Farm
  */
-export const getHarvests = async (
-    userId
-) => {
-
-    const farm =
-        await getUserFarm(userId);
-
+export const getHarvests = async (userId) => {
+    const farm = await getUserFarm(userId);
 
     return await prisma.harvest.findMany({
-
         where: {
-
             crop: {
-
                 tank: {
-
                     site: {
-
-                        farmId:
-                            farm.id
-
+                        farmId: farm.id
                     }
-
                 }
-
             }
-
         },
-
         include: {
-
             crop: {
-
                 include: {
-
                     tank: true
-
                 }
-
             }
-
         },
-
-        orderBy: {
-
-            harvestDate:
-                "desc"
-
-        }
-
+        orderBy: [
+            { harvestDate: "desc" },
+            { harvestNumber: "desc" }
+        ]
     });
-
 };
-
 
 /*
  * Get Harvest by ID
@@ -394,66 +298,34 @@ export const getHarvestById = async (
     userId,
     harvestId
 ) => {
+    const farm = await getUserFarm(userId);
 
-    const farm =
-        await getUserFarm(userId);
-
-
-    const harvest =
-        await prisma.harvest.findFirst({
-
-            where: {
-
-                id:
-                    harvestId,
-
-                crop: {
-
-                    tank: {
-
-                        site: {
-
-                            farmId:
-                                farm.id
-
-                        }
-
+    const harvest = await prisma.harvest.findFirst({
+        where: {
+            id: harvestId,
+            crop: {
+                tank: {
+                    site: {
+                        farmId: farm.id
                     }
-
                 }
-
-            },
-
-            include: {
-
-                crop: {
-
-                    include: {
-
-                        tank: true
-
-                    }
-
-                }
-
             }
-
-        });
-
+        },
+        include: {
+            crop: {
+                include: {
+                    tank: true
+                }
+            }
+        }
+    });
 
     if (!harvest) {
-
-        throw new Error(
-            "Harvest record not found."
-        );
-
+        throw new Error("Harvest record not found.");
     }
 
-
     return harvest;
-
 };
-
 
 /*
  * Delete Harvest
@@ -462,81 +334,61 @@ export const deleteHarvest = async (
     userId,
     harvestId
 ) => {
+    const existing = await getHarvestById(userId, harvestId);
 
-    await getHarvestById(
-        userId,
-        harvestId
-    );
+    await prisma.$transaction(async (tx) => {
+        // Delete harvest
+        await tx.harvest.delete({
+            where: { id: harvestId }
+        });
 
+        // Recalculate remaining harvests for crop
+        const remainingFinal = await tx.harvest.findFirst({
+            where: {
+                cropId: existing.cropId,
+                harvestType: "FINAL"
+            }
+        });
 
-    await prisma.harvest.delete({
-
-        where: {
-
-            id:
-                harvestId
-
-        }
-
+        // Revert to ACTIVE if no FINAL harvest remains
+        await tx.crop.update({
+            where: { id: existing.cropId },
+            data: {
+                status: remainingFinal ? "COMPLETED" : "ACTIVE"
+            }
+        });
     });
 
-
     return {
-
-        message:
-            "Harvest deleted successfully."
-
+        message: "Harvest deleted successfully."
     };
-
 };
-
 
 /*
  * Get Harvest Summary
  */
-export const getHarvestSummary = async (
-    userId
-) => {
+export const getHarvestSummary = async (userId) => {
+    const harvests = await getHarvests(userId);
 
-    const harvests =
-        await getHarvests(userId);
+    const totalProduction = harvests.reduce(
+        (sum, item) => sum + (item.harvestWeight || item.production || 0),
+        0
+    );
 
+    const totalRevenue = harvests.reduce(
+        (sum, item) => sum + item.revenue,
+        0
+    );
 
-    const totalProduction =
-        harvests.reduce(
-            (sum, item) =>
-                sum + (item.production ?? item.shrimpCount ?? 0),
-            0
-        );
-
-
-    const totalRevenue =
-        harvests.reduce(
-            (sum, item) =>
-                sum + item.revenue,
-            0
-        );
-
-
-    const totalProfit =
-        harvests.reduce(
-            (sum, item) =>
-                sum + item.profit,
-            0
-        );
-
+    const totalProfit = harvests.reduce(
+        (sum, item) => sum + item.profit,
+        0
+    );
 
     return {
-
-        totalHarvests:
-            harvests.length,
-
+        totalHarvests: harvests.length,
         totalProduction,
-
         totalRevenue,
-
         totalProfit
-
     };
-
 };

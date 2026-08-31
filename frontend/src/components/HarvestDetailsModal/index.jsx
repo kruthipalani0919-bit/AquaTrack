@@ -3,12 +3,13 @@ import { Container, Calendar, Weight, User, IndianRupee, Wheat, Edit3, Trash2 } 
 import { Modal } from '../Modal';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
+import { getHarvestLevelLabel } from '../HarvestCard';
 
 /**
  * Reusable HarvestDetailsModal component.
  * Layout:
- * 1. Top Section: Tank Header, Buyer/Trader Name, Harvest Date, Notes.
- * 2. Bottom Highlighted Blue Section: Selling Price, Shrimp Count, ABW, and Harvest Expense.
+ * 1. Top Section: Tank Header, Buyer/Trader Name, Harvest Level Badge, Harvest Date, Notes.
+ * 2. Bottom Highlighted Blue Section: Selling Price, Harvest Weight (kg), Shrimp Count, Harvest Expense.
  */
 export const HarvestDetailsModal = ({
   isOpen,
@@ -23,16 +24,20 @@ export const HarvestDetailsModal = ({
   const cleanTank = rawTank.replace(/\s*\([^)]*\)/g, '').trim() || rawTank;
   const displayTank = cleanTank.toLowerCase().startsWith('tank') ? cleanTank : `Tank ${cleanTank}`;
 
-  const shrimpCountVal = harvest.shrimpCount || harvest.production || 0;
+  const harvestWeightVal = harvest.harvestWeight !== undefined && harvest.harvestWeight !== null
+    ? harvest.harvestWeight
+    : (harvest.production || 0);
+
+  const shrimpCountVal = harvest.shrimpCount || 'N/A';
   const sellingPriceVal = parseFloat(harvest.sellingPrice) || 0;
-  const abwVal = harvest.averageWeight !== undefined && harvest.averageWeight !== null
-    ? harvest.averageWeight
-    : (shrimpCountVal > 0 ? (1000 / shrimpCountVal).toFixed(2) : 'N/A');
   const harvestExpenseVal = parseFloat(harvest.harvestExpense || 0);
 
   const formattedDate = harvest.harvestDate
     ? new Date(harvest.harvestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : 'Not specified';
+
+  const levelLabel = getHarvestLevelLabel(harvest.harvestNumber, harvest.harvestType);
+  const isFinal = harvest.harvestType === 'FINAL';
 
   return (
     <Modal
@@ -43,13 +48,13 @@ export const HarvestDetailsModal = ({
       size="md"
     >
       <div className="space-y-4 pt-1">
-        {/* 1. TOP SECTION SEPARATELY: Tank Name Header & Status */}
+        {/* 1. TOP SECTION SEPARATELY: Tank Name Header & Harvest Level Badge */}
         <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-border/80 shadow-2xs">
           <span className="text-xs font-bold text-text-primary flex items-center gap-2">
             <Container className="w-4 h-4 text-primary" /> {displayTank}
           </span>
-          <Badge variant="success" size="sm" className="font-semibold">
-            Harvested
+          <Badge variant={isFinal ? 'warning' : 'primary'} size="sm" className="font-semibold">
+            {levelLabel}
           </Badge>
         </div>
 
@@ -80,13 +85,23 @@ export const HarvestDetailsModal = ({
           </div>
         )}
 
-        {/* 2. BLUE HIGHLIGHTED SECTION AT BOTTOM: Selling Price, Shrimp Count, ABW, Harvest Expense */}
+        {/* 2. BLUE HIGHLIGHTED SECTION AT BOTTOM: Selling Price, Harvest Weight, Shrimp Count, Harvest Expense */}
         <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200/80 shadow-2xs space-y-3">
           <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
             <Wheat className="w-3.5 h-3.5 text-blue-700" /> Harvest Transaction Summary
           </h4>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
+            {/* Harvest Weight (kg) */}
+            <div className="p-3 rounded-lg bg-white/90 border border-blue-100 shadow-2xs space-y-0.5">
+              <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider block">
+                Harvest Weight
+              </span>
+              <span className="text-sm font-extrabold text-primary block">
+                {harvestWeightVal} kg
+              </span>
+            </div>
+
             {/* Shrimp Count */}
             <div className="p-3 rounded-lg bg-white/90 border border-blue-100 shadow-2xs space-y-0.5">
               <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider block">
@@ -94,16 +109,6 @@ export const HarvestDetailsModal = ({
               </span>
               <span className="text-sm font-extrabold text-text-primary block">
                 {shrimpCountVal}
-              </span>
-            </div>
-
-            {/* Average Weight (ABW) */}
-            <div className="p-3 rounded-lg bg-white/90 border border-blue-100 shadow-2xs space-y-0.5">
-              <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider block">
-                Average Weight (ABW)
-              </span>
-              <span className="text-sm font-extrabold text-text-primary block">
-                {abwVal} g
               </span>
             </div>
 

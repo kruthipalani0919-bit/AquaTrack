@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Wheat, Calendar, Weight, IndianRupee, User, Container, ShieldAlert } from 'lucide-react';
+import { Wheat, Calendar, Weight, IndianRupee, User, Container, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -18,10 +18,21 @@ const harvestSchema = z.object({
   harvestDate: z
     .string()
     .min(1, 'Harvest Date is required'),
+  harvestWeight: z
+    .coerce
+    .number({ invalid_type_error: 'Harvest Weight must be a number' })
+    .positive('Harvest Weight must be greater than 0'),
+  isFinalHarvest: z
+    .boolean()
+    .optional()
+    .default(false),
   shrimpCount: z
     .coerce
     .number({ invalid_type_error: 'Shrimp Count must be a number' })
-    .positive('Shrimp Count must be greater than 0'),
+    .positive('Shrimp Count must be greater than 0')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   sellingPrice: z
     .coerce
     .number({ invalid_type_error: 'Selling Price must be a number' })
@@ -76,6 +87,8 @@ export const HarvestForm = ({
     defaultValues: {
       tankId: tankSelectOptions.length > 0 ? tankSelectOptions[0].value : '',
       harvestDate: new Date().toISOString().split('T')[0],
+      harvestWeight: '',
+      isFinalHarvest: false,
       shrimpCount: '',
       sellingPrice: '',
       buyerName: '',
@@ -85,17 +98,16 @@ export const HarvestForm = ({
     mode: 'onTouched',
   });
 
-  // Watch shrimpCount for auto ABW calculation
-  const shrimpCountVal = watch('shrimpCount');
-  const numericShrimpCount = parseFloat(shrimpCountVal) || 0;
-  const calculatedAbw = numericShrimpCount > 0 ? (1000 / numericShrimpCount).toFixed(2) : '';
+  const isFinalVal = watch('isFinalHarvest');
 
   useEffect(() => {
     if (initialData) {
       reset({
         tankId: initialData.tankId ? String(initialData.tankId) : (tankSelectOptions[0]?.value || ''),
         harvestDate: initialData.harvestDate ? new Date(initialData.harvestDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        shrimpCount: initialData.shrimpCount || initialData.production || '',
+        harvestWeight: initialData.harvestWeight || initialData.production || '',
+        isFinalHarvest: initialData.harvestType === 'FINAL',
+        shrimpCount: initialData.shrimpCount || '',
         sellingPrice: initialData.sellingPrice || '',
         buyerName: initialData.buyerName || '',
         harvestExpense: initialData.harvestExpense !== undefined && initialData.harvestExpense !== null ? String(initialData.harvestExpense) : '0',
@@ -105,6 +117,8 @@ export const HarvestForm = ({
       reset({
         tankId: tankSelectOptions[0]?.value || '',
         harvestDate: new Date().toISOString().split('T')[0],
+        harvestWeight: '',
+        isFinalHarvest: false,
         shrimpCount: '',
         sellingPrice: '',
         buyerName: '',
@@ -121,15 +135,16 @@ export const HarvestForm = ({
     const rawTankName = selectedTankObj ? (selectedTankObj.name || selectedTankObj.tankName) : 'Selected Tank';
     const cleanTankName = rawTankName.replace(/\s*\([^)]*\)/g, '').trim();
 
-    const numericCount = parseFloat(data.shrimpCount);
-    const autoAbw = numericCount > 0 ? parseFloat((1000 / numericCount).toFixed(2)) : 0;
+    const numericWeight = parseFloat(data.harvestWeight);
+    const numericCount = data.shrimpCount ? parseFloat(data.shrimpCount) : null;
 
     const harvestPayload = {
       tankId: String(data.tankId),
       harvestDate: data.harvestDate,
+      harvestWeight: numericWeight,
+      harvestType: data.isFinalHarvest ? 'FINAL' : 'INTERMEDIATE',
       shrimpCount: numericCount,
-      production: numericCount,
-      averageWeight: autoAbw,
+      production: numericWeight,
       survivalRate: 85,
       sellingPrice: parseFloat(data.sellingPrice),
       buyerName: String(data.buyerName).trim(),
@@ -215,32 +230,63 @@ export const HarvestForm = ({
       {/* HARVEST DETAILS SECTION */}
       <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-          <Wheat className="w-3.5 h-3.5 text-primary" /> Harvest Details
+          <Wheat className="w-3.5 h-3.5 text-primary" /> Harvest Yield & Type
         </h4>
 
-        {/* Shrimp Count */}
+        {/* Harvest Weight (kg) - Manually entered by user */}
         <Input
-          label="Shrimp Count"
+          label="Harvest Weight (kg)"
+          type="number"
+          step="0.1"
+          placeholder="Enter total harvest weight in kg (e.g. 350)"
+          required={true}
+          icon={<Weight className="w-4 h-4 text-primary" />}
+          error={errors.harvestWeight?.message}
+          disabled={isSubmitting}
+          {...register('harvestWeight')}
+        />
+
+        {/* Shrimp Count (Optional / Secondary metric) */}
+        <Input
+          label="Shrimp Count (Prawn Count)"
           type="number"
           step="1"
-          placeholder="Enter number of shrimp"
-          required={true}
+          placeholder="Enter estimated number of prawns harvested"
+          required={false}
           icon={<Wheat className="w-4 h-4 text-primary" />}
           error={errors.shrimpCount?.message}
           disabled={isSubmitting}
           {...register('shrimpCount')}
         />
 
-        {/* Average Weight (ABW) - Read-only / Auto-calculated */}
-        <Input
-          label="Average Weight (ABW in grams)"
-          type="text"
-          value={calculatedAbw ? `${calculatedAbw} g` : ''}
-          placeholder="Auto-calculated"
-          disabled={true}
-          icon={<Weight className="w-4 h-4 text-primary" />}
-          className="bg-surface cursor-not-allowed opacity-90 font-medium"
-        />
+        {/* HARVEST TYPE OPTION (INTERMEDIATE vs FINAL) */}
+        <div className={`p-3.5 rounded-xl border transition-all ${
+          isFinalVal ? 'bg-amber-500/10 border-amber-500/40' : 'bg-surface border-border/80'
+        }`}>
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary/30 cursor-pointer"
+              disabled={isSubmitting}
+              {...register('isFinalHarvest')}
+            />
+            <div>
+              <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                Mark as Final Harvest
+                {isFinalVal && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                    <CheckCircle2 className="w-3 h-3 text-amber-600" /> Final
+                  </span>
+                )}
+              </span>
+              <span className="text-[11px] text-text-secondary block mt-0.5">
+                {isFinalVal
+                  ? 'Saving this harvest as Final Harvest will complete the crop cycle and change crop status to COMPLETED.'
+                  : 'Intermediate harvest. The crop status will remain ACTIVE for subsequent harvests.'}
+              </span>
+            </div>
+          </label>
+        </div>
 
         {/* Harvest Expense (₹) */}
         <Input

@@ -31,6 +31,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTanks } from '../../context/TankContext';
 import { useCrops } from '../../context/CropContext';
 import { usePondLeases } from '../../context/PondLeaseContext';
+import { useHarvests } from '../../context/HarvestContext';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export default function Dashboard() {
   const { tanks = [], loading: tanksLoading } = useTanks();
   const { crops = [], loading: cropsLoading } = useCrops();
   const { leases = [], loading: leasesLoading } = usePondLeases();
+  const { harvests = [] } = useHarvests();
 
   // Review Modals State
   const [isTankReviewOpen, setIsTankReviewOpen] = useState(false);
@@ -542,17 +544,39 @@ export default function Dashboard() {
           {completedCropsList.length > 0 ? (
             <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
               {completedCropsList.map((crop) => {
-                const harvestInfo = crop.harvests && crop.harvests.length > 0 ? crop.harvests[0] : null;
-                const completionDate = harvestInfo?.harvestDate || crop.expectedHarvestDate || crop.updatedAt;
+                const cropHarvests = (harvests || []).filter(
+                  (h) => String(h.cropId || h.crop?.id) === String(crop.id)
+                );
+                const fallbackHarvests = cropHarvests.length > 0 ? cropHarvests : (crop.harvests || []);
 
-                // 1. Shrimp Count from harvest registration
-                const shrimpCountDisplay = harvestInfo && harvestInfo.shrimpCount !== null && harvestInfo.shrimpCount !== undefined
-                  ? `${harvestInfo.shrimpCount} Count`
-                  : 'N/A';
+                const finalHarvest = fallbackHarvests.find((h) => h.harvestType === 'FINAL');
+                const latestHarvest = fallbackHarvests[0];
+                const completionDate = finalHarvest?.harvestDate || latestHarvest?.harvestDate || crop.expectedHarvestDate || crop.updatedAt;
 
-                // 2. Feed & Direct Expenses
+                // 1. Total Shrimp Count from all harvest registrations up to final harvest
+                const totalShrimpCount = fallbackHarvests.reduce(
+                  (acc, h) => acc + (parseFloat(h.shrimpCount) || 0),
+                  0
+                );
+                const shrimpCountDisplay = totalShrimpCount > 0
+                  ? `${totalShrimpCount.toLocaleString('en-IN')} Count`
+                  : (crop.seedQuantity ? `${crop.seedQuantity.toLocaleString('en-IN')} Count` : 'N/A');
+
+                // 2. Revenue & Expenses calculation
+                const totalRevenue = fallbackHarvests.reduce(
+                  (acc, h) => acc + (parseFloat(h.revenue) || ((parseFloat(h.harvestWeight || h.production || 0)) * (parseFloat(h.sellingPrice) || 0))),
+                  0
+                );
+
+                const totalHarvestExpenses = fallbackHarvests.reduce(
+                  (acc, h) => acc + (parseFloat(h.harvestExpense) || 0) + (parseFloat(h.transportationCost) || 0),
+                  0
+                );
+
+                // Feed, Medicines, & Direct Expenses
                 const feedCost = (crop.feedEntries || []).reduce((acc, f) => acc + (parseFloat(f.totalCost) || 0), 0);
                 const directExpenseCost = (crop.expenses || []).reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+                const medicineCost = (crop.medicines || []).reduce((acc, m) => acc + (parseFloat(m.cost) || 0), 0);
 
                 // 3. Allocated Pond Lease for crop culture duration
                 const cropTankPondLeases = crop.tank?.pondLeases || (leases || []).filter((l) => String(l.tankId) === String(crop.tankId));
@@ -595,7 +619,12 @@ export default function Dashboard() {
                 }
 
                 allocatedPondLeaseCost = Math.round(allocatedPondLeaseCost);
-                const totalCropExpenses = Math.round(feedCost + directExpenseCost + allocatedPondLeaseCost);
+
+                // Total Crop Expenses (Includes Feed, Medicines, General Expenses, Pond Lease & Harvest Expenses)
+                const totalCropExpenses = Math.round(feedCost + directExpenseCost + medicineCost + allocatedPondLeaseCost + totalHarvestExpenses);
+
+                // Net Profit = Total Revenue - Total Crop Expenses
+                const netProfit = Math.round(totalRevenue - totalCropExpenses);
 
                 return (
                   <div
@@ -668,7 +697,7 @@ export default function Dashboard() {
                       <span className="text-[10px] font-bold uppercase text-cyan-900 block tracking-wider">
                         Financial & Harvest Details
                       </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                         {/* 1. SHRIMP COUNT */}
                         <div className="bg-surface p-2.5 rounded-lg border border-cyan-100 flex flex-col justify-center">
                           <span className="text-[10px] font-semibold text-text-secondary uppercase block">
@@ -680,9 +709,9 @@ export default function Dashboard() {
                         </div>
 
                         {/* 2. TOTAL CROP EXPENSES */}
-                        <div className="bg-surface p-2.5 rounded-lg border border-cyan-100 flex flex-col justify-center">
+                        <div className="bg-surface p-2.5 rounded-lg border border-cyan-100 flex flex-col justify-center" title="Includes Feed, Medicines, General Expenses, Pond Lease & Harvest Expenses">
                           <span className="text-[10px] font-semibold text-text-secondary uppercase block">
-                            Total Crop Expenses
+                            Total Expenses
                           </span>
                           <span className="font-extrabold text-sm text-amber-700 mt-0.5">
                             ₹{totalCropExpenses.toLocaleString('en-IN')}
@@ -694,10 +723,20 @@ export default function Dashboard() {
                           <span className="text-[10px] font-semibold text-text-secondary uppercase block">
                             Allocated Pond Lease
                           </span>
-                          <span className="font-extrabold text-xs text-emerald-800 mt-0.5">
+                          <span className="font-extrabold text-xs text-slate-700 mt-0.5">
                             {allocatedPondLeaseCost > 0
                               ? `₹${allocatedPondLeaseCost.toLocaleString('en-IN')}`
-                              : 'No pond lease allocated'}
+                              : '₹0'}
+                          </span>
+                        </div>
+
+                        {/* 4. NET PROFIT */}
+                        <div className="bg-surface p-2.5 rounded-lg border border-cyan-100 flex flex-col justify-center">
+                          <span className="text-[10px] font-semibold text-text-secondary uppercase block">
+                            Net Profit
+                          </span>
+                          <span className={`font-extrabold text-sm mt-0.5 ${netProfit >= 0 ? 'text-emerald-700' : 'text-danger'}`}>
+                            ₹{netProfit.toLocaleString('en-IN')}
                           </span>
                         </div>
                       </div>

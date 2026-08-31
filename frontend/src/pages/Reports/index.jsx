@@ -8,7 +8,8 @@ import {
   Download,
   RefreshCw,
   Calendar,
-  Landmark
+  Landmark,
+  Wheat
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -26,6 +27,7 @@ import { Button } from '../../components/Button';
 import { Select } from '../../components/Select';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
+import { getHarvestLevelLabel } from '../../components/HarvestCard';
 
 import reportService from '../../services/reportService';
 
@@ -149,6 +151,7 @@ export default function Reports() {
   const feedHistory = reportData?.feedHistory || [];
   const medicineHistory = reportData?.medicineHistory || [];
   const expenseHistory = reportData?.expenseHistory || [];
+  const harvestHistory = reportData?.harvestHistory || [];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -495,6 +498,87 @@ export default function Reports() {
               </CardBody>
             </Card>
           </div>
+
+          {/* HARVEST YIELD & SALES LOG TABLE */}
+          <Card padding="normal" className="border-border/80 shadow-2xs">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base font-bold text-text-primary">
+                <Wheat className="w-4 h-4 text-primary" /> Harvest Yield & Sales Log ({harvestHistory.length})
+              </CardTitle>
+              <CardDescription>
+                Historical record of all intermediate and final harvest events for this crop batch
+              </CardDescription>
+            </CardHeader>
+            <CardBody>
+              {harvestHistory.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-background text-text-secondary uppercase font-semibold border-b border-border">
+                      <tr>
+                        <th className="p-3">#</th>
+                        <th className="p-3">Harvest Level</th>
+                        <th className="p-3">Date</th>
+                        <th className="p-3">Harvest Weight</th>
+                        <th className="p-3">Shrimp Count</th>
+                        <th className="p-3">Price (₹/kg)</th>
+                        <th className="p-3">Revenue (₹)</th>
+                        <th className="p-3">Expense (₹)</th>
+                        <th className="p-3">Buyer</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {harvestHistory.map((item, idx) => {
+                        const weight = item.harvestWeight || item.production || 0;
+                        const levelLabel = getHarvestLevelLabel(item.harvestNumber || (idx + 1), item.harvestType);
+                        const isFinal = item.harvestType === 'FINAL';
+
+                        return (
+                          <tr key={item.id || idx} className="hover:bg-background/40">
+                            <td className="p-3 font-semibold text-text-secondary">{item.harvestNumber || (idx + 1)}</td>
+                            <td className="p-3">
+                              <Badge variant={isFinal ? 'warning' : 'primary'} size="sm" className="font-semibold">
+                                {levelLabel}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-text-primary font-medium">
+                              {item.harvestDate ? new Date(item.harvestDate).toLocaleDateString() : 'N/A'}
+                            </td>
+                            <td className="p-3 font-extrabold text-primary">{weight} kg</td>
+                            <td className="p-3 text-text-primary font-medium">{item.shrimpCount || 'N/A'}</td>
+                            <td className="p-3 text-teal-700 font-semibold">₹{item.sellingPrice}</td>
+                            <td className="p-3 font-extrabold text-emerald-700">₹{(item.revenue || 0).toLocaleString()}</td>
+                            <td className="p-3 text-amber-700 font-semibold">₹{(item.harvestExpense || 0).toLocaleString()}</td>
+                            <td className="p-3 font-bold text-text-primary">{item.buyerName || 'N/A'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-primary-light/20 font-extrabold text-xs border-t-2 border-primary/30">
+                      <tr>
+                        <td colSpan={3} className="p-3 uppercase tracking-wider text-text-primary">Total Harvest Summary</td>
+                        <td className="p-3 text-primary font-black text-sm">
+                          {(summary.totalHarvestWeight || harvestHistory.reduce((s, h) => s + (h.harvestWeight || h.production || 0), 0)).toLocaleString()} kg
+                        </td>
+                        <td className="p-3"></td>
+                        <td className="p-3"></td>
+                        <td className="p-3 text-emerald-800 text-sm">
+                          ₹{(summary.totalHarvestRevenue || harvestHistory.reduce((s, h) => s + (h.revenue || 0), 0)).toLocaleString()}
+                        </td>
+                        <td className="p-3 text-amber-800">
+                          ₹{harvestHistory.reduce((s, h) => s + (h.harvestExpense || 0), 0).toLocaleString()}
+                        </td>
+                        <td className="p-3"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-xs text-text-secondary py-6 text-center">
+                  No harvest records logged for this crop batch yet.
+                </div>
+              )}
+            </CardBody>
+          </Card>
         </div>
       ) : (
         <Card padding="relaxed" className="border-border/80 shadow-2xs">

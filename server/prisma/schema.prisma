@@ -245,32 +245,27 @@ model Medicine {
   createdAt DateTime @default(now())
 }
 
+enum HarvestType {
+  INTERMEDIATE
+  FINAL
+}
+
 model Harvest {
   id String @id @default(cuid())
 
   harvestDate DateTime
 
-  /*
-   * Production is optional.
-   * It can store null if not collected.
-   */
+  harvestWeight Float @default(0)
+
+  harvestType HarvestType @default(INTERMEDIATE)
+
+  harvestNumber Int @default(1)
+
   production Float?
 
-  /*
-   * Shrimp count entered by the user.
-   *
-   * Example:
-   * 60 count → approximately 16.67 grams ABW
-   */
   shrimpCount Float?
 
-  /*
-   * Automatically calculated from shrimpCount.
-   *
-   * Formula:
-   * ABW = 1000 / shrimpCount
-   */
-  averageWeight Float
+  averageWeight Float?
 
   survivalRate Float
 
@@ -278,10 +273,6 @@ model Harvest {
 
   buyerName String
 
-  /*
-   * No longer collected from the UI.
-   * Can be null.
-   */
   transportationCost Float?
 
   harvestExpense Float
@@ -289,6 +280,8 @@ model Harvest {
   revenue Float
 
   profit Float
+
+  notes String?
 
   cropId String
   crop   Crop   @relation(fields: [cropId], references: [id], onDelete: Cascade)

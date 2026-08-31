@@ -24,6 +24,7 @@ export const FeedProvider = ({ children }) => {
       const normalized = (Array.isArray(list) ? list : []).map((f) => ({
         ...f,
         id: String(f.id),
+        tankId: String(f.crop?.tankId || f.crop?.tank?.id || f.tankId || ''),
         feedingDate: f.date ? new Date(f.date).toISOString().split('T')[0] : f.feedingDate,
         quantityKg: f.quantity ?? f.quantityKg,
         feedCost: f.totalCost ?? f.feedCost ?? (f.quantity * f.costPerKg),

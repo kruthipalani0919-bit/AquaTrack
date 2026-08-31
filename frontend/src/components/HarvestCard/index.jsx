@@ -4,11 +4,21 @@ import { Card } from '../Card';
 import { Badge } from '../Badge';
 import { Button } from '../Button';
 
+export const getHarvestLevelLabel = (harvestNumber, harvestType) => {
+  if (harvestType === 'FINAL') return 'Final Harvest';
+  const num = Number(harvestNumber) || 1;
+  const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+  if (num <= ordinals.length) {
+    return `${ordinals[num - 1]} Harvest`;
+  }
+  return `Harvest #${num}`;
+};
+
 /**
  * Reusable HarvestCard component displaying relevant harvest yield details, metrics, buyer info, and actions.
- * Metric Box displays ONLY relevant fields entered during registration:
- * 1. Shrimp Count / Production
- * 2. Average Weight / ABW (g)
+ * Metrics:
+ * 1. Harvest Weight (kg)
+ * 2. Shrimp Count
  * 3. Harvest Expense (₹)
  */
 export const HarvestCard = ({
@@ -25,8 +35,10 @@ export const HarvestCard = ({
     tankName,
     harvestDate,
     production,
+    harvestWeight,
+    harvestType,
+    harvestNumber,
     shrimpCount,
-    averageWeight,
     buyerName,
     harvestExpense,
   } = harvest;
@@ -40,12 +52,15 @@ export const HarvestCard = ({
     ? new Date(harvestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : 'Today';
 
-  const countVal = shrimpCount || production || 0;
-  const numericProd = parseFloat(production || shrimpCount) || 0;
-  const numericAbw = averageWeight !== undefined && averageWeight !== null
-    ? parseFloat(averageWeight)
-    : (numericProd > 0 ? parseFloat((1000 / numericProd).toFixed(2)) : 0);
+  const weightVal = harvestWeight !== undefined && harvestWeight !== null
+    ? parseFloat(harvestWeight)
+    : parseFloat(production || 0);
+
+  const countVal = shrimpCount ? shrimpCount : 'N/A';
   const numericExpense = parseFloat(harvestExpense || 0);
+
+  const levelLabel = getHarvestLevelLabel(harvestNumber, harvestType);
+  const isFinal = harvestType === 'FINAL';
 
   return (
     <Card
@@ -60,34 +75,34 @@ export const HarvestCard = ({
             <Wheat className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight" title={displayBuyer}>
-              {displayBuyer}
-            </h3>
-            <span className="text-[11px] text-text-secondary flex items-center gap-1">
-              <Container className="w-3 h-3 text-primary shrink-0" />
+            <h3 className="font-bold text-sm sm:text-base text-text-primary truncate tracking-tight flex items-center gap-1.5" title={displayTank}>
+              <Container className="w-4 h-4 text-primary shrink-0" />
               <span className="truncate">{displayTank}</span>
+            </h3>
+            <span className="text-[11px] text-text-secondary truncate block mt-0.5" title={`Buyer: ${displayBuyer}`}>
+              Buyer: <span className="font-semibold text-text-primary">{displayBuyer}</span>
             </span>
           </div>
         </div>
 
-        <Badge variant="success" size="sm" className="shrink-0 font-semibold">
-          Harvested
+        <Badge variant={isFinal ? 'warning' : 'primary'} size="sm" className="shrink-0 font-semibold">
+          {levelLabel}
         </Badge>
       </div>
 
-      {/* Metrics Grid Box (Shrimp Count, ABW, Expense) */}
+      {/* Metrics Grid Box (Harvest Weight kg, Shrimp Count, Expense) */}
       <div className="grid grid-cols-3 gap-2 py-3 border-b border-border/60 text-center">
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Shrimp Count</span>
-          <span className="text-xs sm:text-sm font-extrabold text-text-primary mt-0.5">
-            {countVal}
+          <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Harvest Weight</span>
+          <span className="text-xs sm:text-sm font-extrabold text-primary mt-0.5">
+            {weightVal} <span className="text-[10px] font-normal text-text-secondary">kg</span>
           </span>
         </div>
 
         <div className="flex flex-col items-center p-2 rounded-lg bg-background/60 border border-border/40">
-          <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Avg Weight</span>
+          <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Shrimp Count</span>
           <span className="text-xs sm:text-sm font-extrabold text-text-primary mt-0.5">
-            {numericAbw} <span className="text-[10px] font-normal text-text-secondary">g</span>
+            {countVal}
           </span>
         </div>
 
@@ -99,7 +114,7 @@ export const HarvestCard = ({
         </div>
       </div>
 
-      {/* Date Row (Selling price ₹100/kg removed as requested) */}
+      {/* Date Row */}
       <div className="py-2.5 text-xs text-text-secondary flex items-center justify-end">
         <span className="flex items-center gap-1 text-[11px] font-medium text-text-secondary">
           <Calendar className="w-3.5 h-3.5 text-text-secondary" /> {displayDate}

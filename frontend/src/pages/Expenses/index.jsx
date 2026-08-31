@@ -35,14 +35,20 @@ export default function Expenses() {
   const [deletingExpense, setDeletingExpense] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Filter Expenses List Safely
   const filteredExpenses = useMemo(() => {
     const list = expenses || [];
 
     return list.filter((exp) => {
       if (!exp) return false;
       const matchesCategory = categoryFilter === '' || exp.category === categoryFilter;
-      const matchesTank = tankFilter === '' || exp.tankId === tankFilter;
+
+      if (!tankFilter || tankFilter === '') return matchesCategory;
+
+      const expTankId = String(exp.tankId || exp.crop?.tankId || exp.crop?.tank?.id || '');
+      const expTankName = String(exp.tankName || exp.crop?.tank?.tankName || exp.crop?.tank?.name || '').toLowerCase();
+      const filterVal = String(tankFilter).toLowerCase();
+
+      const matchesTank = expTankId === String(tankFilter) || expTankName === filterVal || expTankName.includes(filterVal);
 
       return matchesCategory && matchesTank;
     });

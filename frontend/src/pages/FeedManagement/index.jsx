@@ -59,7 +59,13 @@ export default function FeedManagement() {
     const list = feedLogs || [];
     return list.filter((log) => {
       if (!log) return false;
-      const matchesTank = tankFilter === '' || log.tankId === tankFilter;
+      let matchesTank = true;
+      if (tankFilter && tankFilter !== '') {
+        const logTankId = String(log.tankId || log.crop?.tankId || log.crop?.tank?.id || '');
+        const logTankName = String(log.tankName || log.crop?.tank?.tankName || log.crop?.tank?.name || '').toLowerCase();
+        const filterVal = String(tankFilter).toLowerCase();
+        matchesTank = logTankId === String(tankFilter) || logTankName === filterVal || logTankName.includes(filterVal);
+      }
 
       let matchesDate = true;
       if (dateFilter) {
