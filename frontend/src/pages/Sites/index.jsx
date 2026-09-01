@@ -8,6 +8,7 @@ import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
 import { SiteCard } from '../../components/SiteCard';
@@ -29,8 +30,8 @@ export default function Sites() {
   const [modalError, setModalError] = useState('');
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingSite, setDeletingSite] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Sites List
   const filteredSites = useMemo(() => {
@@ -106,17 +107,16 @@ export default function Sites() {
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deletingSite) return;
-    setIsDeleting(true);
-    try {
-      await deleteSite(deletingSite.id);
-      setIsDeleteOpen(false);
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
+    if (deletingSite) {
+      await deleteSite(deletingSite.id, password);
+      setIsPasswordOpen(false);
       setDeletingSite(null);
-    } catch (err) {
-      console.error('Error deleting site:', err);
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -304,20 +304,29 @@ export default function Sites() {
         />
       </Modal>
 
-      {/* 6. DELETE CONFIRMATION DIALOG */}
+      {/* 6. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingSite(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Site"
         message={deleteWarningMessage}
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Site'}
+        confirmText="Delete Site"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 7. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingSite(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

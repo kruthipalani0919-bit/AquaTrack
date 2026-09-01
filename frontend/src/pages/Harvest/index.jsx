@@ -6,6 +6,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 
 import { HarvestCard } from '../../components/HarvestCard';
@@ -29,8 +30,8 @@ export default function Harvest() {
   const [viewingHarvest, setViewingHarvest] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingHarvest, setDeletingHarvest] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Harvest List Safely
   const filteredHarvests = useMemo(() => {
@@ -88,18 +89,16 @@ export default function Harvest() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
     if (deletingHarvest) {
-      setIsDeleting(true);
-      try {
-        await deleteHarvest(deletingHarvest.id);
-        setIsDeleteOpen(false);
-        setDeletingHarvest(null);
-      } catch (err) {
-        console.error('Error deleting harvest:', err);
-      } finally {
-        setIsDeleting(false);
-      }
+      await deleteHarvest(deletingHarvest.id, password);
+      setIsPasswordOpen(false);
+      setDeletingHarvest(null);
     }
   };
 
@@ -203,24 +202,33 @@ export default function Harvest() {
         onDelete={handleOpenDelete}
       />
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingHarvest(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Harvest Record"
         message={
           deletingHarvest
             ? `Are you sure you want to delete the harvest record for "${deletingHarvest.buyerName || 'Harvest'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this harvest record?'
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Harvest Record'}
+        confirmText="Delete Harvest Record"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 8. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingHarvest(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

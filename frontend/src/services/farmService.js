@@ -31,9 +31,12 @@ export const updateFarm = async (id, data) => {
   }
 };
 
-export const deleteFarm = async (id) => {
+export const deleteFarm = async (id, password) => {
   try {
-    const response = await api.delete(`/farms/${id}`);
+    const response = await api.delete(`/farms/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || 'Failed to delete farm');

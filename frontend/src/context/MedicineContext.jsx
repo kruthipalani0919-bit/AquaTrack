@@ -115,14 +115,10 @@ export const MedicineProvider = ({ children }) => {
     return normalized;
   };
 
-  const deleteMedicineRecord = async (id) => {
+  const deleteMedicineRecord = async (id, password) => {
     if (!id) return;
     const targetId = String(id);
-    try {
-      await medicineService.deleteMedicine(targetId);
-    } catch (err) {
-      console.warn('Backend medicine delete notice:', err.message);
-    }
+    await medicineService.deleteMedicine(targetId, password);
     setMedicineRecords((prev) => prev.filter((rec) => String(rec.id) !== targetId));
     emitDataMutation('MEDICINE', 'DELETE', { id: targetId });
     fetchMedicineRecords(true);

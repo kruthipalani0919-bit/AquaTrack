@@ -8,6 +8,7 @@ import { Button } from '../../components/Button';
 import { Modal } from '../../components/Modal';
 import { Badge } from '../../components/Badge';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 
 import { usePondLeases } from '../../context/PondLeaseContext';
@@ -23,8 +24,8 @@ export default function PondLeaseManagement() {
   const [editingLease, setEditingLease] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingLease, setDeletingLease] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const [selectedLeaseDetails, setSelectedLeaseDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -131,21 +132,18 @@ export default function PondLeaseManagement() {
     }
   };
 
-  // Delete Handler
-  const handleConfirmDelete = async () => {
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
     if (deletingLease) {
-      setIsDeleting(true);
-      try {
-        await deleteLease(deletingLease.id);
-        setIsDeleteOpen(false);
-        setDeletingLease(null);
-        if (selectedLeaseDetails?.lease?.id === deletingLease.id) {
-          setSelectedLeaseDetails(null);
-        }
-      } catch (err) {
-        console.error('Error deleting lease:', err);
-      } finally {
-        setIsDeleting(false);
+      await deleteLease(deletingLease.id, password);
+      setIsPasswordOpen(false);
+      setDeletingLease(null);
+      if (selectedLeaseDetails?.lease?.id === deletingLease.id) {
+        setSelectedLeaseDetails(null);
       }
     }
   };
@@ -582,24 +580,33 @@ export default function PondLeaseManagement() {
         </form>
       </Modal>
 
-      {/* 6. DELETE CONFIRMATION DIALOG */}
+      {/* 6. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingLease(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Pond Lease"
         message={
           deletingLease
             ? `Are you sure you want to delete the lease record for "${deletingLease.tank?.tankName || 'this tank'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this lease record?'
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Lease'}
+        confirmText="Delete Lease"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 7. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingLease(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

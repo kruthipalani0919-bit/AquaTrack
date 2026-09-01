@@ -202,17 +202,13 @@ export const CropProvider = ({ children }) => {
     return updated;
   };
 
-  const deleteCrop = async (id) => {
+  const deleteCrop = async (id, password) => {
     if (!id) return;
     const targetId = String(id);
     const targetCrop = crops.find((c) => String(c.id) === targetId);
     const tankId = targetCrop?.tankId;
 
-    try {
-      await cropService.deleteCrop(targetId);
-    } catch (apiErr) {
-      console.warn('Backend delete notice (removing local crop state directly):', apiErr.message);
-    }
+    await cropService.deleteCrop(targetId, password);
     setCrops((prev) => prev.filter((crop) => String(crop.id) !== targetId));
     emitDataMutation('CROP', 'DELETE', { cropId: targetId, id: targetId, tankId });
   };

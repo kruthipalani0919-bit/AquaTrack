@@ -122,14 +122,10 @@ export const HarvestProvider = ({ children }) => {
     return normalized;
   };
 
-  const deleteHarvest = async (id) => {
+  const deleteHarvest = async (id, password) => {
     if (!id) return;
     const targetId = String(id);
-    try {
-      await harvestService.deleteHarvest(targetId);
-    } catch (err) {
-      console.warn('Backend harvest delete notice:', err.message);
-    }
+    await harvestService.deleteHarvest(targetId, password);
     setHarvests((prev) => prev.filter((item) => String(item.id) !== targetId));
     emitDataMutation('HARVEST', 'DELETE', { id: targetId });
     fetchHarvests(true);

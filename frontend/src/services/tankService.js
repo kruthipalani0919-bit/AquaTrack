@@ -41,9 +41,12 @@ export const updateTank = async (id, data) => {
   }
 };
 
-export const deleteTank = async (id) => {
+export const deleteTank = async (id, password) => {
   try {
-    const response = await api.delete(`/tanks/${id}`);
+    const response = await api.delete(`/tanks/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete tank #${id}`);

@@ -121,14 +121,10 @@ export const FeedProvider = ({ children }) => {
     return normalized;
   };
 
-  const deleteFeedLog = async (id) => {
+  const deleteFeedLog = async (id, password) => {
     if (!id) return;
     const targetId = String(id);
-    try {
-      await feedService.deleteFeed(targetId);
-    } catch (err) {
-      console.warn('Backend feed delete notice:', err.message);
-    }
+    await feedService.deleteFeed(targetId, password);
     setFeedLogs((prev) => prev.filter((log) => String(log.id) !== targetId));
     emitDataMutation('FEED', 'DELETE', { id: targetId });
     fetchFeedLogs(true);

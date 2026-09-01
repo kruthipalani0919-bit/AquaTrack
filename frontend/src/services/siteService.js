@@ -41,9 +41,12 @@ export const updateSite = async (siteId, data) => {
   }
 };
 
-export const deleteSite = async (siteId) => {
+export const deleteSite = async (siteId, password) => {
   try {
-    const response = await api.delete(`/sites/${siteId}`);
+    const response = await api.delete(`/sites/${siteId}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete site #${siteId}`);

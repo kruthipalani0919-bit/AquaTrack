@@ -19,6 +19,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
 import { Input } from '../../components/Input';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { AddStockForm } from '../../components/AddStockModal';
 
 import { useStocking } from '../../context/StockingContext';
@@ -69,6 +70,7 @@ export default function Stocking() {
   const [editingStock, setEditingStock] = useState(null);
   const [editingStockQuantity, setEditingStockQuantity] = useState('');
   const [deletingStockId, setDeletingStockId] = useState(null);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
 
   // Map Tank ID to Site ID for fast live usage resolution
   const tankSiteMap = useMemo(() => {
@@ -212,14 +214,15 @@ export default function Stocking() {
     }
   };
 
-  const handleConfirmDeleteStock = async () => {
-    if (!deletingStockId) return;
-    setIsDeleting(true);
-    try {
-      await deleteStock(deletingStockId);
+  const handleAcceptDeleteStep1 = () => {
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
+    if (deletingStockId) {
+      await deleteStock(deletingStockId, password);
+      setIsPasswordOpen(false);
       setDeletingStockId(null);
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -480,16 +483,25 @@ export default function Stocking() {
         )}
       </Modal>
 
-      {/* 5. DELETE STOCK CONFIRMATION DIALOG */}
+      {/* 5. DELETE STOCK CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
-        isOpen={Boolean(deletingStockId)}
+        isOpen={Boolean(deletingStockId) && !isPasswordOpen}
         onClose={() => setDeletingStockId(null)}
-        onConfirm={handleConfirmDeleteStock}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Stock Record"
         message="Are you sure you want to delete this stock record from the site?"
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Stock'}
-        confirmVariant="danger"
-        isLoading={isDeleting}
+        confirmText="Delete Stock"
+        type="danger"
+      />
+
+      {/* 6. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingStockId(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

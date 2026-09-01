@@ -94,16 +94,12 @@ export const PondLeaseProvider = ({ children }) => {
     return normalized;
   };
 
-  const deleteLease = async (id) => {
+  const deleteLease = async (id, password) => {
     if (!id) return;
     const targetId = String(id);
-    try {
-      const deleteFn = pondLeaseService.deleteLease || pondLeaseService.deletePondLease;
-      if (deleteFn) {
-        await deleteFn(targetId);
-      }
-    } catch (err) {
-      console.warn('Backend lease delete notice:', err.message);
+    const deleteFn = pondLeaseService.deletePondLease || pondLeaseService.deleteLease;
+    if (deleteFn) {
+      await deleteFn(targetId, password);
     }
     setLeases((prev) => prev.filter((item) => String(item.id) !== targetId));
     emitDataMutation('LEASE', 'DELETE', { id: targetId });

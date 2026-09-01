@@ -19,6 +19,7 @@ import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 import { TankCard } from '../../components/TankCard';
 import { TankForm } from '../../components/TankForm';
@@ -46,8 +47,8 @@ export default function Tanks() {
   const [viewingTank, setViewingTank] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingTank, setDeletingTank] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Tanks List Safely
   const filteredTanks = useMemo(() => {
@@ -133,18 +134,16 @@ export default function Tanks() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
     if (deletingTank) {
-      setIsDeleting(true);
-      try {
-        await deleteTank(deletingTank.id);
-        setIsDeleteOpen(false);
-        setDeletingTank(null);
-      } catch (err) {
-        console.error('Error deleting tank:', err);
-      } finally {
-        setIsDeleting(false);
-      }
+      await deleteTank(deletingTank.id, password);
+      setIsPasswordOpen(false);
+      setDeletingTank(null);
     }
   };
 
@@ -416,24 +415,33 @@ export default function Tanks() {
         );
       })()}
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingTank(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Tank"
         message={
           deletingTank
             ? `Are you sure you want to delete "${deletingTank.name || deletingTank.tankName}"? This action cannot be undone.`
             : 'Are you sure you want to delete this tank?'
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Tank'}
+        confirmText="Delete Tank"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 8. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingTank(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

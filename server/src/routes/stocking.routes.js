@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import auth from "../middleware/auth.middleware.js";
+import verifyPassword from "../middleware/verifyPassword.middleware.js";
 
 import {
     createStockingController,
@@ -61,6 +62,7 @@ router.put(
 router.delete(
     "/:id",
     auth,
+    verifyPassword,
     deleteStockingController
 );
 
@@ -92,6 +94,7 @@ router.put(
 router.delete(
     "/allocation/:id",
     auth,
+    verifyPassword,
     deleteSiteStockAllocationController
 );
 

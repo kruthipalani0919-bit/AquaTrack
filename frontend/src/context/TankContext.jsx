@@ -133,17 +133,13 @@ export const TankProvider = ({ children }) => {
     return normalized;
   };
 
-  const deleteTank = async (id) => {
+  const deleteTank = async (id, password) => {
     if (!id) return;
     const targetId = String(id);
     const targetTank = tanks.find((t) => String(t.id) === targetId);
     const siteId = targetTank?.siteId;
 
-    try {
-      await tankService.deleteTank(targetId);
-    } catch (err) {
-      console.warn('Backend tank delete notice:', err.message);
-    }
+    await tankService.deleteTank(targetId, password);
 
     setTanks((prev) => prev.filter((tank) => String(tank.id) !== targetId));
     emitDataMutation('TANK', 'DELETE', { tankId: targetId, id: targetId, siteId });

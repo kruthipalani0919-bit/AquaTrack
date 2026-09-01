@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import auth from "../middleware/auth.middleware.js";
+import verifyPassword from "../middleware/verifyPassword.middleware.js";
 
 import validate from "../middleware/validate.middleware.js";
 
@@ -54,6 +55,8 @@ router.delete(
     "/:id",
 
     auth,
+
+    verifyPassword,
 
     deleteFarmController
 
