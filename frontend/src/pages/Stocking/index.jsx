@@ -7,7 +7,9 @@ import {
   Boxes,
   AlertCircle,
   Pencil,
-  Trash2
+  Trash2,
+  Calendar,
+  Eye
 } from 'lucide-react';
 
 import { PageHeader } from '../../components/PageHeader';
@@ -69,8 +71,10 @@ export default function Stocking() {
   // Edit/Delete Stock States
   const [editingStock, setEditingStock] = useState(null);
   const [editingStockQuantity, setEditingStockQuantity] = useState('');
+  const [editingStockingDate, setEditingStockingDate] = useState('');
   const [deletingStockId, setDeletingStockId] = useState(null);
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  const [viewingStock, setViewingStock] = useState(null);
 
   // Map Tank ID to Site ID for fast live usage resolution
   const tankSiteMap = useMemo(() => {
@@ -115,12 +119,14 @@ export default function Stocking() {
       let backendFeedUsed = 0;
       let feedUnit = 'kg';
       let feedStockId = null;
+      let feedStockingDate = null;
 
       // Medicine Stock Metrics for this Site
       let medicineAdded = 0;
       let backendMedicineUsed = 0;
       let medicineUnit = 'L';
       let medicineStockId = null;
+      let medicineStockingDate = null;
 
       stockings.forEach((s) => {
         const cat = s.category?.toUpperCase();
@@ -132,11 +138,13 @@ export default function Stocking() {
             backendFeedUsed = Math.max(backendFeedUsed, parseFloat(s.totalUsed) || 0);
             feedUnit = s.unit || 'kg';
             feedStockId = s.id;
+            if (!feedStockingDate) feedStockingDate = s.stockingDate || s.createdAt;
           } else if (cat === 'MEDICINE') {
             medicineAdded += parseFloat(s.totalQuantity) || 0;
             backendMedicineUsed = Math.max(backendMedicineUsed, parseFloat(s.totalUsed) || 0);
             medicineUnit = s.unit || 'L';
             medicineStockId = s.id;
+            if (!medicineStockingDate) medicineStockingDate = s.stockingDate || s.createdAt;
           }
         } else if (Array.isArray(s.siteStock)) {
           const match = s.siteStock.find((ss) => String(ss.site?.id || ss.siteId) === siteIdStr);
@@ -146,11 +154,13 @@ export default function Stocking() {
               backendFeedUsed = Math.max(backendFeedUsed, parseFloat(match.usedQuantity) || 0);
               feedUnit = match.unit || s.unit || 'kg';
               if (!feedStockId) feedStockId = s.id;
+              if (!feedStockingDate) feedStockingDate = s.stockingDate || s.createdAt;
             } else if (cat === 'MEDICINE') {
               medicineAdded += parseFloat(match.allocatedQuantity) || 0;
               backendMedicineUsed = Math.max(backendMedicineUsed, parseFloat(match.usedQuantity) || 0);
               medicineUnit = match.unit || s.unit || 'L';
               if (!medicineStockId) medicineStockId = s.id;
+              if (!medicineStockingDate) medicineStockingDate = s.stockingDate || s.createdAt;
             }
           }
         }
@@ -170,6 +180,8 @@ export default function Stocking() {
           used: feedUsed,
           remaining: feedRemaining,
           unit: feedUnit,
+          stockingDate: feedStockingDate,
+          siteName: site.siteName,
         } : null,
         medicine: medicineAdded > 0 || medicineUsed > 0 ? {
           id: medicineStockId,
@@ -177,6 +189,8 @@ export default function Stocking() {
           used: medicineUsed,
           remaining: medicineRemaining,
           unit: medicineUnit,
+          stockingDate: medicineStockingDate,
+          siteName: site.siteName,
         } : null,
       };
     });
@@ -197,6 +211,11 @@ export default function Stocking() {
   const handleOpenEditStock = (stockItem) => {
     setEditingStock(stockItem);
     setEditingStockQuantity(String(stockItem.added || stockItem.totalQuantity || ''));
+    setEditingStockingDate(
+      stockItem.stockingDate
+        ? new Date(stockItem.stockingDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0]
+    );
   };
 
   const handleUpdateStockSubmit = async (e) => {
@@ -207,6 +226,7 @@ export default function Stocking() {
       await updateStock(editingStock.id, {
         totalQuantity: editingStockQuantity,
         unit: editingStock.unit,
+        stockingDate: editingStockingDate,
       });
       setEditingStock(null);
     } finally {
@@ -309,29 +329,47 @@ export default function Stocking() {
                         {feed ? (
                           <div className="p-3.5 rounded-xl bg-teal-50/40 border border-teal-200/60 space-y-2.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-extrabold text-teal-900 flex items-center gap-1.5 uppercase tracking-wider">
-                                <UtensilsCrossed className="w-3.5 h-3.5 text-teal-600" /> Feed Stock
-                              </span>
-                              {feed.id && (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEditStock({ ...feed, category: 'FEED' })}
-                                    title="Edit Feed Stock"
-                                    className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors cursor-pointer"
-                                  >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeletingStockId(feed.id)}
-                                    title="Delete Feed Stock"
-                                    className="p-1 text-text-secondary hover:text-danger rounded hover:bg-danger-light transition-colors cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-extrabold text-teal-900 flex items-center gap-1.5 uppercase tracking-wider">
+                                  <UtensilsCrossed className="w-3.5 h-3.5 text-teal-600" /> Feed Stock
+                                </span>
+                                {feed.stockingDate && (
+                                  <span className="text-[10px] font-semibold text-teal-800 bg-teal-100/70 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <Calendar className="w-3 h-3 text-teal-600" />
+                                    {new Date(feed.stockingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingStock({ ...feed, category: 'FEED', site })}
+                                  title="View Stock Details"
+                                  className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors cursor-pointer"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                {feed.id && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditStock({ ...feed, category: 'FEED' })}
+                                      title="Edit Feed Stock"
+                                      className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors cursor-pointer"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingStockId(feed.id)}
+                                      title="Delete Feed Stock"
+                                      className="p-1 text-text-secondary hover:text-danger rounded hover:bg-danger-light transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -363,29 +401,47 @@ export default function Stocking() {
                         {medicine ? (
                           <div className="p-3.5 rounded-xl bg-cyan-50/40 border border-cyan-200/60 space-y-2.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-extrabold text-cyan-900 flex items-center gap-1.5 uppercase tracking-wider">
-                                <Stethoscope className="w-3.5 h-3.5 text-cyan-600" /> Medicine Stock
-                              </span>
-                              {medicine.id && (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEditStock({ ...medicine, category: 'MEDICINE' })}
-                                    title="Edit Medicine Stock"
-                                    className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors cursor-pointer"
-                                  >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeletingStockId(medicine.id)}
-                                    title="Delete Medicine Stock"
-                                    className="p-1 text-text-secondary hover:text-danger rounded hover:bg-danger-light transition-colors cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-extrabold text-cyan-900 flex items-center gap-1.5 uppercase tracking-wider">
+                                  <Stethoscope className="w-3.5 h-3.5 text-cyan-600" /> Medicine Stock
+                                </span>
+                                {medicine.stockingDate && (
+                                  <span className="text-[10px] font-semibold text-cyan-800 bg-cyan-100/70 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                    <Calendar className="w-3 h-3 text-cyan-600" />
+                                    {new Date(medicine.stockingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingStock({ ...medicine, category: 'MEDICINE', site })}
+                                  title="View Stock Details"
+                                  className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors cursor-pointer"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                {medicine.id && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditStock({ ...medicine, category: 'MEDICINE' })}
+                                      title="Edit Medicine Stock"
+                                      className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors cursor-pointer"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingStockId(medicine.id)}
+                                      title="Delete Medicine Stock"
+                                      className="p-1 text-text-secondary hover:text-danger rounded hover:bg-danger-light transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -446,11 +502,19 @@ export default function Stocking() {
         isOpen={Boolean(editingStock)}
         onClose={() => setEditingStock(null)}
         title={`Edit ${editingStock?.category === 'FEED' ? 'Feed' : 'Medicine'} Stock`}
-        description="Update total site stock inventory quantity."
+        description="Update total site stock inventory quantity and date."
         size="md"
       >
         {editingStock && (
-          <form onSubmit={handleUpdateStockSubmit} className="space-y-4">
+          <form onSubmit={handleUpdateStockSubmit} className="space-y-4 pt-2">
+            <Input
+              label="Stocking Date *"
+              type="date"
+              required
+              value={editingStockingDate}
+              onChange={(e) => setEditingStockingDate(e.target.value)}
+            />
+
             <Input
               label={`Total Quantity (${editingStock.unit}) *`}
               type="number"
@@ -480,6 +544,73 @@ export default function Stocking() {
               </Button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* 4.5 VIEW STOCK DETAILS MODAL */}
+      <Modal
+        isOpen={Boolean(viewingStock)}
+        onClose={() => setViewingStock(null)}
+        title={`${viewingStock?.category === 'FEED' ? 'Feed' : 'Medicine'} Stock Details`}
+        description={`Inventory details for ${viewingStock?.site?.siteName || viewingStock?.siteName || 'Site'}`}
+        size="md"
+      >
+        {viewingStock && (
+          <div className="space-y-4 pt-2">
+            <div className="p-4 rounded-xl bg-primary-light/30 border border-primary/20 space-y-3 shadow-2xs">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="bg-surface p-3 rounded-lg border border-border/50">
+                  <span className="text-[10px] text-text-secondary uppercase font-semibold block">Site</span>
+                  <span className="text-sm font-bold text-text-primary mt-0.5 block">{viewingStock.site?.siteName || viewingStock.siteName || 'N/A'}</span>
+                </div>
+                <div className="bg-surface p-3 rounded-lg border border-border/50">
+                  <span className="text-[10px] text-text-secondary uppercase font-semibold block">Category</span>
+                  <span className="text-sm font-bold text-text-primary mt-0.5 block">{viewingStock.category}</span>
+                </div>
+                <div className="bg-surface p-3 rounded-lg border border-border/50 col-span-2">
+                  <span className="text-[10px] text-text-secondary uppercase font-semibold block flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-primary" /> Stocking Date
+                  </span>
+                  <span className="text-sm font-bold text-primary mt-0.5 block">
+                    {viewingStock.stockingDate
+                      ? new Date(viewingStock.stockingDate).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                        })
+                      : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="p-3 rounded-xl bg-teal-50 border border-teal-100">
+                <span className="text-[10px] uppercase font-bold text-text-secondary block">Total Added</span>
+                <span className="text-base font-bold text-text-primary mt-0.5 block">
+                  {viewingStock.added || viewingStock.totalQuantity} {viewingStock.unit}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                <span className="text-[10px] uppercase font-bold text-text-secondary block">Quantity Used</span>
+                <span className="text-base font-bold text-amber-700 mt-0.5 block">
+                  {viewingStock.used ?? 0} {viewingStock.unit}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                <span className="text-[10px] uppercase font-bold text-text-secondary block">Remaining</span>
+                <span className="text-base font-bold text-emerald-700 mt-0.5 block">
+                  {viewingStock.remaining ?? viewingStock.added ?? 0} {viewingStock.unit}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setViewingStock(null)}>
+                Close Details
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
 

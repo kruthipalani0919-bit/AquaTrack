@@ -35,6 +35,10 @@ export const createStockingSchema = z.object({
         .positive(
             "Cost per kg must be greater than 0"
         )
+        .optional(),
+
+    stockingDate: z
+        .string()
         .optional()
 
 }).superRefine((data, ctx) => {
