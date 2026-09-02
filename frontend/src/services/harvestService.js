@@ -48,9 +48,12 @@ export const updateHarvest = async (id, data) => {
   }
 };
 
-export const deleteHarvest = async (id) => {
+export const deleteHarvest = async (id, password) => {
   try {
-    const response = await api.delete(`/harvests/${id}`);
+    const response = await api.delete(`/harvests/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete harvest #${id}`);

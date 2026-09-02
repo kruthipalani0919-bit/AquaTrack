@@ -57,9 +57,12 @@ export const updateExpense = async (id, data) => {
   }
 };
 
-export const deleteExpense = async (id) => {
+export const deleteExpense = async (id, password) => {
   try {
-    const response = await api.delete(`/expenses/${id}`);
+    const response = await api.delete(`/expenses/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete expense #${id}`);

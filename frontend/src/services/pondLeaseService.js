@@ -48,9 +48,12 @@ export const updatePondLease = async (id, data) => {
   }
 };
 
-export const deletePondLease = async (id) => {
+export const deletePondLease = async (id, password) => {
   try {
-    const response = await api.delete(`/pond-leases/${id}`);
+    const response = await api.delete(`/pond-leases/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete pond lease #${id}`);

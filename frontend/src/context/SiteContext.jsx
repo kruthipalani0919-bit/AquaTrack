@@ -129,15 +129,11 @@ export const SiteProvider = ({ children }) => {
     return result;
   };
 
-  const deleteSite = async (siteId) => {
+  const deleteSite = async (siteId, password) => {
     if (!siteId) return;
     const targetId = String(siteId);
 
-    try {
-      await siteService.deleteSite(targetId);
-    } catch (err) {
-      console.warn('Backend site delete notice:', err.message);
-    }
+    await siteService.deleteSite(targetId, password);
 
     setSites((prev) => prev.filter((site) => String(site.id) !== targetId));
     setError(null);

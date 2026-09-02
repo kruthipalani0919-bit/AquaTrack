@@ -6,6 +6,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 
 import { CropCard } from '../../components/CropCard';
@@ -36,8 +37,8 @@ export default function CropManagement() {
   const [viewingCrop, setViewingCrop] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingCrop, setDeletingCrop] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter Crops List Safely
   const filteredCrops = useMemo(() => {
@@ -107,18 +108,16 @@ export default function CropManagement() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
     if (deletingCrop) {
-      setIsDeleting(true);
-      try {
-        await deleteCrop(deletingCrop.id);
-        setIsDeleteOpen(false);
-        setDeletingCrop(null);
-      } catch (err) {
-        console.error('Error deleting crop:', err);
-      } finally {
-        setIsDeleting(false);
-      }
+      await deleteCrop(deletingCrop.id, password);
+      setIsPasswordOpen(false);
+      setDeletingCrop(null);
     }
   };
 
@@ -225,24 +224,33 @@ export default function CropManagement() {
         onDelete={handleOpenDelete}
       />
 
-      {/* 6. DELETE CONFIRMATION DIALOG */}
+      {/* 6. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingCrop(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Crop Record"
         message={
           deletingCrop
             ? `Are you sure you want to delete crop record for "Batch ${deletingCrop.batchNumber || deletingCrop.cropName || 'Crop'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this crop record?'
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Crop Record'}
+        confirmText="Delete Crop Record"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 7. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingCrop(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

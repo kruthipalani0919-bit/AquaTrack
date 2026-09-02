@@ -7,6 +7,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 
 import { ExpenseCard } from '../../components/ExpenseCard';
@@ -32,8 +33,8 @@ export default function Expenses() {
   const [viewingExpense, setViewingExpense] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingExpense, setDeletingExpense] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredExpenses = useMemo(() => {
     const list = expenses || [];
@@ -106,18 +107,16 @@ export default function Expenses() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
     if (deletingExpense) {
-      setIsDeleting(true);
-      try {
-        await deleteExpense(deletingExpense.id);
-        setIsDeleteOpen(false);
-        setDeletingExpense(null);
-      } catch (err) {
-        console.error('Error deleting expense:', err);
-      } finally {
-        setIsDeleting(false);
-      }
+      await deleteExpense(deletingExpense.id, password);
+      setIsPasswordOpen(false);
+      setDeletingExpense(null);
     }
   };
 
@@ -262,24 +261,33 @@ export default function Expenses() {
         onDelete={handleOpenDelete}
       />
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingExpense(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Expense Record"
         message={
           deletingExpense
             ? `Are you sure you want to delete the expense record for "${deletingExpense.category || 'Expense'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this expense record?'
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Expense Record'}
+        confirmText="Delete Expense Record"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 8. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingExpense(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

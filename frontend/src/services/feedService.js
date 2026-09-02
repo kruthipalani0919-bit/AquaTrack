@@ -57,9 +57,12 @@ export const updateFeed = async (id, data) => {
   }
 };
 
-export const deleteFeed = async (id) => {
+export const deleteFeed = async (id, password) => {
   try {
-    const response = await api.delete(`/feed/${id}`);
+    const response = await api.delete(`/feed/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete feed log #${id}`);

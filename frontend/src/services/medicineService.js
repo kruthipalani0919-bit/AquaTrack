@@ -48,9 +48,12 @@ export const updateMedicine = async (id, data) => {
   }
 };
 
-export const deleteMedicine = async (id) => {
+export const deleteMedicine = async (id, password) => {
   try {
-    const response = await api.delete(`/medicines/${id}`);
+    const response = await api.delete(`/medicines/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete medicine #${id}`);

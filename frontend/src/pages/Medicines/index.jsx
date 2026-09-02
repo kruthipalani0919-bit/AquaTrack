@@ -10,6 +10,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 
 import { MedicineCard } from '../../components/MedicineCard';
@@ -43,8 +44,8 @@ export default function Medicines() {
   const [viewingRecord, setViewingRecord] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const safeAnalytics = {
     totalTreatments: analytics?.totalTreatments || (medicineRecords || []).length,
@@ -117,18 +118,16 @@ export default function Medicines() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
     if (deletingRecord) {
-      setIsDeleting(true);
-      try {
-        await deleteMedicineRecord(deletingRecord.id);
-        setIsDeleteOpen(false);
-        setDeletingRecord(null);
-      } catch (err) {
-        console.error('Error deleting medicine record:', err);
-      } finally {
-        setIsDeleting(false);
-      }
+      await deleteMedicineRecord(deletingRecord.id, password);
+      setIsPasswordOpen(false);
+      setDeletingRecord(null);
     }
   };
 
@@ -264,24 +263,33 @@ export default function Medicines() {
         onDelete={handleOpenDelete}
       />
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingRecord(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Treatment Record"
         message={
           deletingRecord
             ? `Are you sure you want to delete treatment record for "${deletingRecord.medicineName || 'Treatment'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this treatment record?'
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Treatment Record'}
+        confirmText="Delete Treatment Record"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 8. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingRecord(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

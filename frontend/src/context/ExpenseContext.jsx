@@ -136,14 +136,10 @@ export const ExpenseProvider = ({ children }) => {
     return normalized;
   };
 
-  const deleteExpense = async (id) => {
+  const deleteExpense = async (id, password) => {
     if (!id) return;
     const targetId = String(id);
-    try {
-      await expenseService.deleteExpense(targetId);
-    } catch (err) {
-      console.warn('Backend expense delete notice:', err.message);
-    }
+    await expenseService.deleteExpense(targetId, password);
     setExpenses((prev) => prev.filter((item) => String(item.id) !== targetId));
     emitDataMutation('EXPENSE', 'DELETE', { id: targetId });
   };

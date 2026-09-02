@@ -12,6 +12,7 @@ import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+import { PasswordConfirmationModal } from '../../components/PasswordConfirmationModal';
 import { EmptyState } from '../../components/EmptyState';
 
 import { FeedCard } from '../../components/FeedCard';
@@ -45,8 +46,8 @@ export default function FeedManagement() {
   const [viewingFeedLog, setViewingFeedLog] = useState(null);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [deletingFeedLog, setDeletingFeedLog] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const safeAnalytics = {
     todaysFeedKg: analytics?.todaysFeedKg || 0,
@@ -126,18 +127,16 @@ export default function FeedManagement() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleAcceptDeleteStep1 = () => {
+    setIsDeleteOpen(false);
+    setIsPasswordOpen(true);
+  };
+
+  const handleFinalDeleteWithPassword = async (password) => {
     if (deletingFeedLog) {
-      setIsDeleting(true);
-      try {
-        await deleteFeedLog(deletingFeedLog.id);
-        setIsDeleteOpen(false);
-        setDeletingFeedLog(null);
-      } catch (err) {
-        console.error('Error deleting feed log:', err);
-      } finally {
-        setIsDeleting(false);
-      }
+      await deleteFeedLog(deletingFeedLog.id, password);
+      setIsPasswordOpen(false);
+      setDeletingFeedLog(null);
     }
   };
 
@@ -285,24 +284,33 @@ export default function FeedManagement() {
         onDelete={handleOpenDelete}
       />
 
-      {/* 7. DELETE CONFIRMATION DIALOG */}
+      {/* 7. DELETE CONFIRMATION DIALOG (Step 1) */}
       <ConfirmationDialog
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);
           setDeletingFeedLog(null);
         }}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleAcceptDeleteStep1}
         title="Delete Feed Record"
         message={
           deletingFeedLog
             ? `Are you sure you want to delete feed record for "${deletingFeedLog.feedBrand || 'Feed'}"? This action cannot be undone.`
             : 'Are you sure you want to delete this feed record?'
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete Feed Record'}
+        confirmText="Delete Feed Record"
         cancelText="Cancel"
         type="danger"
-        isLoading={isDeleting}
+      />
+
+      {/* 8. PASSWORD CONFIRMATION MODAL (Step 2) */}
+      <PasswordConfirmationModal
+        isOpen={isPasswordOpen}
+        onClose={() => {
+          setIsPasswordOpen(false);
+          setDeletingFeedLog(null);
+        }}
+        onConfirm={handleFinalDeleteWithPassword}
       />
     </div>
   );

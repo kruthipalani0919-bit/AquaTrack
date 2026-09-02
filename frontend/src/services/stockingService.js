@@ -67,9 +67,12 @@ export const updateStocking = async (id, data) => {
 };
 
 // Delete Farm Stock (DELETE /api/stocking/:id)
-export const deleteStocking = async (id) => {
+export const deleteStocking = async (id, password) => {
   try {
-    const response = await api.delete(`/stocking/${id}`);
+    const response = await api.delete(`/stocking/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || 'Failed to delete farm stock');
@@ -87,9 +90,12 @@ export const updateAllocation = async (allocationId, data) => {
 };
 
 // Delete Site Stock Allocation (DELETE /api/stocking/allocation/:id)
-export const deleteAllocation = async (allocationId) => {
+export const deleteAllocation = async (allocationId, password) => {
   try {
-    const response = await api.delete(`/stocking/allocation/${allocationId}`);
+    const response = await api.delete(`/stocking/allocation/${allocationId}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || 'Failed to delete site stock allocation');

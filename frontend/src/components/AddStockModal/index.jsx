@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Package, ShieldAlert, Scale, MapPin } from 'lucide-react';
+import { Package, ShieldAlert, Scale, MapPin, Calendar } from 'lucide-react';
 
 import { Input } from '../Input';
 import { Select } from '../Select';
@@ -17,6 +17,10 @@ const addStockSchema = z.object({
   category: z.enum(['FEED', 'MEDICINE'], {
     errorMap: () => ({ message: 'Please select a valid Stock Category' }),
   }),
+  stockingDate: z
+    .string()
+    .min(1, 'Please select a Stocking Date')
+    .trim(),
   totalQuantity: z
     .coerce
     .number({ invalid_type_error: 'Total Quantity must be a number' })
@@ -66,6 +70,7 @@ export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
     defaultValues: {
       siteId: sites.length > 0 ? sites[0].id : '',
       category: 'FEED',
+      stockingDate: new Date().toISOString().split('T')[0],
       totalQuantity: '',
       unit: 'kg',
     },
@@ -133,6 +138,17 @@ export const AddStockForm = ({ onSubmit, onCancel, isSubmitting = false }) => {
           disabled={isSubmitting}
           onChange={handleCategoryChange}
           value={selectedCategory}
+        />
+
+        {/* Stocking Date */}
+        <Input
+          label="Stocking Date"
+          type="date"
+          required={true}
+          icon={<Calendar className="w-4 h-4 text-primary" />}
+          error={errors.stockingDate?.message}
+          disabled={isSubmitting}
+          {...register('stockingDate')}
         />
 
         {/* Quantity & Unit Row */}

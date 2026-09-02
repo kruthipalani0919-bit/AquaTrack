@@ -140,10 +140,10 @@ export const StockingProvider = ({ children }) => {
   };
 
   // Delete real stock record in database
-  const deleteStock = async (id) => {
+  const deleteStock = async (id, password) => {
     setError(null);
     try {
-      const res = await stockingService.deleteStocking(id);
+      const res = await stockingService.deleteStocking(id, password);
       await fetchStockings(true);
       emitDataMutation('STOCKING', 'DELETE', { id });
       return res;
@@ -151,7 +151,7 @@ export const StockingProvider = ({ children }) => {
       console.error('[StockingContext] Delete stock error:', err);
       const msg = err.message || 'Failed to delete stock record';
       setError(msg);
-      throw new Error(msg);
+      throw err;
     }
   };
 
@@ -177,10 +177,10 @@ export const StockingProvider = ({ children }) => {
   };
 
   // Delete real site stock allocation in database
-  const deleteAllocation = async (allocationId) => {
+  const deleteAllocation = async (allocationId, password) => {
     setError(null);
     try {
-      const res = await stockingService.deleteAllocation(allocationId);
+      const res = await stockingService.deleteAllocation(allocationId, password);
       await fetchStockings(true);
       emitDataMutation('STOCKING', 'UPDATE', { allocationId });
       return res;
@@ -188,7 +188,7 @@ export const StockingProvider = ({ children }) => {
       console.error('[StockingContext] Delete allocation error:', err);
       const msg = err.message || 'Failed to delete site stock allocation';
       setError(msg);
-      throw new Error(msg);
+      throw err;
     }
   };
 

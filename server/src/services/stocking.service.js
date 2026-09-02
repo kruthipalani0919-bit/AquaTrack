@@ -129,7 +129,9 @@ export const createStocking = async (
                     site.id,
 
                 farmId:
-                    farm.id
+                    farm.id,
+
+                ...(stockingData.stockingDate ? { createdAt: new Date(stockingData.stockingDate) } : {})
 
             },
 
@@ -306,6 +308,8 @@ export const getStockings = async (
 
             createdAt: stocking.createdAt,
 
+            stockingDate: stocking.createdAt,
+
             updatedAt: stocking.updatedAt,
 
             totalAllocated: stocking.siteId ? stocking.totalQuantity : totalAllocated,
@@ -456,7 +460,9 @@ export const updateStocking = async (userId, stockingId, stockingData) => {
 
             unit: stockingData.unit ? stockingData.unit.trim() : stocking.unit,
 
-            ...(stockingData.costPerKg !== undefined ? { costPerKg: stockingData.costPerKg } : {})
+            ...(stockingData.costPerKg !== undefined ? { costPerKg: stockingData.costPerKg } : {}),
+
+            ...(stockingData.stockingDate ? { createdAt: new Date(stockingData.stockingDate) } : {})
 
         },
 

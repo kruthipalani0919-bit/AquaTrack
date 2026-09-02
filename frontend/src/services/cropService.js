@@ -57,9 +57,12 @@ export const completeCrop = async (id) => {
   }
 };
 
-export const deleteCrop = async (id) => {
+export const deleteCrop = async (id, password) => {
   try {
-    const response = await api.delete(`/crops/${id}`);
+    const response = await api.delete(`/crops/${id}`, {
+      data: { password },
+      headers: { 'x-confirm-password': password }
+    });
     return response.data;
   } catch (error) {
     throw new Error(error.message || `Failed to delete crop #${id}`);

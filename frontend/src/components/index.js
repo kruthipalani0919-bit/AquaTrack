@@ -10,6 +10,7 @@ export { EmptyState } from './EmptyState';
 export { Badge } from './Badge';
 export { Modal } from './Modal';
 export { ConfirmationDialog } from './ConfirmationDialog';
+export { PasswordConfirmationModal } from './PasswordConfirmationModal';
 export { Table, DataTable } from './Table';
 export { Navbar } from './Navbar';
 export { Sidebar } from './Sidebar';
